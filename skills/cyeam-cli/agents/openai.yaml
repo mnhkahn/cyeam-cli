@@ -1,0 +1,4 @@
+interface:
+  display_name: "Cyeam CLI"
+  short_description: "Use cyeam.com public CLI capabilities"
+  default_prompt: "Use $cyeam-cli to answer this request with the cyeam command line tool."

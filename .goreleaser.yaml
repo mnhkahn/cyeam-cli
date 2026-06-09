@@ -1,0 +1,49 @@
+version: 2
+
+project_name: cyeam
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - id: cyeam
+    main: ./cmd/cyeam
+    binary: cyeam
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w
+      - -X github.com/mnhkahn/cyeam-cli/internal/version.Version={{ .Version }}
+      - -X github.com/mnhkahn/cyeam-cli/internal/version.Commit={{ .Commit }}
+      - -X github.com/mnhkahn/cyeam-cli/internal/version.BuildDate={{ .Date }}
+
+archives:
+  - id: cyeam
+    builds:
+      - cyeam
+    name_template: "cyeam_{{ title .Os }}_{{ if eq .Arch \"amd64\" }}x86_64{{ else }}{{ .Arch }}{{ end }}"
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+checksum:
+  name_template: checksums.txt
+
+snapshot:
+  version_template: "{{ incpatch .Version }}-next"
+
+changelog:
+  sort: asc
+  filters:
+    exclude:
+      - "^docs:"
+      - "^test:"
