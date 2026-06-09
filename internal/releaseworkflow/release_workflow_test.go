@@ -18,7 +18,12 @@ func TestReleaseWorkflowPublishesReleaseAndNotifiesFeishu(t *testing.T) {
 	assertContains(t, text, "contents: write")
 	assertContains(t, text, "goreleaser/goreleaser-action")
 	assertContains(t, text, "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}")
+	assertContains(t, text, "FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}")
 	assertContains(t, text, "FEISHU_WEBHOOK_URL")
+	assertContains(t, text, "if: success() && env.FEISHU_WEBHOOK_URL != ''")
+	assertContains(t, text, "if: failure() && env.FEISHU_WEBHOOK_URL != ''")
+	assertNotContains(t, text, "if: success() && secrets.FEISHU_WEBHOOK_URL != ''")
+	assertNotContains(t, text, "if: failure() && secrets.FEISHU_WEBHOOK_URL != ''")
 	assertContains(t, text, "Release succeeded")
 	assertContains(t, text, "Release failed")
 }
@@ -45,5 +50,12 @@ func assertContains(t *testing.T, text string, want string) {
 	t.Helper()
 	if !strings.Contains(text, want) {
 		t.Fatalf("expected %q in:\n%s", want, text)
+	}
+}
+
+func assertNotContains(t *testing.T, text string, want string) {
+	t.Helper()
+	if strings.Contains(text, want) {
+		t.Fatalf("did not expect %q in:\n%s", want, text)
 	}
 }

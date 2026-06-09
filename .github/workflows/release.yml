@@ -12,6 +12,8 @@ jobs:
   release:
     name: Build and publish release
     runs-on: ubuntu-latest
+    env:
+      FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
 
     steps:
       - name: Checkout
@@ -38,9 +40,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Notify Feishu release success
-        if: success() && secrets.FEISHU_WEBHOOK_URL != ''
-        env:
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        if: success() && env.FEISHU_WEBHOOK_URL != ''
         run: |
           curl -fsS -X POST "$FEISHU_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
@@ -55,9 +55,7 @@ jobs:
           )"
 
       - name: Notify Feishu release failure
-        if: failure() && secrets.FEISHU_WEBHOOK_URL != ''
-        env:
-          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+        if: failure() && env.FEISHU_WEBHOOK_URL != ''
         run: |
           curl -fsS -X POST "$FEISHU_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
