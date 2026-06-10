@@ -39,6 +39,7 @@ jobs:
         with:
           tag_name: skill-${{ github.run_number }}
           name: "Skill: ${{ env.SKILL_NAME }}"
+          prerelease: true
           body: |
             ## Installation
             
