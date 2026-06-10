@@ -1,0 +1,39 @@
+# Binaries
+cyeam
+cyeam.exe
+*.exe
+
+# Archives
+*.zip
+*.tar.gz
+*.tgz
+*.gz
+
+# Build artifacts
+dist/
+build/
+out/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Test
+*.test
+*.out
+coverage/
+
+# Dependencies
+vendor/
+node_modules/
+
+# Logs
+*.log
