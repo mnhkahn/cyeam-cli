@@ -10,17 +10,17 @@ cyeam 命令行工具，提供架构咨询、日期查询、路书分享、书�
 
 ```bash
 # macOS (Apple Silicon)
-curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Darwin_arm64.tar.gz | tar xz
+curl -L https://github.com/mnhkahn/cyeam-cli/releases/download/v0.1.0/cyeam_Darwin_arm64.tar.gz | tar xz
 chmod +x cyeam
 sudo mv cyeam /usr/local/bin/
 
 # macOS (Intel)
-curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Darwin_x86_64.tar.gz | tar xz
+curl -L https://github.com/mnhkahn/cyeam-cli/releases/download/v0.1.0/cyeam_Darwin_x86_64.tar.gz | tar xz
 chmod +x cyeam
 sudo mv cyeam /usr/local/bin/
 
 # Linux (amd64)
-curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Linux_x86_64.tar.gz | tar xz
+curl -L https://github.com/mnhkahn/cyeam-cli/releases/download/v0.1.0/cyeam_Linux_x86_64.tar.gz | tar xz
 chmod +x cyeam
 sudo mv cyeam /usr/local/bin/
 
