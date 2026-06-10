@@ -1,4 +1,4 @@
-name: Publish Skill to All Marketplaces
+name: Publish Skill
 
 on:
   push:
@@ -6,22 +6,18 @@ on:
       - main
     paths:
       - "skills/cyeam-cli/**"
-  schedule:
-    - cron: "0 */6 * * *"  # 每 6 小时运行一次
   workflow_dispatch:
 
 env:
   SKILL_NAME: cyeam-cli
   SKILL_DIR: skills/cyeam-cli
-  REPO_OWNER: ${{ github.repository_owner }}
 
 jobs:
   publish:
-    name: Publish to all platforms
+    name: Build and Release
     runs-on: ubuntu-latest
     permissions:
       contents: write
-      pull-requests: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -38,38 +34,50 @@ jobs:
           cd skills
           zip -r ../${{ env.SKILL_NAME }}-skill.zip ${{ env.SKILL_NAME }}/
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: skill-package-${{ github.run_number }}
-          path: ${{ env.SKILL_NAME }}-skill.zip
+          tag_name: skill-${{ github.run_number }}
+          name: "Skill: ${{ env.SKILL_NAME }}"
+          body: |
+            ## Installation
+            
+            ```bash
+            # Via skills.sh (after PR merged)
+            npx skills add ${{ github.repository_owner }}/${{ env.SKILL_NAME }}
+            
+            # Manual installation
+            curl -L https://github.com/${{ github.repository }}/releases/download/skill-${{ github.run_number }}/${{ env.SKILL_NAME }}-skill.zip | unzip -d ~/.claude/skills/
+            ```
+            
+            ## Submit to Marketplaces
+            
+            ### skills.sh
+            1. Fork https://github.com/vercel-labs/skills
+            2. Add manifest.json to `skills/${{ github.repository_owner }}/${{ env.SKILL_NAME }}/`
+            3. Create PR
+            
+            ### ClaudeSkills.info
+            1. Fork https://github.com/anthropics/skills
+            2. Copy skill files to `skills/${{ env.SKILL_NAME }}/`
+            3. Create PR
+            
+            ### Agensi
+            1. Go to https://agensi.io/creator
+            2. Upload the zip file attached to this release
+          files: ${{ env.SKILL_NAME }}-skill.zip
 
-  submit-skills-sh:
-    name: Submit to skills.sh
-    needs: publish
+  create-pr-files:
+    name: Prepare PR files
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout skills registry
+      - name: Checkout
         uses: actions/checkout@v4
-        with:
-          repository: vercel-labs/skills
-          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Check if skill already exists
-        id: check
+      - name: Create skills.sh manifest
         run: |
-          if grep -q "${{ env.REPO_OWNER }}/${{ env.SKILL_NAME }}" skills/*/manifest.json 2>/dev/null; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Add skill to registry
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          mkdir -p skills/${{ env.REPO_OWNER }}/${{ env.SKILL_NAME }}
-          
-          cat > skills/${{ env.REPO_OWNER }}/${{ env.SKILL_NAME }}/manifest.json << 'EOF'
+          mkdir -p pr-files/skills-sh
+          cat > pr-files/skills-sh/manifest.json << 'EOF'
           {
             "name": "${{ env.SKILL_NAME }}",
             "description": "Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date slogan or holiday lookup, Mo calligraphy/OCR, roadbook sharing, CLI version checks, or CLI self-update.",
@@ -79,137 +87,46 @@ jobs:
           }
           EOF
 
-      - name: Create Pull Request
-        if: steps.check.outputs.exists == 'false'
-        uses: peter-evans/create-pull-request@v6
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "feat: add ${{ env.SKILL_NAME }} skill"
-          title: "Add ${{ env.SKILL_NAME }} skill"
-          body: |
-            ## ${{ env.SKILL_NAME }}
-            
-            Adds the ${{ env.SKILL_NAME }} skill to the registry.
-            
-            ### What it does
-            Provides CLI access to cyeam.com capabilities:
-            - Architecture consultation (ask)
-            - Date slogans and holidays
-            - Mo calligraphy OCR and glyph composition
-            - Roadbook sharing
-            
-            ### Installation
-            ```bash
-            npx skills add ${{ env.REPO_OWNER }}/${{ env.SKILL_NAME }}
-            ```
-            
-            ### Platforms
-            - ✅ skills.sh (this PR)
-            - ✅ SkillsMP (auto-indexed)
-            - ⏳ Agensi (manual upload)
-          branch: add-${{ env.SKILL_NAME }}-${{ github.run_number }}
-          base: main
-
-  submit-claudeskills:
-    name: Submit to ClaudeSkills.info
-    needs: publish
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout claude-code
-        uses: actions/checkout@v4
-        with:
-          repository: anthropics/skills
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Check if skill exists
-        id: check
+      - name: Create ClaudeSkills files
         run: |
-          if [ -d "skills/${{ env.SKILL_NAME }}" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-          else
-            echo "exists=false" >> $GITHUB_OUTPUT
-          fi
+          mkdir -p pr-files/claudeskills
+          cp -r ${{ env.SKILL_DIR }}/* pr-files/claudeskills/
 
-      - name: Add skill
-        if: steps.check.outputs.exists == 'false'
-        run: |
-          mkdir -p skills/${{ env.SKILL_NAME }}
-          cp -r ${{ github.workspace }}/${{ env.SKILL_DIR }}/* skills/${{ env.SKILL_NAME }}/
-
-      - name: Create Pull Request
-        if: steps.check.outputs.exists == 'false'
-        uses: peter-evans/create-pull-request@v6
+      - name: Upload PR files
+        uses: actions/upload-artifact@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "feat: add ${{ env.SKILL_NAME }}"
-          title: "Add ${{ env.SKILL_NAME }} skill"
-          body: |
-            Adds the ${{ env.SKILL_NAME }} skill.
-            
-            ### Features
-            - Architecture consultation
-            - Date utilities
-            - Mo calligraphy processing
-            - Roadbook sharing
-            
-            ### Installation
-            ```bash
-            npx skills add ${{ env.REPO_OWNER }}/${{ env.SKILL_NAME }}
-            ```
-          branch: add-${{ env.SKILL_NAME }}-${{ github.run_number }}
-          base: main
-
-  create-release:
-    name: Create GitHub Release
-    needs: publish
-    runs-on: ubuntu-latest
-    steps:
-      - name: Download artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: skill-package-${{ github.run_number }}
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          tag_name: skill-${{ github.run_number }}
-          name: "Skill: ${{ env.SKILL_NAME }} v${{ github.run_number }}"
-          body: |
-            ## Installation
-            
-            ```bash
-            # Via skills.sh (recommended)
-            npx skills add ${{ env.REPO_OWNER }}/${{ env.SKILL_NAME }}
-            
-            # Manual installation
-            curl -L https://github.com/${{ github.repository }}/releases/download/skill-${{ github.run_number }}/${{ env.SKILL_NAME }}-skill.zip | unzip -d ~/.claude/skills/
-            ```
-            
-            ## Supported Platforms
-            - ✅ **skills.sh** - Auto-discovered, one-click install
-            - ✅ **SkillsMP** - Auto-indexed from GitHub
-            - ✅ **ClaudeSkills.info** - Submitted via PR
-            - ⏳ **Agensi** - Manual upload required (see zip attached)
-          files: ${{ env.SKILL_NAME }}-skill.zip
+          name: pr-files-${{ github.run_number }}
+          path: pr-files/
 
   notify:
-    name: Send notification
-    needs: [submit-skills-sh, submit-claudeskills, create-release]
+    name: Summary
+    needs: [publish, create-pr-files]
     runs-on: ubuntu-latest
     steps:
-      - name: Summary
+      - name: Print instructions
         run: |
           echo "========================================="
-          echo "Skill Publishing Complete"
+          echo "Skill Published Successfully!"
           echo "========================================="
           echo ""
-          echo "Platforms:"
-          echo "✅ SkillsMP - Auto-indexed"
-          echo "✅ skills.sh - PR submitted"
-          echo "✅ ClaudeSkills.info - PR submitted"
-          echo "✅ GitHub Release - Created"
+          echo "Next steps:"
           echo ""
-          echo "Manual action required:"
-          echo "⏳ Agensi - Upload ${{ env.SKILL_NAME }}-skill.zip"
-          echo "   https://agensi.io/creator"
+          echo "1. skills.sh (PR files ready)"
+          echo "   - Fork https://github.com/vercel-labs/skills"
+          echo "   - Download 'pr-files-${{ github.run_number }}' artifact"
+          echo "   - Add manifest.json to skills/${{ github.repository_owner }}/${{ env.SKILL_NAME }}/"
+          echo "   - Create PR"
+          echo ""
+          echo "2. ClaudeSkills.info"
+          echo "   - Fork https://github.com/anthropics/skills"
+          echo "   - Download 'pr-files-${{ github.run_number }}' artifact"
+          echo "   - Copy files to skills/${{ env.SKILL_NAME }}/"
+          echo "   - Create PR"
+          echo ""
+          echo "3. Agensi"
+          echo "   - Go to https://agensi.io/creator"
+          echo "   - Upload the zip from GitHub Release"
+          echo ""
+          echo "4. SkillsMP"
+          echo "   - Already auto-indexed from GitHub!"
           echo "========================================="
