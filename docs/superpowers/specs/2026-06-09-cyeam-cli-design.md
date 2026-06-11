@@ -108,7 +108,6 @@ Initial install path:
 
 - Users manually download the asset for their OS/architecture from GitHub Releases.
 - The release page should include shell snippets for macOS/Linux installation and a Windows zip instruction.
-- Optional later: add Homebrew tap support, but GitHub Releases remains the source of truth.
 
 Self-update path:
 
