@@ -82,6 +82,11 @@ func (c *Client) ListFolder(ctx context.Context, folderPath string) ([]Item, err
 	return cr.Value, nil
 }
 
+func (c *Client) ReadFileByID(ctx context.Context, itemID string) ([]byte, error) {
+	p := graphBase + "/me/drive/items/" + url.PathEscape(itemID) + "/content"
+	return c.doGet(ctx, p)
+}
+
 func (c *Client) ReadFile(ctx context.Context, folderPath, filename string) ([]byte, error) {
 	p := graphBase + "/me/drive/root:/" + esc(folderPath, filename) + ":/content"
 	return c.doGet(ctx, p)

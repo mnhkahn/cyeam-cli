@@ -55,12 +55,6 @@ cyeam ask search "微服务"
 ### 日期查询
 
 ```bash
-# 获取今日标语
-cyeam date slogan
-
-# 获取指定日期标语
-cyeam date slogan 2024-01-01
-
 # 获取今日节日
 cyeam date holiday
 

@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -17,8 +18,8 @@ type fakeService struct {
 	architectureQuery string
 	architectureMode  string
 	searchQuery       string
-	dateSloganDate    string
 	dateHolidayDate   string
+	dateHolidayBody   string
 	roadbookShareBody string
 	roadbookGetID     string
 	moGuwenText       string
@@ -52,14 +53,12 @@ func (f *fakeService) Search(ctx context.Context, query string) ([]byte, error) 
 	return []byte(`{"docs":[]}`), nil
 }
 
-func (f *fakeService) DateSlogan(ctx context.Context, date string) ([]byte, error) {
-	f.dateSloganDate = date
-	return []byte(`{"date":"` + date + `","slogan":"keep going"}`), nil
-}
-
 func (f *fakeService) DateHoliday(ctx context.Context, date string) ([]byte, error) {
 	f.dateHolidayDate = date
-	return []byte(`{"date":"` + date + `","is_holiday":false}`), nil
+	if f.dateHolidayBody != "" {
+		return []byte(f.dateHolidayBody), nil
+	}
+	return []byte(`{"date":"` + date + `","is_holiday":false,"type":0,"week":2}`), nil
 }
 
 func (f *fakeService) RoadbookShare(ctx context.Context, body []byte) ([]byte, error) {
@@ -174,20 +173,20 @@ func TestUpdateDelegatesToUpdater(t *testing.T) {
 	}
 }
 
-func TestDateSloganUsesExplicitDate(t *testing.T) {
+func TestDateSloganCommandIsRemoved(t *testing.T) {
 	service := &fakeService{}
 	stdout := new(bytes.Buffer)
 	cmd := NewRootCommand(Dependencies{Service: service, Stdout: stdout})
 	cmd.SetArgs([]string{"date", "slogan", "2026-06-09"})
 
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute date slogan: %v", err)
+	if err := cmd.Execute(); err == nil {
+		t.Fatal("expected date slogan to be unsupported")
 	}
 
-	if service.dateSloganDate != "2026-06-09" {
-		t.Fatalf("date = %q", service.dateSloganDate)
+	if service.dateHolidayDate != "" {
+		t.Fatalf("holiday service should not be called, got %q", service.dateHolidayDate)
 	}
-	if stdout.String() != "{\"date\":\"2026-06-09\",\"slogan\":\"keep going\"}\n" {
+	if stdout.String() != "" {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
@@ -210,6 +209,46 @@ func TestDateHolidayDefaultsToToday(t *testing.T) {
 
 	if service.dateHolidayDate != "2026-06-09" {
 		t.Fatalf("date = %q", service.dateHolidayDate)
+	}
+	want := "日期: 2026-06-09\n星期: 周二\n状态: 工作日\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestDateHolidayFormatsHoliday(t *testing.T) {
+	service := &fakeService{
+		dateHolidayBody: `{"date":"2026-06-19","is_holiday":true,"name":"端午节","type":2,"week":5,"wage":3}`,
+	}
+	stdout := new(bytes.Buffer)
+	cmd := NewRootCommand(Dependencies{Service: service, Stdout: stdout})
+	cmd.SetArgs([]string{"date", "holiday", "2026-06-19"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute date holiday: %v", err)
+	}
+
+	want := "日期: 2026-06-19\n星期: 周五\n状态: 休息日\n名称: 端午节\n薪资倍数: 3\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestDateHolidayFormatsAdjustedWorkday(t *testing.T) {
+	service := &fakeService{
+		dateHolidayBody: `{"date":"2026-05-09","is_holiday":false,"name":"劳动节后补班","type":3,"week":6,"target":"劳动节"}`,
+	}
+	stdout := new(bytes.Buffer)
+	cmd := NewRootCommand(Dependencies{Service: service, Stdout: stdout})
+	cmd.SetArgs([]string{"date", "holiday", "2026-05-09"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute date holiday: %v", err)
+	}
+
+	want := "日期: 2026-05-09\n星期: 周六\n状态: 调休补班\n名称: 劳动节后补班\n目标假期: 劳动节\n"
+	if stdout.String() != want {
+		t.Fatalf("stdout = %q", stdout.String())
 	}
 }
 
@@ -262,6 +301,41 @@ func TestRoadbookGetUsesID(t *testing.T) {
 	}
 	if stdout.String() != "{\"data\":\"[]\"}\n" {
 		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestRenderRoadbookListTableUsesHyperlinkLabel(t *testing.T) {
+	stdout := new(bytes.Buffer)
+	rows := []roadbookListRow{{
+		Name:     "p_abc123",
+		Title:    "成都三日游",
+		Modified: "2026-06-10",
+	}}
+
+	if err := renderRoadbookListTable(stdout, rows); err != nil {
+		t.Fatalf("render table: %v", err)
+	}
+
+	got := stdout.String()
+	url := "https://www.cyeam.com/tool/roadbook?id=p_abc123"
+	link := "\033]8;;" + url + "\033\\链接\033]8;;\033\\"
+	if !strings.HasPrefix(got, "+") {
+		t.Fatalf("stdout does not start with table border:\n%s", got)
+	}
+	for _, part := range []string{"+", "-", "| 标题", "| 修改时间", "| 链接"} {
+		if !strings.Contains(got, part) {
+			t.Fatalf("stdout missing table part %q:\n%s", part, got)
+		}
+	}
+	if !strings.Contains(got, link) {
+		t.Fatalf("stdout missing hyperlink label %q:\n%s", link, got)
+	}
+	visible := strings.ReplaceAll(got, link, "链接")
+	if strings.Contains(visible, url) {
+		t.Fatalf("stdout shows raw url outside hyperlink label:\n%s", got)
+	}
+	if !strings.Contains(visible, "标题") || !strings.Contains(visible, "修改时间") || !strings.Contains(visible, "链接") {
+		t.Fatalf("stdout missing table headers:\n%s", got)
 	}
 }
 

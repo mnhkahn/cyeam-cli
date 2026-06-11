@@ -1,6 +1,6 @@
 ---
 name: cyeam-cli
-description: Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date slogan or holiday lookup, Mo calligraphy/OCR, roadbook sharing, CLI version checks, or CLI self-update.
+description: Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date holiday lookup, Mo calligraphy/OCR, roadbook sharing, CLI version checks, or CLI self-update.
 ---
 
 # Cyeam CLI
@@ -28,8 +28,6 @@ cyeam ask "How should this system do rate limiting?" --mode think
 cyeam ask "How should this system do rate limiting?" --mode expert
 cyeam ask search "golang optimization"
 
-cyeam date slogan
-cyeam date slogan 2026-06-09
 cyeam date holiday
 cyeam date holiday 2026-06-09
 

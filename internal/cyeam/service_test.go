@@ -2,6 +2,7 @@ package cyeam
 
 import (
 	"context"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -17,10 +18,8 @@ func TestServiceMapsAskSearchDateAndRoadbook(t *testing.T) {
 		switch r.URL.Path {
 		case "/search/api":
 			_, _ = w.Write([]byte(`{"docs":[]}`))
-		case "/api/date/slogan":
-			_, _ = w.Write([]byte(`{"slogan":"ok"}`))
-		case "/api/date/holiday":
-			_, _ = w.Write([]byte(`{"is_holiday":false}`))
+		case "/api/holiday/year/2026":
+			_, _ = w.Write([]byte(`{"code":0,"holiday":{},"type":{}}`))
 		case "/api/roadbook/share":
 			body, _ := io.ReadAll(r.Body)
 			if string(body) != `[{"name":"A"}]` {
@@ -36,12 +35,10 @@ func TestServiceMapsAskSearchDateAndRoadbook(t *testing.T) {
 	defer server.Close()
 
 	svc := NewService(client.New(server.URL, server.Client()), server.URL)
+	svc.holidayClient = client.New(server.URL, server.Client())
 
 	if _, err := svc.Search(context.Background(), "golang 优化"); err != nil {
 		t.Fatalf("Search: %v", err)
-	}
-	if _, err := svc.DateSlogan(context.Background(), "2026-06-09"); err != nil {
-		t.Fatalf("DateSlogan: %v", err)
 	}
 	if _, err := svc.DateHoliday(context.Background(), "2026-06-09"); err != nil {
 		t.Fatalf("DateHoliday: %v", err)
@@ -59,8 +56,7 @@ func TestServiceMapsAskSearchDateAndRoadbook(t *testing.T) {
 
 	want := []string{
 		"/search/api?q=golang+%E4%BC%98%E5%8C%96",
-		"/api/date/slogan?date=2026-06-09",
-		"/api/date/holiday?date=2026-06-09",
+		"/api/holiday/year/2026?type=Y&weekday=Y",
 		"/api/roadbook/share",
 		"/api/roadbook/get?id=abc123",
 	}
@@ -71,6 +67,136 @@ func TestServiceMapsAskSearchDateAndRoadbook(t *testing.T) {
 		if paths[i] != want[i] {
 			t.Fatalf("path %d = %q, want %q", i, paths[i], want[i])
 		}
+	}
+}
+
+func TestDateHolidayUsesTimorYearEndpoint(t *testing.T) {
+	var gotPath string
+	var gotUserAgent string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotPath = r.URL.String()
+		gotUserAgent = r.UserAgent()
+		_, _ = w.Write([]byte(`{
+			"code":0,
+			"holiday":{
+				"06-19":{"holiday":true,"name":"端午节","wage":3,"date":"2026-06-19","rest":8}
+			},
+			"type":{
+				"2026-06-19":{"type":2,"name":"端午节","week":5}
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	svc := NewService(client.New("https://www.cyeam.com", server.Client()), "https://www.cyeam.com")
+	svc.holidayClient = client.New(server.URL, server.Client())
+	body, err := svc.DateHoliday(context.Background(), "2026-06-19")
+	if err != nil {
+		t.Fatalf("DateHoliday: %v", err)
+	}
+
+	var got struct {
+		Date      string `json:"date"`
+		IsHoliday bool   `json:"is_holiday"`
+		Name      string `json:"name"`
+		Type      int    `json:"type"`
+		Week      int    `json:"week"`
+		Wage      int    `json:"wage"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if gotPath != "/api/holiday/year/2026?type=Y&weekday=Y" {
+		t.Fatalf("path = %q", gotPath)
+	}
+	if gotUserAgent == "" || gotUserAgent == "Go-http-client/1.1" {
+		t.Fatalf("user agent = %q", gotUserAgent)
+	}
+	if got.Date != "2026-06-19" || !got.IsHoliday || got.Name != "端午节" || got.Type != 2 || got.Week != 5 || got.Wage != 3 {
+		t.Fatalf("holiday = %+v", got)
+	}
+}
+
+func TestDateHolidayHandlesAdjustedWorkday(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{
+			"code":0,
+			"holiday":{
+				"05-09":{"holiday":false,"name":"劳动节后补班","wage":1,"after":true,"target":"劳动节","date":"2026-05-09","rest":3}
+			},
+			"type":{
+				"2026-05-09":{"type":3,"name":"劳动节后补班","week":6}
+			}
+		}`))
+	}))
+	defer server.Close()
+
+	svc := NewService(client.New("https://www.cyeam.com", server.Client()), "https://www.cyeam.com")
+	svc.holidayClient = client.New(server.URL, server.Client())
+	body, err := svc.DateHoliday(context.Background(), "2026-05-09")
+	if err != nil {
+		t.Fatalf("DateHoliday: %v", err)
+	}
+
+	var got struct {
+		Date      string `json:"date"`
+		IsHoliday bool   `json:"is_holiday"`
+		Name      string `json:"name"`
+		Type      int    `json:"type"`
+		Week      int    `json:"week"`
+		After     *bool  `json:"after"`
+		Target    string `json:"target"`
+	}
+	if err := json.Unmarshal(body, &got); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if got.Date != "2026-05-09" || got.IsHoliday || got.Name != "劳动节后补班" || got.Type != 3 || got.Week != 6 || got.After == nil || !*got.After || got.Target != "劳动节" {
+		t.Fatalf("holiday = %+v", got)
+	}
+}
+
+func TestDateHolidayHandlesRegularWeekdayAndWeekend(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"code":0,"holiday":{},"type":{}}`))
+	}))
+	defer server.Close()
+
+	svc := NewService(client.New("https://www.cyeam.com", server.Client()), "https://www.cyeam.com")
+	svc.holidayClient = client.New(server.URL, server.Client())
+
+	weekdayBody, err := svc.DateHoliday(context.Background(), "2026-06-09")
+	if err != nil {
+		t.Fatalf("DateHoliday weekday: %v", err)
+	}
+	var weekday struct {
+		Date      string `json:"date"`
+		IsHoliday bool   `json:"is_holiday"`
+		Type      int    `json:"type"`
+		Week      int    `json:"week"`
+	}
+	if err := json.Unmarshal(weekdayBody, &weekday); err != nil {
+		t.Fatalf("unmarshal weekday: %v", err)
+	}
+	if weekday.Date != "2026-06-09" || weekday.IsHoliday || weekday.Type != 0 || weekday.Week != 2 {
+		t.Fatalf("weekday = %+v", weekday)
+	}
+
+	weekendBody, err := svc.DateHoliday(context.Background(), "2026-06-14")
+	if err != nil {
+		t.Fatalf("DateHoliday weekend: %v", err)
+	}
+	var weekend struct {
+		Date      string `json:"date"`
+		IsHoliday bool   `json:"is_holiday"`
+		Name      string `json:"name"`
+		Type      int    `json:"type"`
+		Week      int    `json:"week"`
+	}
+	if err := json.Unmarshal(weekendBody, &weekend); err != nil {
+		t.Fatalf("unmarshal weekend: %v", err)
+	}
+	if weekend.Date != "2026-06-14" || !weekend.IsHoliday || weekend.Name != "周日" || weekend.Type != 1 || weekend.Week != 7 {
+		t.Fatalf("weekend = %+v", weekend)
 	}
 }
 

@@ -1,8 +1,10 @@
 package client
 
 import (
+	"bufio"
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -17,6 +19,8 @@ type Client struct {
 	baseURL    string
 	httpClient *http.Client
 }
+
+const defaultUserAgent = "cyeam-cli/1.0"
 
 func New(baseURL string, httpClient *http.Client) *Client {
 	if httpClient == nil {
@@ -50,6 +54,7 @@ func (c *Client) StreamGET(ctx context.Context, path string, params map[string]s
 	if err != nil {
 		return err
 	}
+	applyDefaultHeaders(req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return err
@@ -57,6 +62,9 @@ func (c *Client) StreamGET(ctx context.Context, path string, params map[string]s
 	defer resp.Body.Close()
 	if err := checkStatus(resp); err != nil {
 		return err
+	}
+	if isEventStream(resp.Header.Get("Content-Type")) {
+		return streamSSEContent(resp.Body, out)
 	}
 	_, err = io.Copy(out, resp.Body)
 	return err
@@ -93,6 +101,7 @@ func (c *Client) UploadFile(ctx context.Context, path string, field string, file
 }
 
 func (c *Client) doBytes(req *http.Request) ([]byte, error) {
+	applyDefaultHeaders(req)
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
@@ -116,6 +125,12 @@ func (c *Client) url(path string, params map[string]string) string {
 	return u + "?" + values.Encode()
 }
 
+func applyDefaultHeaders(req *http.Request) {
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", defaultUserAgent)
+	}
+}
+
 func checkStatus(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
@@ -126,4 +141,61 @@ func checkStatus(resp *http.Response) error {
 		return fmt.Errorf("http %d %s", resp.StatusCode, resp.Status)
 	}
 	return fmt.Errorf("http %d %s: %s", resp.StatusCode, resp.Status, excerpt)
+}
+
+func isEventStream(contentType string) bool {
+	return strings.Contains(strings.ToLower(contentType), "text/event-stream")
+}
+
+func streamSSEContent(r io.Reader, out io.Writer) error {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 1024), 1024*1024)
+
+	var data []string
+	for scanner.Scan() {
+		line := scanner.Text()
+		if line == "" {
+			if err := writeSSEData(out, data); err != nil {
+				return err
+			}
+			data = nil
+			continue
+		}
+		if strings.HasPrefix(line, ":") {
+			continue
+		}
+		if strings.HasPrefix(line, "data:") {
+			value := strings.TrimPrefix(line, "data:")
+			if strings.HasPrefix(value, " ") {
+				value = value[1:]
+			}
+			data = append(data, value)
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	return writeSSEData(out, data)
+}
+
+func writeSSEData(out io.Writer, data []string) error {
+	if len(data) == 0 {
+		return nil
+	}
+	payload := strings.Join(data, "\n")
+	if payload == "[DONE]" {
+		return nil
+	}
+	var event struct {
+		Content string `json:"content"`
+		Done    bool   `json:"done"`
+	}
+	if err := json.Unmarshal([]byte(payload), &event); err != nil {
+		return fmt.Errorf("parse SSE data: %w", err)
+	}
+	if event.Done || event.Content == "" {
+		return nil
+	}
+	_, err := io.WriteString(out, event.Content)
+	return err
 }

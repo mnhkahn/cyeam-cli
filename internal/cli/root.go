@@ -21,7 +21,6 @@ import (
 type Service interface {
 	AskArchitecture(ctx context.Context, query string, mode string, out io.Writer) error
 	Search(ctx context.Context, query string) ([]byte, error)
-	DateSlogan(ctx context.Context, date string) ([]byte, error)
 	DateHoliday(ctx context.Context, date string) ([]byte, error)
 	RoadbookShare(ctx context.Context, body []byte) ([]byte, error)
 	RoadbookGet(ctx context.Context, id string) ([]byte, error)
@@ -149,16 +148,21 @@ func newDateCommand(deps Dependencies) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "date",
 		Short: "Date utilities",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				return fmt.Errorf("unknown date command %q", args[0])
+			}
+			return cmd.Help()
+		},
 	}
-	cmd.AddCommand(newDateLeafCommand(deps, "slogan"))
-	cmd.AddCommand(newDateLeafCommand(deps, "holiday"))
+	cmd.AddCommand(newDateHolidayCommand(deps))
 	return cmd
 }
 
-func newDateLeafCommand(deps Dependencies, kind string) *cobra.Command {
+func newDateHolidayCommand(deps Dependencies) *cobra.Command {
 	return &cobra.Command{
-		Use:   kind + " [YYYY-MM-DD]",
-		Short: "Get date " + kind,
+		Use:   "holiday [YYYY-MM-DD]",
+		Short: "Get date holiday",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if deps.Service == nil {
@@ -171,20 +175,79 @@ func newDateLeafCommand(deps Dependencies, kind string) *cobra.Command {
 				}
 				date = args[0]
 			}
-			var (
-				body []byte
-				err  error
-			)
-			if kind == "slogan" {
-				body, err = deps.Service.DateSlogan(cmd.Context(), date)
-			} else {
-				body, err = deps.Service.DateHoliday(cmd.Context(), date)
-			}
+			body, err := deps.Service.DateHoliday(cmd.Context(), date)
 			if err != nil {
 				return err
 			}
-			return output.WriteJSON(deps.Stdout, body)
+			return writeDateHoliday(deps.Stdout, body)
 		},
+	}
+}
+
+type dateHolidayView struct {
+	Date      string `json:"date"`
+	IsHoliday bool   `json:"is_holiday"`
+	Name      string `json:"name"`
+	Type      int    `json:"type"`
+	Week      int    `json:"week"`
+	Wage      int    `json:"wage"`
+	Target    string `json:"target"`
+}
+
+func writeDateHoliday(out io.Writer, body []byte) error {
+	var h dateHolidayView
+	if err := json.Unmarshal(body, &h); err != nil {
+		return err
+	}
+	lines := []string{
+		"日期: " + h.Date,
+		"星期: " + dateWeekName(h.Week),
+		"状态: " + dateHolidayStatus(h),
+	}
+	if h.Name != "" && h.Type != 1 {
+		lines = append(lines, "名称: "+h.Name)
+	}
+	if h.Wage > 1 {
+		lines = append(lines, fmt.Sprintf("薪资倍数: %d", h.Wage))
+	}
+	if h.Target != "" {
+		lines = append(lines, "目标假期: "+h.Target)
+	}
+	_, err := io.WriteString(out, strings.Join(lines, "\n")+"\n")
+	return err
+}
+
+func dateHolidayStatus(h dateHolidayView) string {
+	switch {
+	case h.Type == 3:
+		return "调休补班"
+	case h.Type == 1:
+		return "周末休息"
+	case h.Type == 2 || h.IsHoliday:
+		return "休息日"
+	default:
+		return "工作日"
+	}
+}
+
+func dateWeekName(week int) string {
+	switch week {
+	case 1:
+		return "周一"
+	case 2:
+		return "周二"
+	case 3:
+		return "周三"
+	case 4:
+		return "周四"
+	case 5:
+		return "周五"
+	case 6:
+		return "周六"
+	case 7:
+		return "周日"
+	default:
+		return fmt.Sprintf("%d", week)
 	}
 }
 
@@ -235,16 +298,15 @@ func newRoadbookListCommand(deps Dependencies) *cobra.Command {
 				_, err := deps.Stdout.Write([]byte("No roadbooks found.\n"))
 				return err
 			}
-			type roadbookMeta struct {
-				Name    string
-				Title   string
-				Modified string
-			}
-			var results []roadbookMeta
+			var results []roadbookListRow
 			for _, item := range items {
 				title := ""
-				content, err := oc.ReadFile(cmd.Context(), "路书", item.Name)
+				content, err := oc.ReadFileByID(cmd.Context(), item.ID)
 				if err == nil {
+					var raw string
+					if json.Unmarshal(content, &raw) == nil {
+						content = []byte(raw)
+					}
 					var payload struct {
 						Title string `json:"title"`
 					}
@@ -253,26 +315,162 @@ func newRoadbookListCommand(deps Dependencies) *cobra.Command {
 					}
 				}
 				name := strings.TrimSuffix(item.Name, ".json")
-				results = append(results, roadbookMeta{
+				results = append(results, roadbookListRow{
 					Name:     name,
 					Title:    title,
 					Modified: item.LastModifiedDateTime[:10],
 				})
 			}
-			fmt.Fprintf(deps.Stdout, "%-40s %-30s %s\n", "文件名", "标题", "修改时间")
-			for _, r := range results {
-				title := r.Title
-				if title == "" {
-					title = "-"
-				}
-				if len([]rune(title)) > 28 {
-					title = string([]rune(title)[:25]) + "..."
-				}
-				fmt.Fprintf(deps.Stdout, "%-40s %-30s %s\n", r.Name, title, r.Modified)
-			}
-			return nil
+
+			return renderRoadbookListTable(deps.Stdout, results)
 		},
 	}
+}
+
+type roadbookListRow struct {
+	Name     string
+	Title    string
+	Modified string
+}
+
+func renderRoadbookListTable(out io.Writer, rows []roadbookListRow) error {
+	table := [][]tableCell{{
+		{text: "标题", visible: "标题"},
+		{text: "修改时间", visible: "修改时间"},
+		{text: "链接", visible: "链接"},
+	}}
+	for _, row := range rows {
+		title := row.Title
+		if title == "" {
+			title = "-"
+		}
+		link := terminalHyperlink(roadbookURL(row.Name), "链接")
+		table = append(table, []tableCell{
+			{text: truncateDisplayWidth(title, 32), visible: truncateDisplayWidth(title, 32)},
+			{text: row.Modified, visible: row.Modified},
+			{text: link, visible: "链接"},
+		})
+	}
+
+	widths := tableWidths(table)
+	if _, err := fmt.Fprintln(out, tableBorder(widths)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(out, tableRow(table[0], widths)); err != nil {
+		return err
+	}
+	if _, err := fmt.Fprintln(out, tableBorder(widths)); err != nil {
+		return err
+	}
+	for _, row := range table[1:] {
+		if _, err := fmt.Fprintln(out, tableRow(row, widths)); err != nil {
+			return err
+		}
+	}
+	_, err := fmt.Fprintln(out, tableBorder(widths))
+	return err
+}
+
+func roadbookURL(id string) string {
+	return "https://www.cyeam.com/tool/roadbook?id=" + id
+}
+
+func terminalHyperlink(url string, label string) string {
+	return "\033]8;;" + url + "\033\\" + label + "\033]8;;\033\\"
+}
+
+type tableCell struct {
+	text    string
+	visible string
+}
+
+func tableWidths(rows [][]tableCell) []int {
+	if len(rows) == 0 {
+		return nil
+	}
+	widths := make([]int, len(rows[0]))
+	for _, row := range rows {
+		for i, cell := range row {
+			widths[i] = max(widths[i], displayWidth(cell.visible))
+		}
+	}
+	return widths
+}
+
+func tableBorder(widths []int) string {
+	var b strings.Builder
+	for _, width := range widths {
+		b.WriteByte('+')
+		b.WriteString(strings.Repeat("-", width+2))
+	}
+	b.WriteString("+")
+	return b.String()
+}
+
+func tableRow(row []tableCell, widths []int) string {
+	var b strings.Builder
+	for i, cell := range row {
+		b.WriteString("| ")
+		b.WriteString(cell.text)
+		b.WriteString(strings.Repeat(" ", widths[i]-displayWidth(cell.visible)))
+		b.WriteByte(' ')
+	}
+	b.WriteString("|")
+	return b.String()
+}
+
+func truncateDisplayWidth(s string, maxWidth int) string {
+	if displayWidth(s) <= maxWidth {
+		return s
+	}
+	if maxWidth <= 3 {
+		return takeDisplayWidth(s, maxWidth)
+	}
+	return takeDisplayWidth(s, maxWidth-3) + "..."
+}
+
+func takeDisplayWidth(s string, maxWidth int) string {
+	var b strings.Builder
+	width := 0
+	for _, r := range s {
+		next := runeWidth(r)
+		if width+next > maxWidth {
+			break
+		}
+		b.WriteRune(r)
+		width += next
+	}
+	return b.String()
+}
+
+func displayWidth(s string) int {
+	width := 0
+	for _, r := range s {
+		width += runeWidth(r)
+	}
+	return width
+}
+
+func runeWidth(r rune) int {
+	if r == 0 || r < 32 || (r >= 0x7f && r < 0xa0) {
+		return 0
+	}
+	if isWideRune(r) {
+		return 2
+	}
+	return 1
+}
+
+func isWideRune(r rune) bool {
+	return r >= 0x1100 && (r <= 0x115f ||
+		r == 0x2329 || r == 0x232a ||
+		(r >= 0x2e80 && r <= 0xa4cf && r != 0x303f) ||
+		(r >= 0xac00 && r <= 0xd7a3) ||
+		(r >= 0xf900 && r <= 0xfaff) ||
+		(r >= 0xfe10 && r <= 0xfe19) ||
+		(r >= 0xfe30 && r <= 0xfe6f) ||
+		(r >= 0xff00 && r <= 0xff60) ||
+		(r >= 0xffe0 && r <= 0xffe6))
 }
 
 func newRoadbookGetCommand(deps Dependencies) *cobra.Command {
