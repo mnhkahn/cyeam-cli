@@ -37,3 +37,7 @@ node_modules/
 
 # Logs
 *.log
+
+# PID files
+*.pid
+server-info

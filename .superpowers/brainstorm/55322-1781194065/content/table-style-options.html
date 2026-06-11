@@ -1,0 +1,45 @@
+<h2>终端表格样式方向</h2>
+<p class="subtitle">截图里的样式不是 Markdown 表格，而是终端富文本表格：边框、表头颜色、等宽字符对齐。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">A. 当前风格：ASCII 边框</div>
+    <div class="mockup-body">
+      <pre style="background:#080808;color:#ddd;padding:18px;border-radius:6px;line-height:1.8;font-size:15px;overflow:auto">+--------------+------------+------+
+| 标题         | 修改时间   | 链接 |
++--------------+------------+------+
+| 成都三日游   | 2026-06-10 | 链接 |
++--------------+------------+------+</pre>
+      <p>兼容性最好，当前 roadbook list 已经接近这个实现；cnote list 还需要接入同一套渲染。</p>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">B. 截图风格：Unicode + 表头颜色</div>
+    <div class="mockup-body">
+      <pre style="background:#050505;color:#e8e8e8;padding:18px;border-radius:6px;line-height:1.8;font-size:15px;overflow:auto;border:1px solid #555"><span style="color:#a879ff;font-weight:700">┌──────────────┬────────────┬──────┐
+│ 标题         │ 修改时间   │ 链接 │
+├──────────────┼────────────┼──────┤</span>
+│ 成都三日游   │ 2026-06-10 │ 链接 │
+└──────────────┴────────────┴──────┘</pre>
+      <p>视觉更接近截图。需要处理 ANSI 颜色宽度、中文宽字符、超链接控制码，适合把 roadbook 和 cnote 共用一个表格渲染器。</p>
+    </div>
+  </div>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="unicode" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>推荐：Unicode 边框 + 紫色表头</h3>
+      <p>最接近截图，同时保持 CLI 输出可复制、可测试。非 TTY 或不支持颜色时降级为无色。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="ascii" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>保守：沿用 ASCII 边框</h3>
+      <p>最稳，但不太像截图。主要工作是让 cnote list 也复用 roadbook 的表格输出。</p>
+    </div>
+  </div>
+</div>
