@@ -1,6 +1,6 @@
 # cyeam-cli
 
-cyeam 命令行工具，提供架构咨询、日期查询、路书分享、书法字形处理等功能。
+cyeam 命令行工具，提供架构咨询、日期查询、路书分享、OneDrive 云笔记、书法字形处理等功能。
 
 ## 安装
 
@@ -36,6 +36,19 @@ cyeam update
 
 ## 使用
 
+### 账号
+
+```bash
+# 登录 Microsoft 账号，用于 OneDrive 路书和云笔记
+cyeam login
+
+# 查看当前登录状态
+cyeam whoami
+
+# 退出登录
+cyeam logout
+```
+
 ### 架构咨询
 
 ```bash
@@ -65,6 +78,9 @@ cyeam date holiday 2024-01-01
 ### 路书分享
 
 ```bash
+# 列出 OneDrive 路书
+cyeam roadbook list
+
 # 分享路书
 cyeam roadbook share route.json
 
@@ -90,6 +106,19 @@ cyeam mo char compose "永" --out yong.png
 
 # OCR 行书图片
 cyeam mo ocr calligraphy.png
+```
+
+### CNote 云笔记
+
+```bash
+# 列出 OneDrive Notes 目录下的笔记
+cyeam cnote list
+
+# 新建笔记，内容从 stdin 读取
+cyeam cnote new "日记" < note.html
+
+# 追加笔记内容
+cyeam cnote append "日记" < more.html
 ```
 
 ### 其他

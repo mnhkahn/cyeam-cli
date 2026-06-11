@@ -31,7 +31,6 @@ cyeam ask "How should this system do rate limiting?"
 cyeam ask "How should this system do rate limiting?" --mode fast|think|expert
 cyeam ask search "golang optimization"
 
-cyeam date slogan [YYYY-MM-DD]
 cyeam date holiday [YYYY-MM-DD]
 
 cyeam mo guwen "兰亭序"
@@ -39,7 +38,7 @@ cyeam mo guwen "兰亭序" --ai-compose
 cyeam mo char detail "之"
 cyeam mo char composition "曦"
 cyeam mo char compose "曦" --out char.png
-cyeam mo ocr image.png --out result.json
+cyeam mo ocr image.png
 
 cyeam roadbook share roadbook.json
 cyeam roadbook get <id>
@@ -49,7 +48,6 @@ cyeam roadbook get <id>
 
 - `ask`: `GET /ai/architecture?q=...&mode=...`, streamed to stdout
 - `ask search`: `GET /search/api?q=...`
-- `date slogan`: new `GET /api/date/slogan?date=YYYY-MM-DD`
 - `date holiday`: new `GET /api/date/holiday?date=YYYY-MM-DD`
 - `mo guwen`: `GET /mo/api/guwen?text=...&font=行书`, with `compose=1` for `--ai-compose`
 - `mo char detail`: `GET /mo/api/char/detail?char=...&font=行书`
@@ -70,7 +68,7 @@ cyeam roadbook get <id>
 
 ## Scope Exclusions
 
-Do not support admin, login, cache, jobrunner, upload, glyph sync, push management, conversion tools, translation, search suggestions, QR code, barcode, roadbook CSV token flow, or Mo AI glyph save/write-db APIs.
+Do not support admin, cache, jobrunner, upload, glyph sync, push management, conversion tools, translation, search suggestions, QR code, barcode, roadbook CSV token flow, or Mo AI glyph save/write-db APIs.
 
 ## Output
 

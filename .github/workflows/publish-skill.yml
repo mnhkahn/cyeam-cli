@@ -81,7 +81,7 @@ jobs:
           cat > pr-files/skills-sh/manifest.json << 'EOF'
           {
             "name": "${{ env.SKILL_NAME }}",
-            "description": "Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date slogan or holiday lookup, Mo calligraphy/OCR, roadbook sharing, CLI version checks, or CLI self-update.",
+            "description": "Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date holiday lookup, Mo calligraphy/OCR, roadbook sharing, OneDrive-backed roadbook/note workflows, Microsoft login, CLI version checks, or CLI self-update.",
             "repository": "https://github.com/${{ github.repository }}",
             "path": "skills/cyeam-cli",
             "agents": ["claude-code", "cursor", "codex", "gemini-cli", "windsurf"]
