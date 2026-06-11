@@ -1,12 +1,17 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
+	"strings"
 	"time"
 
+	"github.com/mnhkahn/cyeam-cli/internal/auth"
+	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
 	"github.com/mnhkahn/cyeam-cli/internal/update"
 	"github.com/mnhkahn/cyeam-cli/internal/version"
@@ -61,6 +66,10 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newDateCommand(deps))
 	root.AddCommand(newMoCommand(deps))
 	root.AddCommand(newRoadbookCommand(deps))
+	root.AddCommand(newLoginCommand(deps))
+	root.AddCommand(newLogoutCommand(deps))
+	root.AddCommand(newWhoamiCommand(deps))
+	root.AddCommand(newCnoteCommand(deps))
 	return root
 }
 
@@ -184,6 +193,7 @@ func newRoadbookCommand(deps Dependencies) *cobra.Command {
 		Use:   "roadbook",
 		Short: "Roadbook sharing",
 	}
+	cmd.AddCommand(newRoadbookListCommand(deps))
 	cmd.AddCommand(&cobra.Command{
 		Use:   "share <roadbook.json>",
 		Short: "Share a roadbook JSON file",
@@ -206,22 +216,78 @@ func newRoadbookCommand(deps Dependencies) *cobra.Command {
 			return output.WriteJSON(deps.Stdout, resp)
 		},
 	})
-	cmd.AddCommand(&cobra.Command{
+	cmd.AddCommand(newRoadbookGetCommand(deps))
+	return cmd
+}
+
+func newRoadbookListCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List roadbooks from OneDrive",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			oc := onedrive.NewClient(auth.GetAccessToken)
+			items, err := oc.ListFolder(cmd.Context(), "路书")
+			if err != nil {
+				return err
+			}
+			if len(items) == 0 {
+				_, err := deps.Stdout.Write([]byte("No roadbooks found.\n"))
+				return err
+			}
+			type roadbookMeta struct {
+				Name    string
+				Title   string
+				Modified string
+			}
+			var results []roadbookMeta
+			for _, item := range items {
+				title := ""
+				content, err := oc.ReadFile(cmd.Context(), "路书", item.Name)
+				if err == nil {
+					var payload struct {
+						Title string `json:"title"`
+					}
+					if json.Unmarshal(content, &payload) == nil && payload.Title != "" {
+						title = payload.Title
+					}
+				}
+				name := strings.TrimSuffix(item.Name, ".json")
+				results = append(results, roadbookMeta{
+					Name:     name,
+					Title:    title,
+					Modified: item.LastModifiedDateTime[:10],
+				})
+			}
+			fmt.Fprintf(deps.Stdout, "%-40s %-30s %s\n", "文件名", "标题", "修改时间")
+			for _, r := range results {
+				title := r.Title
+				if title == "" {
+					title = "-"
+				}
+				if len([]rune(title)) > 28 {
+					title = string([]rune(title)[:25]) + "..."
+				}
+				fmt.Fprintf(deps.Stdout, "%-40s %-30s %s\n", r.Name, title, r.Modified)
+			}
+			return nil
+		},
+	}
+}
+
+func newRoadbookGetCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
 		Use:   "get <id>",
 		Short: "Get a shared roadbook",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if deps.Service == nil {
-				return fmt.Errorf("service is required")
-			}
 			resp, err := deps.Service.RoadbookGet(cmd.Context(), args[0])
 			if err != nil {
 				return err
 			}
 			return output.WriteJSON(deps.Stdout, resp)
 		},
-	})
-	return cmd
+	}
 }
 
 func newMoCommand(deps Dependencies) *cobra.Command {
@@ -337,6 +403,156 @@ func newMoOCRCommand(deps Dependencies) *cobra.Command {
 				return err
 			}
 			return output.WriteJSON(deps.Stdout, resp)
+		},
+	}
+}
+
+func newLoginCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
+		Use:   "login",
+		Short: "Sign in with Microsoft account",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return auth.Login(cmd.Context(), deps.Stdout)
+		},
+	}
+}
+
+func newLogoutCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
+		Use:   "logout",
+		Short: "Sign out and clear stored credentials",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := auth.Logout(); err != nil {
+				return err
+			}
+			_, err := deps.Stdout.Write([]byte("Logged out.\n"))
+			return err
+		},
+	}
+}
+
+func newWhoamiCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
+		Use:   "whoami",
+		Short: "Show current login status and user info",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			token, err := auth.LoadToken()
+			if err != nil {
+				_, err := deps.Stdout.Write([]byte("Not logged in. Run `cyeam login` first.\n"))
+				return err
+			}
+			expiry := time.Unix(token.Expiry, 0)
+			if time.Now().After(expiry) {
+				fmt.Fprintf(deps.Stdout, "Status: logged in (token expired %s)\n", expiry.Format("2006-01-02 15:04:05"))
+			} else {
+				fmt.Fprintf(deps.Stdout, "Status: logged in (token valid until %s)\n", expiry.Format("2006-01-02 15:04:05"))
+			}
+			oc := onedrive.NewClient(auth.GetAccessToken)
+			user, err := oc.GetUserInfo(cmd.Context())
+			if err != nil {
+				fmt.Fprintf(deps.Stdout, "User info: unavailable (%v)\n", err)
+				return nil
+			}
+			if user.DisplayName != "" {
+				fmt.Fprintf(deps.Stdout, "Name: %s\n", user.DisplayName)
+			}
+			if user.Mail != "" {
+				fmt.Fprintf(deps.Stdout, "Email: %s\n", user.Mail)
+			}
+			if user.UserPrincipalName != "" {
+				fmt.Fprintf(deps.Stdout, "Account: %s\n", user.UserPrincipalName)
+			}
+			return nil
+		},
+	}
+}
+
+func newCnoteCommand(deps Dependencies) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "cnote",
+		Short: "CNote - cloud notes on OneDrive",
+	}
+	cmd.AddCommand(newCnoteListCommand(deps))
+	cmd.AddCommand(newCnoteNewCommand(deps))
+	cmd.AddCommand(newCnoteAppendCommand(deps))
+	return cmd
+}
+
+func newCnoteListCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
+		Use:   "list",
+		Short: "List notes from OneDrive",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			oc := onedrive.NewClient(auth.GetAccessToken)
+			items, err := oc.ListFolder(cmd.Context(), "Notes")
+			if err != nil {
+				return err
+			}
+			if len(items) == 0 {
+				_, err := deps.Stdout.Write([]byte("No notes found.\n"))
+				return err
+			}
+			fmt.Fprintf(deps.Stdout, "%-30s %s\n", "文件名", "修改时间")
+			for _, item := range items {
+				name := strings.TrimSuffix(item.Name, ".html")
+				fmt.Fprintf(deps.Stdout, "%-30s %s\n", name, item.LastModifiedDateTime[:10])
+			}
+			return nil
+		},
+	}
+}
+
+func newCnoteNewCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
+		Use:   "new <title>",
+		Short: "Create a new note (content from stdin)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			title := args[0]
+			content, err := io.ReadAll(cmd.InOrStdin())
+			if err != nil {
+				return fmt.Errorf("read stdin: %w", err)
+			}
+			if len(bytes.TrimSpace(content)) == 0 {
+				return fmt.Errorf("no content provided (stdin is empty)")
+			}
+
+			filename := title + ".html"
+			oc := onedrive.NewClient(auth.GetAccessToken)
+			return oc.WriteFile(cmd.Context(), "Notes", filename, "text/html", content)
+		},
+	}
+}
+
+func newCnoteAppendCommand(deps Dependencies) *cobra.Command {
+	return &cobra.Command{
+		Use:   "append <title>",
+		Short: "Append content to an existing note (content from stdin)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			title := args[0]
+			filename := title + ".html"
+
+			oc := onedrive.NewClient(auth.GetAccessToken)
+			existing, err := oc.ReadFile(cmd.Context(), "Notes", filename)
+			if err != nil {
+				return fmt.Errorf("read note: %w", err)
+			}
+
+			appendContent, err := io.ReadAll(cmd.InOrStdin())
+			if err != nil {
+				return fmt.Errorf("read stdin: %w", err)
+			}
+			if len(bytes.TrimSpace(appendContent)) == 0 {
+				return fmt.Errorf("no content provided (stdin is empty)")
+			}
+
+			combined := append(existing, appendContent...)
+			return oc.WriteFile(cmd.Context(), "Notes", filename, "text/html", combined)
 		},
 	}
 }
