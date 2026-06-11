@@ -319,13 +319,8 @@ func TestRenderRoadbookListTableUsesHyperlinkLabel(t *testing.T) {
 	got := stdout.String()
 	url := "https://www.cyeam.com/tool/roadbook?id=p_abc123"
 	link := "\033]8;;" + url + "\033\\链接\033]8;;\033\\"
-	if !strings.HasPrefix(got, "+") {
+	if !strings.HasPrefix(got, "┌") {
 		t.Fatalf("stdout does not start with table border:\n%s", got)
-	}
-	for _, part := range []string{"+", "-", "| 标题", "| 修改时间", "| 链接"} {
-		if !strings.Contains(got, part) {
-			t.Fatalf("stdout missing table part %q:\n%s", part, got)
-		}
 	}
 	if !strings.Contains(got, link) {
 		t.Fatalf("stdout missing hyperlink label %q:\n%s", link, got)
@@ -334,8 +329,32 @@ func TestRenderRoadbookListTableUsesHyperlinkLabel(t *testing.T) {
 	if strings.Contains(visible, url) {
 		t.Fatalf("stdout shows raw url outside hyperlink label:\n%s", got)
 	}
-	if !strings.Contains(visible, "标题") || !strings.Contains(visible, "修改时间") || !strings.Contains(visible, "链接") {
-		t.Fatalf("stdout missing table headers:\n%s", got)
+	for _, part := range []string{"┌", "─", "│", "├", "┼", "└", "\033[35m标题\033[0m", "\033[35m修改时间\033[0m", "\033[35m链接\033[0m"} {
+		if !strings.Contains(visible, part) {
+			t.Fatalf("stdout missing table part %q:\n%s", part, got)
+		}
+	}
+	if strings.Contains(visible, "+") || strings.Contains(visible, "|") {
+		t.Fatalf("stdout still uses ASCII borders:\n%s", got)
+	}
+}
+
+func TestRenderCnoteListTableUsesSharedTableStyle(t *testing.T) {
+	stdout := new(bytes.Buffer)
+	rows := []cnoteListRow{{
+		Name:     "日记",
+		Modified: "2026-06-12",
+	}}
+
+	if err := renderCnoteListTable(stdout, rows); err != nil {
+		t.Fatalf("render cnote table: %v", err)
+	}
+
+	got := stdout.String()
+	for _, want := range []string{"┌", "├", "└", "│", "\033[35m文件名\033[0m", "\033[35m修改时间\033[0m", "日记", "2026-06-12"} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stdout missing %q:\n%s", want, got)
+		}
 	}
 }
 

@@ -334,143 +334,33 @@ type roadbookListRow struct {
 }
 
 func renderRoadbookListTable(out io.Writer, rows []roadbookListRow) error {
-	table := [][]tableCell{{
-		{text: "标题", visible: "标题"},
-		{text: "修改时间", visible: "修改时间"},
-		{text: "链接", visible: "链接"},
-	}}
+	t := cliTable{
+		Headers: []tableCell{
+			{text: "标题", visible: "标题"},
+			{text: "修改时间", visible: "修改时间"},
+			{text: "链接", visible: "链接"},
+		},
+		Color: true,
+	}
 	for _, row := range rows {
 		title := row.Title
 		if title == "" {
 			title = "-"
 		}
+		title = truncateDisplayWidth(title, 32)
 		link := terminalHyperlink(roadbookURL(row.Name), "链接")
-		table = append(table, []tableCell{
-			{text: truncateDisplayWidth(title, 32), visible: truncateDisplayWidth(title, 32)},
+		t.Rows = append(t.Rows, []tableCell{
+			{text: title, visible: title},
 			{text: row.Modified, visible: row.Modified},
 			{text: link, visible: "链接"},
 		})
 	}
 
-	widths := tableWidths(table)
-	if _, err := fmt.Fprintln(out, tableBorder(widths)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, tableRow(table[0], widths)); err != nil {
-		return err
-	}
-	if _, err := fmt.Fprintln(out, tableBorder(widths)); err != nil {
-		return err
-	}
-	for _, row := range table[1:] {
-		if _, err := fmt.Fprintln(out, tableRow(row, widths)); err != nil {
-			return err
-		}
-	}
-	_, err := fmt.Fprintln(out, tableBorder(widths))
-	return err
+	return renderTable(out, t)
 }
 
 func roadbookURL(id string) string {
 	return "https://www.cyeam.com/tool/roadbook?id=" + id
-}
-
-func terminalHyperlink(url string, label string) string {
-	return "\033]8;;" + url + "\033\\" + label + "\033]8;;\033\\"
-}
-
-type tableCell struct {
-	text    string
-	visible string
-}
-
-func tableWidths(rows [][]tableCell) []int {
-	if len(rows) == 0 {
-		return nil
-	}
-	widths := make([]int, len(rows[0]))
-	for _, row := range rows {
-		for i, cell := range row {
-			widths[i] = max(widths[i], displayWidth(cell.visible))
-		}
-	}
-	return widths
-}
-
-func tableBorder(widths []int) string {
-	var b strings.Builder
-	for _, width := range widths {
-		b.WriteByte('+')
-		b.WriteString(strings.Repeat("-", width+2))
-	}
-	b.WriteString("+")
-	return b.String()
-}
-
-func tableRow(row []tableCell, widths []int) string {
-	var b strings.Builder
-	for i, cell := range row {
-		b.WriteString("| ")
-		b.WriteString(cell.text)
-		b.WriteString(strings.Repeat(" ", widths[i]-displayWidth(cell.visible)))
-		b.WriteByte(' ')
-	}
-	b.WriteString("|")
-	return b.String()
-}
-
-func truncateDisplayWidth(s string, maxWidth int) string {
-	if displayWidth(s) <= maxWidth {
-		return s
-	}
-	if maxWidth <= 3 {
-		return takeDisplayWidth(s, maxWidth)
-	}
-	return takeDisplayWidth(s, maxWidth-3) + "..."
-}
-
-func takeDisplayWidth(s string, maxWidth int) string {
-	var b strings.Builder
-	width := 0
-	for _, r := range s {
-		next := runeWidth(r)
-		if width+next > maxWidth {
-			break
-		}
-		b.WriteRune(r)
-		width += next
-	}
-	return b.String()
-}
-
-func displayWidth(s string) int {
-	width := 0
-	for _, r := range s {
-		width += runeWidth(r)
-	}
-	return width
-}
-
-func runeWidth(r rune) int {
-	if r == 0 || r < 32 || (r >= 0x7f && r < 0xa0) {
-		return 0
-	}
-	if isWideRune(r) {
-		return 2
-	}
-	return 1
-}
-
-func isWideRune(r rune) bool {
-	return r >= 0x1100 && (r <= 0x115f ||
-		r == 0x2329 || r == 0x232a ||
-		(r >= 0x2e80 && r <= 0xa4cf && r != 0x303f) ||
-		(r >= 0xac00 && r <= 0xd7a3) ||
-		(r >= 0xf900 && r <= 0xfaff) ||
-		(r >= 0xfe10 && r <= 0xfe19) ||
-		(r >= 0xfe30 && r <= 0xfe6f) ||
-		(r >= 0xff00 && r <= 0xff60) ||
-		(r >= 0xffe0 && r <= 0xffe6))
 }
 
 func newRoadbookGetCommand(deps Dependencies) *cobra.Command {
@@ -694,14 +584,39 @@ func newCnoteListCommand(deps Dependencies) *cobra.Command {
 				_, err := deps.Stdout.Write([]byte("No notes found.\n"))
 				return err
 			}
-			fmt.Fprintf(deps.Stdout, "%-30s %s\n", "文件名", "修改时间")
+			var rows []cnoteListRow
 			for _, item := range items {
-				name := strings.TrimSuffix(item.Name, ".html")
-				fmt.Fprintf(deps.Stdout, "%-30s %s\n", name, item.LastModifiedDateTime[:10])
+				rows = append(rows, cnoteListRow{
+					Name:     strings.TrimSuffix(item.Name, ".html"),
+					Modified: item.LastModifiedDateTime[:10],
+				})
 			}
-			return nil
+			return renderCnoteListTable(deps.Stdout, rows)
 		},
 	}
+}
+
+type cnoteListRow struct {
+	Name     string
+	Modified string
+}
+
+func renderCnoteListTable(out io.Writer, rows []cnoteListRow) error {
+	t := cliTable{
+		Headers: []tableCell{
+			{text: "文件名", visible: "文件名"},
+			{text: "修改时间", visible: "修改时间"},
+		},
+		Color: true,
+	}
+	for _, row := range rows {
+		name := truncateDisplayWidth(row.Name, 32)
+		t.Rows = append(t.Rows, []tableCell{
+			{text: name, visible: name},
+			{text: row.Modified, visible: row.Modified},
+		})
+	}
+	return renderTable(out, t)
 }
 
 func newCnoteNewCommand(deps Dependencies) *cobra.Command {
