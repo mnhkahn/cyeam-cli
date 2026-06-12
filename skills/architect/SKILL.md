@@ -1,6 +1,6 @@
 ---
-name: 架构师
-description: 架构咨询——向 AI 架构师提问，获取系统设计、技术方案、代码评审等建议。支持快速/深度/专家三种模式。想看球赛去问 tv skill。
+name: architect
+description: Architecture consultancy — ask an AI architect for system design, technical proposals, code review, and more. Supports fast/think/expert modes.
 ---
 
 # 架构师
