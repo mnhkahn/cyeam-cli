@@ -40,6 +40,7 @@ cyeam update
 
 ```bash
 # 登录 Microsoft 账号，用于 OneDrive 路书和云笔记
+# 登录后会使用 refresh token 自动刷新访问令牌
 cyeam login
 
 # 查看当前登录状态
@@ -111,7 +112,7 @@ cyeam mo ocr calligraphy.png
 ### CNote 云笔记
 
 ```bash
-# 列出 OneDrive Notes 目录下的笔记
+# 列出 OneDrive Notes 目录下的笔记，并显示可点击的打开链接
 cyeam cnote list
 
 # 新建笔记，内容从 stdin 读取

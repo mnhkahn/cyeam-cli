@@ -532,12 +532,7 @@ func newWhoamiCommand(deps Dependencies) *cobra.Command {
 				_, err := deps.Stdout.Write([]byte("Not logged in. Run `cyeam login` first.\n"))
 				return err
 			}
-			expiry := time.Unix(token.Expiry, 0)
-			if time.Now().After(expiry) {
-				fmt.Fprintf(deps.Stdout, "Status: logged in (token expired %s)\n", expiry.Format("2006-01-02 15:04:05"))
-			} else {
-				fmt.Fprintf(deps.Stdout, "Status: logged in (token valid until %s)\n", expiry.Format("2006-01-02 15:04:05"))
-			}
+			fmt.Fprint(deps.Stdout, loginStatusLine(token, time.Now()))
 			oc := onedrive.NewClient(auth.GetAccessToken)
 			user, err := oc.GetUserInfo(cmd.Context())
 			if err != nil {
@@ -556,6 +551,18 @@ func newWhoamiCommand(deps Dependencies) *cobra.Command {
 			return nil
 		},
 	}
+}
+
+func loginStatusLine(token auth.TokenSet, now time.Time) string {
+	expiry := time.Unix(token.Expiry, 0)
+	refreshStatus := "auto-refresh unavailable; run `cyeam login` again to enable it"
+	if token.RefreshToken != "" {
+		refreshStatus = "auto-refresh enabled"
+	}
+	if now.After(expiry) {
+		return fmt.Sprintf("Status: logged in (access token expired %s; %s)\n", expiry.Format("2006-01-02 15:04:05"), refreshStatus)
+	}
+	return fmt.Sprintf("Status: logged in (access token valid until %s; %s)\n", expiry.Format("2006-01-02 15:04:05"), refreshStatus)
 }
 
 func newCnoteCommand(deps Dependencies) *cobra.Command {
@@ -589,6 +596,7 @@ func newCnoteListCommand(deps Dependencies) *cobra.Command {
 				rows = append(rows, cnoteListRow{
 					Name:     strings.TrimSuffix(item.Name, ".html"),
 					Modified: item.LastModifiedDateTime[:10],
+					WebURL:   item.WebURL,
 				})
 			}
 			return renderCnoteListTable(deps.Stdout, rows)
@@ -599,6 +607,7 @@ func newCnoteListCommand(deps Dependencies) *cobra.Command {
 type cnoteListRow struct {
 	Name     string
 	Modified string
+	WebURL   string
 }
 
 func renderCnoteListTable(out io.Writer, rows []cnoteListRow) error {
@@ -606,14 +615,22 @@ func renderCnoteListTable(out io.Writer, rows []cnoteListRow) error {
 		Headers: []tableCell{
 			{text: "文件名", visible: "文件名"},
 			{text: "修改时间", visible: "修改时间"},
+			{text: "链接", visible: "链接"},
 		},
 		Color: true,
 	}
 	for _, row := range rows {
 		name := truncateDisplayWidth(row.Name, 32)
+		link := "-"
+		linkVisible := "-"
+		if row.WebURL != "" {
+			link = terminalHyperlink(row.WebURL, "打开")
+			linkVisible = "打开"
+		}
 		t.Rows = append(t.Rows, []tableCell{
 			{text: name, visible: name},
 			{text: row.Modified, visible: row.Modified},
+			{text: link, visible: linkVisible},
 		})
 	}
 	return renderTable(out, t)

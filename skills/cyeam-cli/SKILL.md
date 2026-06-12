@@ -55,13 +55,13 @@ cyeam cnote append "note-title" < more.html
 - `date` subcommands accept an optional `YYYY-MM-DD`; omit it for today.
 - `ask` streams architecture output to stdout. Default mode is `fast`.
 - `ask search` returns normal site search JSON.
-- `login` uses Microsoft Device Code Flow and stores tokens in the system keychain. `logout` clears stored credentials. `whoami` prints login status and user info when available.
+- `login` uses Microsoft Device Code Flow, requests offline access for refresh tokens, and stores tokens in the system keychain. `logout` clears stored credentials. `whoami` prints login status, access-token expiry, auto-refresh availability, and user info when available.
 - `mo` uses xingshu only. Do not add or request a font option.
 - `mo char compose` writes a PNG file. Require `--out` when the user needs a saved image.
 - `mo ocr` uploads an image and writes JSON to stdout.
 - `roadbook list` reads OneDrive folder `路书` and requires login.
 - `roadbook share` reads a local JSON file and returns both the share id and `https://www.cyeam.com/tool/roadbook?id=<id>`.
-- `cnote list`, `cnote new`, and `cnote append` read/write OneDrive folder `Notes` and require login. New and append read HTML content from stdin.
+- `cnote list`, `cnote new`, and `cnote append` read/write OneDrive folder `Notes` and require login. `cnote list` includes a clickable terminal hyperlink when OneDrive returns `webUrl`. New and append read HTML content from stdin.
 
 ## Unsupported Requests
 

@@ -16,7 +16,7 @@ import (
 const (
 	clientID  = "e1f582c1-1568-4347-8c5b-1906164e637f"
 	authority = "https://login.microsoftonline.com/consumers"
-	scopes    = "Files.ReadWrite User.Read"
+	scopes    = "Files.ReadWrite User.Read offline_access"
 )
 
 func openBrowser(url string) error {
@@ -85,18 +85,25 @@ func GetAccessToken(ctx context.Context) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("token refresh failed, run `cyeam login`: %w", err)
 		}
-		expiry := time.Now().Add(time.Duration(newToken.ExpiresIn) * time.Second).Unix()
-		t := TokenSet{
-			AccessToken:  newToken.AccessToken,
-			RefreshToken: newToken.RefreshToken,
-			Expiry:       expiry,
-		}
+		t := mergeRefreshedToken(token, newToken, time.Now())
 		if err := StoreToken(t); err != nil {
 			return "", fmt.Errorf("store refreshed token: %w", err)
 		}
 		return newToken.AccessToken, nil
 	}
 	return token.AccessToken, nil
+}
+
+func mergeRefreshedToken(current TokenSet, refreshed tokenResponse, now time.Time) TokenSet {
+	refreshToken := refreshed.RefreshToken
+	if refreshToken == "" {
+		refreshToken = current.RefreshToken
+	}
+	return TokenSet{
+		AccessToken:  refreshed.AccessToken,
+		RefreshToken: refreshToken,
+		Expiry:       now.Add(time.Duration(refreshed.ExpiresIn) * time.Second).Unix(),
+	}
 }
 
 type deviceCodeResponse struct {

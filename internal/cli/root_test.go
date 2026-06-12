@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/update"
 	"github.com/mnhkahn/cyeam-cli/internal/version"
 )
@@ -170,6 +171,24 @@ func TestUpdateDelegatesToUpdater(t *testing.T) {
 	}
 	if stdout.String() != "updated: v1.0.0 -> v1.1.0\n" {
 		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestLoginStatusLineMentionsAutoRefreshWhenRefreshTokenExists(t *testing.T) {
+	now := time.Date(2026, 6, 12, 10, 0, 0, 0, time.Local)
+	token := auth.TokenSet{
+		AccessToken:  "access",
+		RefreshToken: "refresh",
+		Expiry:       now.Add(time.Hour).Unix(),
+	}
+
+	got := loginStatusLine(token, now)
+
+	if !strings.Contains(got, "access token valid until") {
+		t.Fatalf("status line = %q, want access token wording", got)
+	}
+	if !strings.Contains(got, "auto-refresh enabled") {
+		t.Fatalf("status line = %q, want auto-refresh wording", got)
 	}
 }
 
@@ -341,9 +360,11 @@ func TestRenderRoadbookListTableUsesHyperlinkLabel(t *testing.T) {
 
 func TestRenderCnoteListTableUsesSharedTableStyle(t *testing.T) {
 	stdout := new(bytes.Buffer)
+	url := "https://onedrive.live.com/view.aspx?resid=note-id"
 	rows := []cnoteListRow{{
 		Name:     "日记",
 		Modified: "2026-06-12",
+		WebURL:   url,
 	}}
 
 	if err := renderCnoteListTable(stdout, rows); err != nil {
@@ -351,10 +372,15 @@ func TestRenderCnoteListTableUsesSharedTableStyle(t *testing.T) {
 	}
 
 	got := stdout.String()
-	for _, want := range []string{"┌", "├", "└", "│", "\033[35m文件名\033[0m", "\033[35m修改时间\033[0m", "日记", "2026-06-12"} {
+	link := "\033]8;;" + url + "\033\\打开\033]8;;\033\\"
+	for _, want := range []string{"┌", "├", "└", "│", "\033[35m文件名\033[0m", "\033[35m修改时间\033[0m", "\033[35m链接\033[0m", "日记", "2026-06-12", link} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("stdout missing %q:\n%s", want, got)
 		}
+	}
+	visible := strings.ReplaceAll(got, link, "打开")
+	if strings.Contains(visible, url) {
+		t.Fatalf("stdout shows raw url outside hyperlink label:\n%s", got)
 	}
 }
 

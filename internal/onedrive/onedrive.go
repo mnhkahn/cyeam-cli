@@ -22,6 +22,7 @@ type Item struct {
 	ID                   string `json:"id"`
 	Name                 string `json:"name"`
 	LastModifiedDateTime string `json:"lastModifiedDateTime"`
+	WebURL               string `json:"webUrl"`
 }
 
 type ChildrenResponse struct {
@@ -70,7 +71,7 @@ func esc(segments ...string) string {
 }
 
 func (c *Client) ListFolder(ctx context.Context, folderPath string) ([]Item, error) {
-	p := graphBase + "/me/drive/root:/" + url.PathEscape(folderPath) + ":/children?$select=id,name,lastModifiedDateTime&$top=50"
+	p := graphBase + "/me/drive/root:/" + url.PathEscape(folderPath) + ":/children?$select=id,name,lastModifiedDateTime,webUrl&$top=50"
 	body, err := c.doGet(ctx, p)
 	if err != nil {
 		return nil, err
@@ -110,8 +111,8 @@ type ShareLinkResponse struct {
 }
 
 type UserInfo struct {
-	DisplayName string `json:"displayName"`
-	Mail        string `json:"mail"`
+	DisplayName       string `json:"displayName"`
+	Mail              string `json:"mail"`
 	UserPrincipalName string `json:"userPrincipalName"`
 }
 
