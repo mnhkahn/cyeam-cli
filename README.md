@@ -115,6 +115,12 @@ cyeam mo ocr calligraphy.png
 # 列出 OneDrive Notes 目录下的笔记，并显示可点击的打开链接
 cyeam cnote list
 
+# 读取笔记详情，默认输出 Markdown 风格文本
+cyeam cnote get "日记"
+
+# 读取笔记详情，输出纯文本
+cyeam cnote get "日记" --format text
+
 # 新建笔记，内容从 stdin 读取
 cyeam cnote new "日记" < note.html
 

@@ -66,6 +66,8 @@ cyeam roadbook share roadbook.json
 cyeam roadbook get <id>
 
 cyeam cnote list
+cyeam cnote get "note-title"
+cyeam cnote get "note-title" --format text
 cyeam cnote new "note-title" < note.html
 cyeam cnote append "note-title" < more.html
 ```
@@ -81,7 +83,7 @@ cyeam cnote append "note-title" < more.html
 - `mo ocr` uploads an image and writes JSON to stdout.
 - `roadbook list` reads OneDrive folder `路书` and requires login.
 - `roadbook share` reads a local JSON file and returns both the share id and `https://www.cyeam.com/tool/roadbook?id=<id>`.
-- `cnote list`, `cnote new`, and `cnote append` read/write OneDrive folder `Notes` and require login. `cnote list` includes a clickable terminal hyperlink when OneDrive returns `webUrl`. New and append read HTML content from stdin.
+- `cnote list`, `cnote get`, `cnote new`, and `cnote append` read/write OneDrive folder `Notes` and require login. `cnote list` includes a clickable terminal hyperlink when OneDrive returns `webUrl`. `cnote get` reads `Notes/<title>.html` and outputs Markdown by default or plain text with `--format text`. New and append read HTML content from stdin.
 
 ## Unsupported Requests
 

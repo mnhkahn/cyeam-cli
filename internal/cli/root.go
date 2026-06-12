@@ -37,10 +37,27 @@ type Dependencies struct {
 	Now         func() time.Time
 	VersionInfo func() version.Info
 	Updater     Updater
+	OneDrive    func() OneDriveClient
 }
 
 type Updater interface {
 	Update(ctx context.Context, current version.Info) (update.Result, error)
+}
+
+type OneDriveClient interface {
+	ListFolder(ctx context.Context, folderPath string) ([]onedrive.Item, error)
+	ReadFileByID(ctx context.Context, itemID string) ([]byte, error)
+	ReadFile(ctx context.Context, folderPath, filename string) ([]byte, error)
+	WriteFile(ctx context.Context, folderPath, filename, contentType string, content []byte) error
+	CreateShareLink(ctx context.Context, folderPath, filename string) (string, error)
+	GetUserInfo(ctx context.Context) (onedrive.UserInfo, error)
+}
+
+func oneDriveClient(deps Dependencies) OneDriveClient {
+	if deps.OneDrive != nil {
+		return deps.OneDrive()
+	}
+	return onedrive.NewClient(auth.GetAccessToken)
 }
 
 func NewRootCommand(deps Dependencies) *cobra.Command {
@@ -289,7 +306,7 @@ func newRoadbookListCommand(deps Dependencies) *cobra.Command {
 		Short: "List roadbooks from OneDrive",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			oc := onedrive.NewClient(auth.GetAccessToken)
+			oc := oneDriveClient(deps)
 			items, err := oc.ListFolder(cmd.Context(), "路书")
 			if err != nil {
 				return err
@@ -533,7 +550,7 @@ func newWhoamiCommand(deps Dependencies) *cobra.Command {
 				return err
 			}
 			fmt.Fprint(deps.Stdout, loginStatusLine(token, time.Now()))
-			oc := onedrive.NewClient(auth.GetAccessToken)
+			oc := oneDriveClient(deps)
 			user, err := oc.GetUserInfo(cmd.Context())
 			if err != nil {
 				fmt.Fprintf(deps.Stdout, "User info: unavailable (%v)\n", err)
@@ -571,6 +588,7 @@ func newCnoteCommand(deps Dependencies) *cobra.Command {
 		Short: "CNote - cloud notes on OneDrive",
 	}
 	cmd.AddCommand(newCnoteListCommand(deps))
+	cmd.AddCommand(newCnoteGetCommand(deps))
 	cmd.AddCommand(newCnoteNewCommand(deps))
 	cmd.AddCommand(newCnoteAppendCommand(deps))
 	return cmd
@@ -582,7 +600,7 @@ func newCnoteListCommand(deps Dependencies) *cobra.Command {
 		Short: "List notes from OneDrive",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			oc := onedrive.NewClient(auth.GetAccessToken)
+			oc := oneDriveClient(deps)
 			items, err := oc.ListFolder(cmd.Context(), "Notes")
 			if err != nil {
 				return err
@@ -636,6 +654,33 @@ func renderCnoteListTable(out io.Writer, rows []cnoteListRow) error {
 	return renderTable(out, t)
 }
 
+func newCnoteGetCommand(deps Dependencies) *cobra.Command {
+	var format string
+	cmd := &cobra.Command{
+		Use:   "get <title>",
+		Short: "Read a note as terminal-friendly text",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			switch format {
+			case "markdown", "text":
+			default:
+				return fmt.Errorf("unsupported format %q, want markdown or text", format)
+			}
+
+			filename := args[0] + ".html"
+			content, err := oneDriveClient(deps).ReadFile(cmd.Context(), "Notes", filename)
+			if err != nil {
+				return fmt.Errorf("read note: %w", err)
+			}
+
+			_, err = io.WriteString(deps.Stdout, formatCnoteHTML(content, format)+"\n")
+			return err
+		},
+	}
+	cmd.Flags().StringVar(&format, "format", "markdown", "output format: markdown, text")
+	return cmd
+}
+
 func newCnoteNewCommand(deps Dependencies) *cobra.Command {
 	return &cobra.Command{
 		Use:   "new <title>",
@@ -652,7 +697,7 @@ func newCnoteNewCommand(deps Dependencies) *cobra.Command {
 			}
 
 			filename := title + ".html"
-			oc := onedrive.NewClient(auth.GetAccessToken)
+			oc := oneDriveClient(deps)
 			return oc.WriteFile(cmd.Context(), "Notes", filename, "text/html", content)
 		},
 	}
@@ -667,7 +712,7 @@ func newCnoteAppendCommand(deps Dependencies) *cobra.Command {
 			title := args[0]
 			filename := title + ".html"
 
-			oc := onedrive.NewClient(auth.GetAccessToken)
+			oc := oneDriveClient(deps)
 			existing, err := oc.ReadFile(cmd.Context(), "Notes", filename)
 			if err != nil {
 				return fmt.Errorf("read note: %w", err)

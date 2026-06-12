@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
+	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
 	"github.com/mnhkahn/cyeam-cli/internal/update"
 	"github.com/mnhkahn/cyeam-cli/internal/version"
 )
@@ -35,6 +36,38 @@ type fakeService struct {
 type fakeUpdater struct {
 	current version.Info
 	result  update.Result
+}
+
+type fakeOneDrive struct {
+	readFolder string
+	readName   string
+	readBody   []byte
+}
+
+func (f *fakeOneDrive) ListFolder(ctx context.Context, folderPath string) ([]onedrive.Item, error) {
+	return nil, nil
+}
+
+func (f *fakeOneDrive) ReadFileByID(ctx context.Context, itemID string) ([]byte, error) {
+	return nil, nil
+}
+
+func (f *fakeOneDrive) ReadFile(ctx context.Context, folderPath, filename string) ([]byte, error) {
+	f.readFolder = folderPath
+	f.readName = filename
+	return f.readBody, nil
+}
+
+func (f *fakeOneDrive) WriteFile(ctx context.Context, folderPath, filename, contentType string, content []byte) error {
+	return nil
+}
+
+func (f *fakeOneDrive) CreateShareLink(ctx context.Context, folderPath, filename string) (string, error) {
+	return "", nil
+}
+
+func (f *fakeOneDrive) GetUserInfo(ctx context.Context) (onedrive.UserInfo, error) {
+	return onedrive.UserInfo{}, nil
 }
 
 func (f *fakeUpdater) Update(ctx context.Context, current version.Info) (update.Result, error) {
@@ -381,6 +414,78 @@ func TestRenderCnoteListTableUsesSharedTableStyle(t *testing.T) {
 	visible := strings.ReplaceAll(got, link, "打开")
 	if strings.Contains(visible, url) {
 		t.Fatalf("stdout shows raw url outside hyperlink label:\n%s", got)
+	}
+}
+
+func TestCnoteGetDefaultsToMarkdown(t *testing.T) {
+	od := &fakeOneDrive{readBody: []byte(`<h1>标题</h1><p>Hello <strong>world</strong></p>`)}
+	stdout := new(bytes.Buffer)
+	cmd := NewRootCommand(Dependencies{
+		Stdout: stdout,
+		OneDrive: func() OneDriveClient {
+			return od
+		},
+	})
+	cmd.SetArgs([]string{"cnote", "get", "日记"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute cnote get: %v", err)
+	}
+	if od.readFolder != "Notes" || od.readName != "日记.html" {
+		t.Fatalf("read = %s/%s", od.readFolder, od.readName)
+	}
+	if stdout.String() != "# 标题\n\nHello **world**\n" {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestCnoteGetSupportsTextFormat(t *testing.T) {
+	od := &fakeOneDrive{readBody: []byte(`<h2>标题</h2><p>Hello <em>world</em></p>`)}
+	stdout := new(bytes.Buffer)
+	cmd := NewRootCommand(Dependencies{
+		Stdout: stdout,
+		OneDrive: func() OneDriveClient {
+			return od
+		},
+	})
+	cmd.SetArgs([]string{"cnote", "get", "日记", "--format", "text"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute cnote get: %v", err)
+	}
+	if stdout.String() != "标题\n\nHello world\n" {
+		t.Fatalf("stdout = %q", stdout.String())
+	}
+}
+
+func TestCnoteGetRejectsUnsupportedFormat(t *testing.T) {
+	cmd := NewRootCommand(Dependencies{Stdout: new(bytes.Buffer)})
+	cmd.SetArgs([]string{"cnote", "get", "日记", "--format", "html"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if !strings.Contains(err.Error(), `unsupported format "html"`) {
+		t.Fatalf("error = %v", err)
+	}
+}
+
+func TestFormatCnoteHTMLMarkdown(t *testing.T) {
+	html := `<h1>A &amp; B</h1><p>Line<br>Next</p><ul><li>One</li><li><a href="https://example.com">Link</a></li></ul>`
+	got := formatCnoteHTML([]byte(html), "markdown")
+	want := "# A & B\n\nLine\nNext\n\n- One\n- [Link](https://example.com)"
+	if got != want {
+		t.Fatalf("markdown = %q", got)
+	}
+}
+
+func TestFormatCnoteHTMLText(t *testing.T) {
+	html := `<h1>A &amp; B</h1><p>Line<br>Next</p><ol><li>One</li><li><a href="https://example.com">Link</a></li></ol>`
+	got := formatCnoteHTML([]byte(html), "text")
+	want := "A & B\n\nLine\nNext\n\n1. One\n1. Link (https://example.com)"
+	if got != want {
+		t.Fatalf("text = %q", got)
 	}
 }
 
