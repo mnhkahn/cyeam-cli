@@ -605,7 +605,7 @@ func TestAskSearchCallsSearchEndpoint(t *testing.T) {
 	if service.searchQuery != "golang 优化" {
 		t.Fatalf("search query = %q", service.searchQuery)
 	}
-	if stdout.String() != "{\"docs\":[]}\n" {
+if stdout.String() != "{\"docs\":[]}\n" {
 		t.Fatalf("stdout = %q", stdout.String())
 	}
 }

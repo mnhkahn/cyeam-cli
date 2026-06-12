@@ -35,6 +35,7 @@ Use the `cyeam` command for supported public cyeam.com capabilities. Do not expo
 - Run `cyeam version` first when the user asks about installation state, updates, or compatibility.
 - Use `cyeam update` only when the user asks to update the CLI. It updates from GitHub Release assets.
 - Commands call the production cyeam.com service by default; there is no config command.
+- For multi-threaded downloads, use `aria2c` directly. Install via `brew install aria2` if missing. Supports `--all-proxy` for proxy.
 
 ## Supported Commands
 
