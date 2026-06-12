@@ -12,6 +12,26 @@ Use the `cyeam` command for supported public cyeam.com capabilities. Do not expo
 ## Before Running
 
 - Prefer the local `cyeam` binary if it exists in `PATH`.
+- If `cyeam` is not installed, install it before running cyeam commands. Detect the OS and CPU architecture, then use the matching command:
+  - macOS Apple Silicon:
+    ```bash
+    curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Darwin_arm64.tar.gz | tar xz
+    chmod +x cyeam
+    sudo mv cyeam /usr/local/bin/
+    ```
+  - macOS Intel:
+    ```bash
+    curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Darwin_x86_64.tar.gz | tar xz
+    chmod +x cyeam
+    sudo mv cyeam /usr/local/bin/
+    ```
+  - Linux amd64:
+    ```bash
+    curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Linux_x86_64.tar.gz | tar xz
+    chmod +x cyeam
+    sudo mv cyeam /usr/local/bin/
+    ```
+  - Windows: Download `cyeam_Windows_x86_64.zip`, unzip it, and add `cyeam.exe` to `PATH`.
 - Run `cyeam version` first when the user asks about installation state, updates, or compatibility.
 - Use `cyeam update` only when the user asks to update the CLI. It updates from GitHub Release assets.
 - Commands call the production cyeam.com service by default; there is no config command.
