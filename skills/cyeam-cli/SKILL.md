@@ -1,6 +1,6 @@
 ---
 name: cyeam-cli
-description: Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date holiday lookup, Mo calligraphy/OCR, roadbook sharing, OneDrive-backed roadbook/note workflows, Microsoft login, CLI version checks, or CLI self-update.
+description: Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date holiday lookup, Mo calligraphy/OCR, roadbook sharing, OneDrive-backed roadbook/note workflows, Microsoft login, CLI version checks, CLI self-update, or TV schedule lookup for NBA / FIFA World Cup / China national football teams with broadcaster info.
 ---
 
 # Cyeam CLI
@@ -71,6 +71,16 @@ cyeam cnote get "note-title"
 cyeam cnote get "note-title" --format text
 cyeam cnote new "note-title" < note.html
 cyeam cnote append "note-title" < more.html
+
+cyeam tv list
+cyeam tv list --league nba --days 7
+cyeam tv list --league worldcup,cn-football
+cyeam tv list --team 湖人
+cyeam tv list --source CCTV5
+cyeam tv list --from 2026-06-15 --to 2026-06-20
+cyeam tv list --json
+cyeam tv today
+cyeam tv next --league nba
 ```
 
 ## Behavior Notes
@@ -85,6 +95,10 @@ cyeam cnote append "note-title" < more.html
 - `roadbook list` reads OneDrive folder `路书` and requires login.
 - `roadbook share` reads a local JSON file and returns both the share id and `https://www.cyeam.com/tool/roadbook?id=<id>`.
 - `cnote list`, `cnote get`, `cnote new`, and `cnote append` read/write OneDrive folder `Notes` and require login. `cnote list` includes a clickable terminal hyperlink when OneDrive returns `webUrl`. `cnote get` reads `Notes/<title>.html` and outputs Markdown by default or plain text with `--format text`. New and append read HTML content from stdin.
+- `tv list` shows upcoming NBA, World Cup, and China men's/women's national football matches in `Asia/Shanghai` by default. Defaults to the next 3 days (max 14 via `--days`).
+- `--league` accepts `nba`, `worldcup`, `cn-football` (comma-separated or repeatable). `--from`/`--to` override `--days` start. `--include-finished` to also show finished matches; `--source` filters by broadcaster (e.g. CCTV5); `--team` filters by team name or abbreviation.
+- Broadcasters (CCTV5, 央视频, 腾讯体育, 咪咕视频, etc.) are read-only viewing hints. The CLI does not capture streams, decode m3u8, or bypass paywalls. Names render as clickable terminal hyperlinks when supported.
+- `tv` does not require login or call cyeam.com. If a data source (cdn.nba.com, ESPN site API) is unreachable, that league is skipped with a warning instead of failing the whole command.
 
 ## Unsupported Requests
 
@@ -98,3 +112,6 @@ If the user asks for an unsupported capability, say it is intentionally not part
 - QR code or barcode generation
 - Mo AI glyph save/write-db API
 - Roadbook CSV token flow unless explicitly added later
+- Live stream capture, m3u8/flv URL extraction, paywall or geo-restriction bypass for any TV/streaming source
+- Real-time score push or post-game highlight downloads
+- Sports leagues outside NBA / FIFA World Cup / China national football (not in scope yet)

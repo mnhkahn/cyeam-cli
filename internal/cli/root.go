@@ -86,6 +86,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newLogoutCommand(deps))
 	root.AddCommand(newWhoamiCommand(deps))
 	root.AddCommand(newCnoteCommand(deps))
+	root.AddCommand(newTVCommand(deps))
 	return root
 }
 

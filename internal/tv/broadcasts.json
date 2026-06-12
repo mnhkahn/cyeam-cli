@@ -1,0 +1,49 @@
+{
+  "rules": [
+    {
+      "match": {"league": "nba", "stage": "Finals"},
+      "broadcasts": [
+        {"name": "CCTV5",   "type": "tv",     "url": "https://tv.cctv.com/live/cctv5/"},
+        {"name": "腾讯体育", "type": "stream", "url": "https://nba.qq.com/"},
+        {"name": "咪咕视频", "type": "stream", "url": "https://www.miguvideo.com/"}
+      ]
+    },
+    {
+      "match": {"league": "nba", "stage": "Playoffs"},
+      "broadcasts": [
+        {"name": "腾讯体育", "type": "stream", "url": "https://nba.qq.com/"},
+        {"name": "咪咕视频", "type": "stream", "url": "https://www.miguvideo.com/"}
+      ]
+    },
+    {
+      "match": {"league": "nba"},
+      "broadcasts": [
+        {"name": "腾讯体育", "type": "stream", "url": "https://nba.qq.com/"}
+      ]
+    },
+    {
+      "match": {"league": "worldcup", "stage": "Final"},
+      "broadcasts": [
+        {"name": "CCTV1",   "type": "tv",     "url": "https://tv.cctv.com/live/cctv1/"},
+        {"name": "CCTV5",   "type": "tv",     "url": "https://tv.cctv.com/live/cctv5/"},
+        {"name": "央视频",   "type": "stream", "url": "https://www.yangshipin.cn/"},
+        {"name": "咪咕视频", "type": "stream", "url": "https://www.miguvideo.com/"}
+      ]
+    },
+    {
+      "match": {"league": "worldcup"},
+      "broadcasts": [
+        {"name": "CCTV5",   "type": "tv",     "url": "https://tv.cctv.com/live/cctv5/"},
+        {"name": "央视频",   "type": "stream", "url": "https://www.yangshipin.cn/"},
+        {"name": "咪咕视频", "type": "stream", "url": "https://www.miguvideo.com/"}
+      ]
+    },
+    {
+      "match": {"league": "cn-football"},
+      "broadcasts": [
+        {"name": "CCTV5",   "type": "tv",     "url": "https://tv.cctv.com/live/cctv5/"},
+        {"name": "咪咕视频", "type": "stream", "url": "https://www.miguvideo.com/"}
+      ]
+    }
+  ]
+}
