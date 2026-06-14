@@ -31,6 +31,9 @@ type fakeService struct {
 	moComposeChar     string
 	moOCRFilename     string
 	moOCRBody         string
+	newsListFrom      string
+	newsListTo        string
+	newsListBody      string
 }
 
 type fakeUpdater struct {
@@ -130,6 +133,15 @@ func (f *fakeService) MoOCR(ctx context.Context, filename string, body []byte) (
 	f.moOCRFilename = filename
 	f.moOCRBody = string(body)
 	return []byte(`{"code":0}`), nil
+}
+
+func (f *fakeService) NewsList(ctx context.Context, from, to string) ([]byte, error) {
+	f.newsListFrom = from
+	f.newsListTo = to
+	if f.newsListBody != "" {
+		return []byte(f.newsListBody), nil
+	}
+	return []byte(`{"news":{"create_time":1718352000,"news":[],"summary":""},"date":"2026-06-14"}`), nil
 }
 
 func TestAskDefaultsToArchitectureFastMode(t *testing.T) {

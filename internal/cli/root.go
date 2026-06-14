@@ -29,6 +29,7 @@ type Service interface {
 	MoCharComposition(ctx context.Context, char string) ([]byte, error)
 	MoCharCompose(ctx context.Context, char string) ([]byte, error)
 	MoOCR(ctx context.Context, filename string, body []byte) ([]byte, error)
+	NewsList(ctx context.Context, from, to string) ([]byte, error)
 }
 
 type Dependencies struct {
@@ -87,6 +88,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newWhoamiCommand(deps))
 	root.AddCommand(newCnoteCommand(deps))
 	root.AddCommand(newTVCommand(deps))
+	root.AddCommand(newNewsCommand(deps))
 	return root
 }
 
@@ -731,4 +733,205 @@ func newCnoteAppendCommand(deps Dependencies) *cobra.Command {
 			return oc.WriteFile(cmd.Context(), "Notes", filename, "text/html", combined)
 		},
 	}
+}
+
+func newNewsCommand(deps Dependencies) *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "news",
+		Short: "Geek news and AI news from cyeam.com",
+	}
+	cmd.AddCommand(newNewsListCommand(deps))
+	cmd.AddCommand(newNewsGetCommand(deps))
+	return cmd
+}
+
+func newNewsListCommand(deps Dependencies) *cobra.Command {
+	var from, to string
+	cmd := &cobra.Command{
+		Use:   "list",
+		Short: "List geek news by date range",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if deps.Service == nil {
+				return fmt.Errorf("service is required")
+			}
+			f, t := from, to
+			if f == "" {
+				f = deps.Now().AddDate(0, 0, -7).Format(time.DateOnly)
+			}
+			if t == "" {
+				t = deps.Now().Format(time.DateOnly)
+			}
+			body, err := deps.Service.NewsList(cmd.Context(), f, t)
+			if err != nil {
+				return err
+			}
+			return renderNewsList(deps.Stdout, body)
+		},
+	}
+	cmd.Flags().StringVar(&from, "from", "", "start date (YYYY-MM-DD), defaults to 7 days ago")
+	cmd.Flags().StringVar(&to, "to", "", "end date (YYYY-MM-DD), defaults to today")
+	return cmd
+}
+
+func newNewsGetCommand(deps Dependencies) *cobra.Command {
+	var date string
+	cmd := &cobra.Command{
+		Use:   "get",
+		Short: "Get full geek news content by date",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if deps.Service == nil {
+				return fmt.Errorf("service is required")
+			}
+			if date == "" {
+				return fmt.Errorf("--date is required")
+			}
+			if _, err := time.Parse(time.DateOnly, date); err != nil {
+				return fmt.Errorf("invalid date %q, want YYYY-MM-DD", date)
+			}
+			body, err := deps.Service.NewsList(cmd.Context(), date, date)
+			if err != nil {
+				return err
+			}
+			return renderNewsDetail(deps.Stdout, body)
+		},
+	}
+	cmd.Flags().StringVar(&date, "date", "", "news date (YYYY-MM-DD)")
+	_ = cmd.MarkFlagRequired("date")
+	return cmd
+}
+
+type newsAPIResponse struct {
+	News   *newsGeekNews `json:"news,omitempty"`
+	AINews *newsAINews   `json:"ai_news,omitempty"`
+	Date   string        `json:"date"`
+	Error  string        `json:"error,omitempty"`
+}
+
+type newsGeekNews struct {
+	CreateTime int64         `json:"create_time"`
+	News       []newsItem    `json:"news"`
+	Summary    string        `json:"summary"`
+}
+
+type newsAINews struct {
+	CreateTime int64         `json:"create_time"`
+	News       []newsItem    `json:"news"`
+}
+
+type newsItem struct {
+	Link        string `json:"link"`
+	Title       string `json:"title"`
+	Description string `json:"description"`
+	Image       string `json:"image"`
+	CreateTime  int64  `json:"create_time"`
+}
+
+func renderNewsList(out io.Writer, body []byte) error {
+	var resp newsAPIResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return err
+	}
+	if resp.Error != "" {
+		_, err := io.WriteString(out, "error: "+resp.Error+"\n")
+		return err
+	}
+
+	if resp.News != nil && len(resp.News.News) > 0 {
+		if _, err := io.WriteString(out, "技术动向 "+resp.Date+"\n"); err != nil {
+			return err
+		}
+		if err := renderNewsItemTable(out, resp.News.News); err != nil {
+			return err
+		}
+	}
+
+	if resp.AINews != nil && len(resp.AINews.News) > 0 {
+		aiDate := time.Unix(resp.AINews.CreateTime, 0).Format("2006-01-02")
+		if resp.AINews.CreateTime == 0 {
+			aiDate = resp.Date
+		}
+		if _, err := io.WriteString(out, "\nAI 资讯 "+aiDate+"\n"); err != nil {
+			return err
+		}
+		if err := renderNewsItemTable(out, resp.AINews.News); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func renderNewsItemTable(out io.Writer, items []newsItem) error {
+	t := cliTable{
+		Headers: []tableCell{
+			{text: "标题", visible: "标题"},
+			{text: "描述", visible: "描述"},
+		},
+		Color: true,
+	}
+	for _, item := range items {
+		title := truncateDisplayWidth(item.Title, 40)
+		desc := truncateDisplayWidth(item.Description, 60)
+		link := terminalHyperlink(item.Link, "链接")
+		titleCell := title
+		if item.Link != "" {
+			titleCell = terminalHyperlink(item.Link, title)
+		}
+		t.Rows = append(t.Rows, []tableCell{
+			{text: titleCell, visible: title},
+			{text: desc, visible: desc},
+		})
+		_ = link
+	}
+	return renderTable(out, t)
+}
+
+func renderNewsDetail(out io.Writer, body []byte) error {
+	var resp newsAPIResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return err
+	}
+	if resp.Error != "" {
+		_, err := io.WriteString(out, "error: "+resp.Error+"\n")
+		return err
+	}
+
+	if resp.News != nil {
+		fmt.Fprintf(out, "技术动向 %s\n", resp.Date)
+		if resp.News.Summary != "" {
+			fmt.Fprintf(out, "总结: %s\n\n", resp.News.Summary)
+		}
+		for _, item := range resp.News.News {
+			fmt.Fprintf(out, "## %s\n", item.Title)
+			if item.Description != "" {
+				fmt.Fprintf(out, "%s\n", item.Description)
+			}
+			if item.Link != "" {
+				fmt.Fprintf(out, "链接: %s\n", item.Link)
+			}
+			fmt.Fprintln(out)
+		}
+	}
+
+	if resp.AINews != nil && len(resp.AINews.News) > 0 {
+		aiDate := time.Unix(resp.AINews.CreateTime, 0).Format("2006-01-02")
+		if resp.AINews.CreateTime == 0 {
+			aiDate = resp.Date
+		}
+		fmt.Fprintf(out, "AI 资讯 %s\n", aiDate)
+		for _, item := range resp.AINews.News {
+			fmt.Fprintf(out, "## %s\n", item.Title)
+			if item.Description != "" {
+				fmt.Fprintf(out, "%s\n", item.Description)
+			}
+			if item.Link != "" {
+				fmt.Fprintf(out, "链接: %s\n", item.Link)
+			}
+			fmt.Fprintln(out)
+		}
+	}
+
+	return nil
 }

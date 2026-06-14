@@ -114,6 +114,17 @@ func (s *Service) MoOCR(ctx context.Context, filename string, body []byte) ([]by
 	return s.client.UploadFile(ctx, "/mo/api/ocr", "image", filename, body)
 }
 
+func (s *Service) NewsList(ctx context.Context, from, to string) ([]byte, error) {
+	params := map[string]string{}
+	if from != "" {
+		params["from"] = from
+	}
+	if to != "" {
+		params["to"] = to
+	}
+	return s.client.GetJSON(ctx, "/api/geek/news", params)
+}
+
 type timorYearResponse struct {
 	Code    int                         `json:"code"`
 	Holiday map[string]timorHolidayInfo `json:"holiday"`
