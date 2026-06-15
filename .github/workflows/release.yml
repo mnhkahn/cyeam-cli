@@ -57,7 +57,8 @@ jobs:
       - name: Send release webhook
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          CHANGELOG=$(git-chglog --template '{{ range .CommitGroups }}{{ range .Commits }}- {{ .Subject }}{{ "\n" }}{{ end }}{{ end }}' "${GITHUB_REF_NAME}")
+          echo '{{ range .CommitGroups }}{{ range .Commits }}- {{ .Subject }}{{ "\n" }}{{ end }}{{ end }}' > /tmp/changelog.tpl
+          CHANGELOG=$(git-chglog --template /tmp/changelog.tpl "${GITHUB_REF_NAME}")
           curl -s -X POST "${{ secrets.RELEASE_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "$(cat <<-END
