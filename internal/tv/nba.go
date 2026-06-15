@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -55,6 +56,7 @@ type nbaTeam struct {
 	TeamCity     string `json:"teamCity"`
 	TeamName     string `json:"teamName"`
 	TeamTricode  string `json:"teamTricode"`
+	Score        int    `json:"score"`
 }
 
 func (f *NBAFetcher) Fetch(ctx context.Context, q Query) ([]Match, error) {
@@ -120,7 +122,9 @@ func parseNBASchedule(body []byte, q Query) ([]Match, error) {
 					Name: nbaTeamName(g.AwayTeam),
 					Abbr: g.AwayTeam.TeamTricode,
 				},
-				Status: nbaStatus(g.GameStatus),
+				HomeScore: strconv.Itoa(g.HomeTeam.Score),
+				AwayScore: strconv.Itoa(g.AwayTeam.Score),
+				Status:    nbaStatus(g.GameStatus),
 			})
 		}
 	}

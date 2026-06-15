@@ -27,7 +27,12 @@ func renderTVTable(out io.Writer, matches []tv.Match, loc *time.Location, color 
 		if league == "" {
 			league = m.League.DisplayName()
 		}
-		matchup := fmt.Sprintf("%s vs %s", m.Home.Name, m.Away.Name)
+		matchup := m.Home.Name
+		if m.HomeScore != "" && m.AwayScore != "" && (m.Status == tv.StatusFinished || m.Status == tv.StatusLive) {
+			matchup += " " + m.HomeScore + " - " + m.AwayScore + " " + m.Away.Name
+		} else {
+			matchup += " vs " + m.Away.Name
+		}
 		stage := m.Stage
 		if m.Round != "" {
 			if stage != "" {
@@ -87,6 +92,8 @@ type tvJSONMatch struct {
 	Start      string            `json:"start"`
 	Home       tv.Team           `json:"home"`
 	Away       tv.Team           `json:"away"`
+	HomeScore  string            `json:"home_score,omitempty"`
+	AwayScore  string            `json:"away_score,omitempty"`
 	Venue      string            `json:"venue,omitempty"`
 	Status     string            `json:"status"`
 	Broadcasts []tvJSONBroadcast `json:"broadcasts,omitempty"`
@@ -107,6 +114,8 @@ func writeTVJSON(out io.Writer, matches []tv.Match) error {
 			Start:      m.Start.Format(time.RFC3339),
 			Home:       m.Home,
 			Away:       m.Away,
+			HomeScore:  m.HomeScore,
+			AwayScore:  m.AwayScore,
 			Venue:      m.Venue,
 			Status:     string(m.Status),
 			Broadcasts: bs,

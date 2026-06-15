@@ -156,6 +156,7 @@ type espnEvent struct {
 
 type espnCompetitor struct {
 	HomeAway string `json:"homeAway"`
+	Score    string `json:"score"`
 	Team     struct {
 		ID           string `json:"id"`
 		DisplayName  string `json:"displayName"`
@@ -178,7 +179,7 @@ func (f *espnFetcher) parse(body []byte) ([]Match, error) {
 			continue
 		}
 		comp := e.Competitions[0]
-		home, away := splitCompetitors(comp.Competitors)
+	home, away := splitCompetitors(comp.Competitors)
 		stage := ""
 		if len(comp.Notes) > 0 {
 			stage = comp.Notes[0].Headline
@@ -190,6 +191,8 @@ func (f *espnFetcher) parse(body []byte) ([]Match, error) {
 			Start:      e.Date.Time,
 			Home:       Team{Name: localizeTeam(home.Team.DisplayName), Abbr: home.Team.Abbreviation},
 			Away:       Team{Name: localizeTeam(away.Team.DisplayName), Abbr: away.Team.Abbreviation},
+			HomeScore:  home.Score,
+			AwayScore:  away.Score,
 			Venue:      comp.Venue.FullName,
 			Status:     espnStatus(e.Status.Type.State),
 		})
@@ -310,4 +313,11 @@ var teamLocalize = map[string]string{
 	"Wales":        "威尔士",
 	"Ecuador":      "厄瓜多尔",
 	"Costa Rica":   "哥斯达黎加",
+	"Sweden":       "瑞典",
+	"Ivory Coast":  "科特迪瓦",
+	"Cape Verde":   "佛得角",
+	"Curacao":      "库拉索",
+	"Curaçao":      "库拉索",
+	"Bosnia and Herzegovina": "波黑",
+	"Bosnia":       "波黑",
 }

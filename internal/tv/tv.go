@@ -75,6 +75,8 @@ type Match struct {
 	Start      time.Time   `json:"start"`
 	Home       Team        `json:"home"`
 	Away       Team        `json:"away"`
+	HomeScore  string      `json:"home_score,omitempty"`
+	AwayScore  string      `json:"away_score,omitempty"`
 	Venue      string      `json:"venue,omitempty"`
 	Status     Status      `json:"status"`
 	Broadcasts []Broadcast `json:"broadcasts,omitempty"`
