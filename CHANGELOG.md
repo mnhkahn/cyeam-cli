@@ -5,6 +5,8 @@
 ### CI/CD
 
 
+- 跑 GoReleaser 前先删除已有 Release
+
 - 修复 webhook changelog 模板文件路径
 
 - 更新 CHANGELOG 后重新打 tag 保证 GoReleaser 一致性
@@ -18,6 +20,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - update changelog [skip ci]
 
