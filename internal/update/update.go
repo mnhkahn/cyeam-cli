@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,11 +17,6 @@ import (
 
 	"github.com/mnhkahn/cyeam-cli/internal/version"
 )
-
-type Release struct {
-	TagName string  `json:"tag_name"`
-	Assets  []Asset `json:"assets"`
-}
 
 type Asset struct {
 	Name               string `json:"name"`
@@ -91,7 +85,7 @@ func (i ArchiveInstaller) Install(ctx context.Context, asset Asset) error {
 
 type GitHubUpdater struct {
 	Repo       string
-	APIBaseURL string
+	BaseURL    string
 	HTTPClient *http.Client
 	GOOS       string
 	GOARCH     string
@@ -161,7 +155,6 @@ func isCyeamBinary(name string) bool {
 func NewGitHubUpdater(repo string, installer Installer) *GitHubUpdater {
 	return &GitHubUpdater{
 		Repo:       repo,
-		APIBaseURL: "https://api.github.com",
 		HTTPClient: &http.Client{Timeout: 30 * time.Second},
 		GOOS:       runtime.GOOS,
 		GOARCH:     runtime.GOARCH,
@@ -170,19 +163,19 @@ func NewGitHubUpdater(repo string, installer Installer) *GitHubUpdater {
 }
 
 func (u GitHubUpdater) Update(ctx context.Context, current version.Info) (Result, error) {
-	release, err := u.latestRelease(ctx)
+	tag, err := u.latestTag(ctx)
 	if err != nil {
 		return Result{}, err
 	}
 	result := Result{
 		Updated:    false,
 		OldVersion: current.Version,
-		NewVersion: release.TagName,
+		NewVersion: tag,
 	}
-	if current.Version == release.TagName {
+	if current.Version == tag {
 		return result, nil
 	}
-	asset, err := SelectAsset(release, u.GOOS, u.GOARCH)
+	asset, err := SelectAsset(u.Repo, u.GOOS, u.GOARCH, tag)
 	if err != nil {
 		return Result{}, err
 	}
@@ -207,32 +200,46 @@ func (u GitHubUpdater) installAsset(ctx context.Context, result Result, asset As
 	return result, nil
 }
 
-func (u GitHubUpdater) latestRelease(ctx context.Context) (Release, error) {
-	apiBase := strings.TrimRight(u.APIBaseURL, "/")
+func (u GitHubUpdater) latestTag(ctx context.Context) (string, error) {
+	base := strings.TrimRight(u.BaseURL, "/")
+	if base == "" {
+		base = "https://github.com"
+	}
+	url := base + "/" + u.Repo + "/releases/latest"
 	httpClient := u.HTTPClient
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 30 * time.Second}
 	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBase+"/repos/"+u.Repo+"/releases/latest", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
-		return Release{}, err
+		return "", err
 	}
+	req.Header.Set("Accept", "text/html, */*")
 	resp, err := httpClient.Do(req)
 	if err != nil {
-		return Release{}, err
+		return "", err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return Release{}, fmt.Errorf("github release request failed: %s", resp.Status)
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("github release page: %s", resp.Status)
 	}
-	var release Release
-	if err := json.NewDecoder(resp.Body).Decode(&release); err != nil {
-		return Release{}, err
+	finalURL := resp.Request.URL.String()
+	tag := extractTagFromURL(finalURL)
+	if tag == "" {
+		return "", fmt.Errorf("could not extract version tag from %s", finalURL)
 	}
-	if release.TagName == "" {
-		return Release{}, fmt.Errorf("github release has empty tag")
+	return tag, nil
+}
+
+func extractTagFromURL(rawURL string) string {
+	// e.g. https://github.com/mnhkahn/cyeam-cli/releases/tag/v0.1.4
+	idx := strings.Index(rawURL, "/releases/tag/")
+	if idx < 0 {
+		return ""
 	}
-	return release, nil
+	tag := rawURL[idx+len("/releases/tag/"):]
+	tag = strings.TrimRight(tag, "/")
+	return tag
 }
 
 func (r Result) String() string {
@@ -258,17 +265,13 @@ func AssetName(goos string, goarch string) (string, error) {
 	return fmt.Sprintf("cyeam_%s_%s%s", osName, archName, ext), nil
 }
 
-func SelectAsset(release Release, goos string, goarch string) (Asset, error) {
-	want, err := AssetName(goos, goarch)
+func SelectAsset(repo, goos, goarch, tag string) (Asset, error) {
+	name, err := AssetName(goos, goarch)
 	if err != nil {
 		return Asset{}, err
 	}
-	for _, asset := range release.Assets {
-		if asset.Name == want {
-			return asset, nil
-		}
-	}
-	return Asset{}, fmt.Errorf("release asset %q not found in %s", want, release.TagName)
+	url := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", repo, tag, name)
+	return Asset{Name: name, BrowserDownloadURL: url}, nil
 }
 
 func releaseOS(goos string) (string, error) {

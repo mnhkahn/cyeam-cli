@@ -34,13 +34,11 @@ type fakeService struct {
 	newsListFrom      string
 	newsListTo        string
 	newsListBody      string
-	updateCheckBody   string
 }
 
 type fakeUpdater struct {
 	current version.Info
 	result  update.Result
-	installURLCalled string
 }
 
 type fakeOneDrive struct {
@@ -78,11 +76,6 @@ func (f *fakeOneDrive) GetUserInfo(ctx context.Context) (onedrive.UserInfo, erro
 func (f *fakeUpdater) Update(ctx context.Context, current version.Info) (update.Result, error) {
 	f.current = current
 	return f.result, nil
-}
-
-func (f *fakeUpdater) InstallURL(ctx context.Context, downloadURL string) error {
-	f.installURLCalled = downloadURL
-	return nil
 }
 
 func (f *fakeService) AskArchitecture(ctx context.Context, query string, mode string, out io.Writer) error {
@@ -140,13 +133,6 @@ func (f *fakeService) MoOCR(ctx context.Context, filename string, body []byte) (
 	f.moOCRFilename = filename
 	f.moOCRBody = string(body)
 	return []byte(`{"code":0}`), nil
-}
-
-func (f *fakeService) UpdateCheck(ctx context.Context) ([]byte, error) {
-	if f.updateCheckBody != "" {
-		return []byte(f.updateCheckBody), nil
-	}
-	return []byte(`{"version":"v0.1.4","url":"https://github.com/mnhkahn/cyeam-cli/releases/download/v0.1.4/cyeam_Darwin_arm64.tar.gz"}`), nil
 }
 
 func (f *fakeService) NewsList(ctx context.Context, from, to string) ([]byte, error) {
@@ -207,14 +193,12 @@ func TestVersionPrintsVersionInfo(t *testing.T) {
 
 func TestUpdateDelegatesToUpdater(t *testing.T) {
 	stdout := new(bytes.Buffer)
-	service := &fakeService{updateCheckBody: `{"error":"not available"}`}
 	updater := &fakeUpdater{result: update.Result{
 		Updated:    true,
 		OldVersion: "v1.0.0",
 		NewVersion: "v1.1.0",
 	}}
 	cmd := NewRootCommand(Dependencies{
-		Service: service,
 		Stdout:  stdout,
 		Updater: updater,
 		VersionInfo: func() version.Info {

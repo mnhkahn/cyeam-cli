@@ -125,10 +125,6 @@ func (s *Service) NewsList(ctx context.Context, from, to string) ([]byte, error)
 	return s.client.GetJSON(ctx, "/api/geek/news", params)
 }
 
-func (s *Service) UpdateCheck(ctx context.Context) ([]byte, error) {
-	return s.client.GetJSON(ctx, "/api/update", nil)
-}
-
 type timorYearResponse struct {
 	Code    int                         `json:"code"`
 	Holiday map[string]timorHolidayInfo `json:"holiday"`

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/mnhkahn/cyeam-cli/internal/version"
@@ -100,19 +101,11 @@ func makeTarGz(t *testing.T, name string, data []byte) []byte {
 }
 
 func TestSelectAssetFindsMatchingReleaseAsset(t *testing.T) {
-	release := Release{
-		TagName: "v1.2.3",
-		Assets: []Asset{
-			{Name: "checksums.txt", BrowserDownloadURL: "https://example.com/checksums.txt"},
-			{Name: "cyeam_Darwin_arm64.tar.gz", BrowserDownloadURL: "https://example.com/cyeam_Darwin_arm64.tar.gz"},
-		},
-	}
-
-	asset, err := SelectAsset(release, "darwin", "arm64")
+	asset, err := SelectAsset("mnhkahn/cyeam-cli", "darwin", "arm64", "v1.2.3")
 	if err != nil {
 		t.Fatalf("SelectAsset: %v", err)
 	}
-	if asset.BrowserDownloadURL != "https://example.com/cyeam_Darwin_arm64.tar.gz" {
+	if asset.BrowserDownloadURL != "https://github.com/mnhkahn/cyeam-cli/releases/download/v1.2.3/cyeam_Darwin_arm64.tar.gz" {
 		t.Fatalf("url = %q", asset.BrowserDownloadURL)
 	}
 }
@@ -131,16 +124,22 @@ func TestResultString(t *testing.T) {
 
 func TestGitHubUpdaterReturnsCurrentWhenAlreadyLatest(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/repos/mnhkahn/cyeam-cli/releases/latest" {
-			t.Fatalf("path = %s", r.URL.Path)
+		if strings.Contains(r.URL.Path, "/releases/tag/") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("release page"))
+			return
 		}
-		_, _ = w.Write([]byte(`{"tag_name":"v1.1.0","assets":[]}`))
+		scheme := "http"
+		if r.TLS != nil {
+			scheme = "https"
+		}
+		http.Redirect(w, r, scheme+"://"+r.Host+"/mnhkahn/cyeam-cli/releases/tag/v1.1.0", http.StatusFound)
 	}))
 	defer server.Close()
 
 	updater := GitHubUpdater{
 		Repo:       "mnhkahn/cyeam-cli",
-		APIBaseURL: server.URL,
+		BaseURL:    server.URL,
 		HTTPClient: server.Client(),
 		GOOS:       "darwin",
 		GOARCH:     "arm64",
@@ -161,19 +160,22 @@ func TestGitHubUpdaterReturnsCurrentWhenAlreadyLatest(t *testing.T) {
 func TestGitHubUpdaterInstallsMatchingAssetWhenNewer(t *testing.T) {
 	installer := &recordingInstaller{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{
-			"tag_name":"v1.1.0",
-			"assets":[
-				{"name":"cyeam_Darwin_arm64.tar.gz","browser_download_url":"https://example.com/cyeam_Darwin_arm64.tar.gz"}
-			]
-		}`))
+		if strings.Contains(r.URL.Path, "/releases/tag/") {
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte("release page"))
+			return
+		}
+		secheme := "http"
+		if r.TLS != nil {
+			secheme = "https"
+		}
+		http.Redirect(w, r, secheme+"://"+r.Host+"/mnhkahn/cyeam-cli/releases/tag/v1.1.0", http.StatusFound)
 	}))
 	defer server.Close()
 
 	updater := GitHubUpdater{
 		Repo:       "mnhkahn/cyeam-cli",
-		APIBaseURL: server.URL,
-		HTTPClient: server.Client(),
+		BaseURL:    server.URL,
 		GOOS:       "darwin",
 		GOARCH:     "arm64",
 		Installer:  installer,
@@ -185,8 +187,9 @@ func TestGitHubUpdaterInstallsMatchingAssetWhenNewer(t *testing.T) {
 	if !result.Updated {
 		t.Fatal("expected update")
 	}
-	if installer.asset.Name != "cyeam_Darwin_arm64.tar.gz" {
-		t.Fatalf("asset = %q", installer.asset.Name)
+	wantURL := "https://github.com/mnhkahn/cyeam-cli/releases/download/v1.1.0/cyeam_Darwin_arm64.tar.gz"
+	if installer.asset.BrowserDownloadURL != wantURL {
+		t.Fatalf("download url = %q, want %q", installer.asset.BrowserDownloadURL, wantURL)
 	}
 }
 
