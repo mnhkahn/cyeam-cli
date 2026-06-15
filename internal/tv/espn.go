@@ -233,11 +233,15 @@ func espnDateRanges(q Query) []string {
 	from := q.From
 	to := q.To
 	if from.IsZero() {
-		from = time.Now().UTC()
+		from = time.Now()
 	}
 	if to.IsZero() {
 		to = from.AddDate(0, 0, 7)
 	}
+	// ESPN groups matches by US Eastern Time, so expand by 1 day on
+	// each side to catch matches that fall on neighboring US calendar days
+	from = from.AddDate(0, 0, -1)
+	to = to.AddDate(0, 0, 1)
 	if !to.After(from) {
 		return []string{from.Format("20060102")}
 	}
