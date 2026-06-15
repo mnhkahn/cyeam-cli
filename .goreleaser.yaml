@@ -52,4 +52,3 @@ release:
   github:
     owner: mnhkahn
     name: cyeam-cli
-  mode: replace
