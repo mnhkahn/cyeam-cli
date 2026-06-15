@@ -9,14 +9,13 @@ permissions:
   contents: write
 
 jobs:
-  changelog:
+  release:
     runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.tag.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: main
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -34,5 +33,31 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add CHANGELOG.md
-          git diff --cached --quiet || git commit -m "chore: update changelog"
-          git push
+          git diff --cached --quiet || git commit -m "chore: update changelog [skip ci]"
+          git push origin main
+
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          distribution: goreleaser
+          version: latest
+          args: release --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send release webhook
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          CHANGELOG=$(git-chglog --template '{{ range .CommitGroups }}{{ range .Commits }}- {{ .Subject }}{{ "\n" }}{{ end }}{{ end }}' "${GITHUB_REF_NAME}")
+          curl -s -X POST "${{ secrets.RELEASE_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d "$(cat <<-END
+          {
+            "event": "release",
+            "repository": "${{ github.repository }}",
+            "version": "$VERSION",
+            "ref": "${{ github.ref_name }}",
+            "changelog": "$CHANGELOG"
+          }
+          END
+          )" || echo "webhook skipped (no URL configured)"
