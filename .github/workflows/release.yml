@@ -33,8 +33,17 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add CHANGELOG.md
-          git diff --cached --quiet || git commit -m "chore: update changelog [skip ci]"
-          git push origin main
+          if git diff --cached --quiet; then
+            echo "no changelog changes"
+          else
+            git commit -m "chore: update changelog [skip ci]"
+            git push origin main
+          fi
+
+      - name: Move tag to latest commit
+        run: |
+          git tag -f "$GITHUB_REF_NAME" HEAD
+          git push -f origin "$GITHUB_REF_NAME"
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
