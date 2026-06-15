@@ -1,4 +1,23 @@
 
+<a name="v0.1.6"></a>
+## [v0.1.6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.5...v0.1.6) (2026-06-15)
+
+### CI/CD
+
+
+- 新增 GoReleaser 构建发布和 webhook 通知
+
+### Features
+
+
+- **tv:** 从 ESPN/NBA API 解析并展示比赛比分
+
+### Miscellaneous Tasks
+
+
+- 接入 git-chglog，打 tag 时自动更新 CHANGELOG.md
+
+
 <a name="v0.1.5"></a>
 ## [v0.1.5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.4...v0.1.5) (2026-06-15)
 
@@ -35,7 +54,7 @@
 
 
 <a name="v0.1.3"></a>
-## [v0.1.3](https://github.com/mnhkahn/cyeam-cli/compare/skill-6...v0.1.3) (2026-06-12)
+## [v0.1.3](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...v0.1.3) (2026-06-12)
 
 ### Documentation
 
@@ -46,6 +65,8 @@
 
 - **cyeam-cli:** 更新SKILL.md中aria2c下载的默认输出路径
 
+- **skills:** add cyeam-cli installation steps for different platforms
+
 ### Features
 
 
@@ -54,21 +75,8 @@
 - **tv:** add tv schedule command for NBA / World Cup / China national football
 
 
-<a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
-
-### Documentation
-
-
-- **skills:** add cyeam-cli installation steps for different platforms
-
-
 <a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
-
-
-<a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...v0.1.2) (2026-06-12)
 
 ### Documentation
 
@@ -89,16 +97,21 @@
 
 
 <a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.1) (2026-06-11)
-
-
-<a name="skill-4"></a>
-## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...skill-4) (2026-06-11)
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.0...v0.1.1) (2026-06-11)
 
 ### Bug Fixes
 
 
 - skill release 标记为预发布，latest 指向正式版本
+
+- 修复 README 下载链接，使用具体版本号
+
+- 简化 skill 发布工作流，移除跨仓库写入
+
+### CI/CD
+
+
+- 添加 skill 发布工作流，自动提交到各平台
 
 ### Code Refactoring
 
@@ -108,6 +121,8 @@
 ### Documentation
 
 
+- 新增 README 文档，包含安装说明和命令使用指南
+
 - **cli:** 同步最新命令说明
 
 - **release:** 移除 Homebrew 后续支持说明
@@ -116,34 +131,6 @@
 
 
 - 新增微软登录、OneDrive 集成及笔记功能
-
-
-<a name="skill-3"></a>
-## [skill-3](https://github.com/mnhkahn/cyeam-cli/compare/skill-2...skill-3) (2026-06-10)
-
-### Bug Fixes
-
-
-- 修复 README 下载链接，使用具体版本号
-
-
-<a name="skill-2"></a>
-## [skill-2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.0...skill-2) (2026-06-10)
-
-### Bug Fixes
-
-
-- 简化 skill 发布工作流，移除跨仓库写入
-
-### CI/CD
-
-
-- 添加 skill 发布工作流，自动提交到各平台
-
-### Documentation
-
-
-- 新增 README 文档，包含安装说明和命令使用指南
 
 ### Miscellaneous Tasks
 
