@@ -55,10 +55,10 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Send release webhook
+        continue-on-error: true
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          echo '{{ range .CommitGroups }}{{ range .Commits }}- {{ .Subject }}{{ "\n" }}{{ end }}{{ end }}' > /tmp/changelog.tpl
-          CHANGELOG=$(git-chglog --template /tmp/changelog.tpl "${GITHUB_REF_NAME}")
+          CHANGELOG=$(git-chglog --template .chglog/webhook.tpl.md "${GITHUB_REF_NAME}" 2>/dev/null || echo "")
           curl -s -X POST "${{ secrets.RELEASE_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d "$(cat <<-END
