@@ -5,6 +5,8 @@
 ### CI/CD
 
 
+- 更新 CHANGELOG 后重新打 tag 保证 GoReleaser 一致性
+
 - 新增 GoReleaser 构建发布和 webhook 通知
 
 ### Features
@@ -14,6 +16,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - 接入 git-chglog，打 tag 时自动更新 CHANGELOG.md
 
