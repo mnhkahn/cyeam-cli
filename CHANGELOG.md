@@ -5,6 +5,8 @@
 ### CI/CD
 
 
+- 修复 webhook changelog 模板路径和继续执行
+
 - GoReleaser mode replace 覆盖已有 asset 而非报错
 
 - 跑 GoReleaser 前先删除已有 Release
@@ -22,6 +24,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - update changelog [skip ci]
 
