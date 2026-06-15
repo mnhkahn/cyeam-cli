@@ -1,70 +1,38 @@
-name: Release
+name: release
 
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 permissions:
   contents: write
 
 jobs:
-  release:
-    name: Build and publish release
+  changelog:
     runs-on: ubuntu-latest
-    env:
-      FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
-
+    outputs:
+      version: ${{ steps.tag.outputs.version }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
-          go-version: "1.23.x"
-          cache: true
+          go-version: stable
 
-      - name: Run tests
-        run: go test ./...
+      - name: Install git-chglog
+        run: go install github.com/git-chglog/git-chglog/cmd/git-chglog@latest
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          distribution: goreleaser
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Generate CHANGELOG.md
+        run: git-chglog -o CHANGELOG.md
 
-      - name: Notify Feishu release success
-        if: success() && env.FEISHU_WEBHOOK_URL != ''
+      - name: Commit and push CHANGELOG.md
         run: |
-          curl -fsS -X POST "$FEISHU_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "$(cat <<EOF
-          {
-            "msg_type": "text",
-            "content": {
-              "text": "cyeam CLI Release succeeded: ${GITHUB_REF_NAME}\n${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${GITHUB_REF_NAME}"
-            }
-          }
-          EOF
-          )"
-
-      - name: Notify Feishu release failure
-        if: failure() && env.FEISHU_WEBHOOK_URL != ''
-        run: |
-          curl -fsS -X POST "$FEISHU_WEBHOOK_URL" \
-            -H "Content-Type: application/json" \
-            -d "$(cat <<EOF
-          {
-            "msg_type": "text",
-            "content": {
-              "text": "cyeam CLI Release failed: ${GITHUB_REF_NAME}\n${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-            }
-          }
-          EOF
-          )"
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          git add CHANGELOG.md
+          git diff --cached --quiet || git commit -m "chore: update changelog"
+          git push
