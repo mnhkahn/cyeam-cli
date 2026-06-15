@@ -5,6 +5,8 @@
 ### CI/CD
 
 
+- 修复 webhook changelog 模板文件路径
+
 - 更新 CHANGELOG 后重新打 tag 保证 GoReleaser 一致性
 
 - 新增 GoReleaser 构建发布和 webhook 通知
@@ -16,6 +18,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - update changelog [skip ci]
 
