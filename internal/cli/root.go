@@ -30,6 +30,7 @@ type Service interface {
 	MoCharCompose(ctx context.Context, char string) ([]byte, error)
 	MoOCR(ctx context.Context, filename string, body []byte) ([]byte, error)
 	NewsList(ctx context.Context, from, to string) ([]byte, error)
+	UpdateCheck(ctx context.Context) ([]byte, error)
 }
 
 type Dependencies struct {
@@ -43,6 +44,7 @@ type Dependencies struct {
 
 type Updater interface {
 	Update(ctx context.Context, current version.Info) (update.Result, error)
+	InstallURL(ctx context.Context, downloadURL string) error
 }
 
 type OneDriveClient interface {
@@ -113,11 +115,47 @@ func newUpdateCommand(deps Dependencies) *cobra.Command {
 			if deps.Updater == nil {
 				return fmt.Errorf("updater is required")
 			}
-			result, err := deps.Updater.Update(cmd.Context(), deps.VersionInfo())
+			if deps.Service == nil {
+				return fmt.Errorf("service is required")
+			}
+			current := deps.VersionInfo()
+
+			body, err := deps.Service.UpdateCheck(cmd.Context())
 			if err != nil {
+				result, retryErr := deps.Updater.Update(cmd.Context(), current)
+				if retryErr != nil {
+					return fmt.Errorf("update check failed (service: %v, direct: %w)", err, retryErr)
+				}
+				_, err = deps.Stdout.Write([]byte(result.String()))
 				return err
 			}
-			_, err = deps.Stdout.Write([]byte(result.String()))
+
+			var check struct {
+				Version string `json:"version"`
+				URL     string `json:"url"`
+				Error   string `json:"error"`
+			}
+			if err := json.Unmarshal(body, &check); err != nil {
+				return err
+			}
+			if check.Error != "" {
+				result, retryErr := deps.Updater.Update(cmd.Context(), current)
+				if retryErr != nil {
+					return fmt.Errorf("update check failed (service: %s, direct: %w)", check.Error, retryErr)
+				}
+				_, err = deps.Stdout.Write([]byte(result.String()))
+				return err
+			}
+
+			if current.Version == check.Version {
+				_, err = deps.Stdout.Write([]byte("already up to date: " + check.Version + "\n"))
+				return err
+			}
+
+			if err := deps.Updater.InstallURL(cmd.Context(), check.URL); err != nil {
+				return err
+			}
+			_, err = deps.Stdout.Write([]byte("updated: " + current.Version + " -> " + check.Version + "\n"))
 			return err
 		},
 	}

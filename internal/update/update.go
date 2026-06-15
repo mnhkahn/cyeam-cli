@@ -186,6 +186,17 @@ func (u GitHubUpdater) Update(ctx context.Context, current version.Info) (Result
 	if err != nil {
 		return Result{}, err
 	}
+	return u.installAsset(ctx, result, asset)
+}
+
+func (u GitHubUpdater) InstallURL(ctx context.Context, downloadURL string) error {
+	if u.Installer == nil {
+		return fmt.Errorf("installer is required")
+	}
+	return u.Installer.Install(ctx, Asset{BrowserDownloadURL: downloadURL})
+}
+
+func (u GitHubUpdater) installAsset(ctx context.Context, result Result, asset Asset) (Result, error) {
 	if u.Installer == nil {
 		return Result{}, fmt.Errorf("installer is required")
 	}
