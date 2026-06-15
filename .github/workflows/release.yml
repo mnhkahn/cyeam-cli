@@ -45,12 +45,6 @@ jobs:
           git tag -f "$GITHUB_REF_NAME" HEAD
           git push -f origin "$GITHUB_REF_NAME"
 
-      - name: Delete existing release if any
-        run: |
-          gh release delete "$GITHUB_REF_NAME" --yes --cleanup-tag 2>/dev/null || echo "no existing release to delete"
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
