@@ -144,6 +144,10 @@ func (f *fakeService) NewsList(ctx context.Context, from, to string) ([]byte, er
 	return []byte(`{"news":{"create_time":1718352000,"news":[],"summary":""},"date":"2026-06-14"}`), nil
 }
 
+func init() {
+	os.Setenv("CYEAM_CLI_NO_UPDATE_NOTIFIER", "1")
+}
+
 func TestAskDefaultsToArchitectureFastMode(t *testing.T) {
 	service := &fakeService{}
 	stdout := new(bytes.Buffer)
@@ -214,8 +218,9 @@ func TestUpdateDelegatesToUpdater(t *testing.T) {
 	if updater.current.Version != "v1.0.0" {
 		t.Fatalf("current version = %q", updater.current.Version)
 	}
-	if stdout.String() != "updated: v1.0.0 -> v1.1.0\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	got := stdout.String()
+	if !strings.Contains(got, "updated: v1.0.0 -> v1.1.0") {
+		t.Fatalf("stdout = %q, want update message", got)
 	}
 }
 

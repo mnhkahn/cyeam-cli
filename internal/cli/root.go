@@ -7,7 +7,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
@@ -61,6 +63,111 @@ func oneDriveClient(deps Dependencies) OneDriveClient {
 	return onedrive.NewClient(auth.GetAccessToken)
 }
 
+var (
+	pendingUpdate output.UpdateNotice
+	pendingSkills output.SkillsNotice
+	mu            sync.Mutex
+)
+
+func setupNotices(deps Dependencies) {
+	if !update.ShouldCheck() {
+		return
+	}
+	current := deps.VersionInfo().Version
+
+	if latest, ok := update.CheckCached(current); ok {
+		mu.Lock()
+		pendingUpdate = output.UpdateNotice{
+			Current: current,
+			Latest:  latest,
+			Message: fmt.Sprintf("cyeam %s available, current %s, run: cyeam update", latest, current),
+			Command: "cyeam update",
+		}
+		mu.Unlock()
+	}
+
+	go func() {
+		if latest, ok := update.RefreshCache(current); ok {
+			mu.Lock()
+			pendingUpdate = output.UpdateNotice{
+				Current: current,
+				Latest:  latest,
+				Message: fmt.Sprintf("cyeam %s available, current %s, run: cyeam update", latest, current),
+				Command: "cyeam update",
+			}
+			mu.Unlock()
+		}
+	}()
+}
+
+func writeNotice(out io.Writer) {
+	mu.Lock()
+	var notice *output.Notice
+	if pendingUpdate.Current != "" || pendingSkills.Current != "" {
+		n := output.Notice{}
+		if pendingUpdate.Current != "" {
+			u := pendingUpdate
+			n.Update = &u
+			pendingUpdate = output.UpdateNotice{}
+		}
+		if pendingSkills.Current != "" {
+			s := pendingSkills
+			n.Skills = &s
+			pendingSkills = output.SkillsNotice{}
+		}
+		notice = &n
+	}
+	mu.Unlock()
+
+	if notice != nil {
+		env := map[string]interface{}{"_notice": notice}
+		b, _ := json.Marshal(env)
+		fmt.Fprintln(out, string(b))
+	}
+}
+
+func syncSkills(ctx context.Context, out io.Writer) bool {
+	if _, err := exec.LookPath("npx"); err != nil {
+		fmt.Fprintf(out, "skill sync skipped: npx not found (%v)\n", err)
+		return false
+	}
+	cmd := exec.CommandContext(ctx, "npx", "skills", "add", "mnhkahn/cyeam-cli", "-g", "-y")
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		fmt.Fprintf(out, "skill sync failed: %v\n", err)
+		return false
+	}
+	fmt.Fprintf(out, "skills synced: %s\n", strings.TrimSpace(string(output)))
+	return true
+}
+
+func setSkillsSynced(version string) {
+	_ = update.SaveState(&update.State{
+		LatestVersion: version,
+		CheckedAt:     time.Now().Unix(),
+	})
+}
+
+func newSkillsCommand(deps Dependencies) *cobra.Command {
+	syncCmd := &cobra.Command{
+		Use:   "sync",
+		Short: "Sync cyeam AI agent skills",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if syncSkills(cmd.Context(), deps.Stdout) {
+				setSkillsSynced(deps.VersionInfo().Version)
+			}
+			return nil
+		},
+	}
+	cmd := &cobra.Command{
+		Use:   "skills",
+		Short: "Manage AI agent skills",
+	}
+	cmd.AddCommand(syncCmd)
+	return cmd
+}
+
 func NewRootCommand(deps Dependencies) *cobra.Command {
 	if deps.Stdout == nil {
 		deps.Stdout = io.Discard
@@ -76,6 +183,14 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 		Use:           "cyeam",
 		SilenceUsage:  true,
 		SilenceErrors: true,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			setupNotices(deps)
+			return nil
+		},
+		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
+			writeNotice(deps.Stdout)
+			return nil
+		},
 	}
 	root.AddCommand(newVersionCommand(deps))
 	root.AddCommand(newUpdateCommand(deps))
@@ -89,6 +204,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newCnoteCommand(deps))
 	root.AddCommand(newTVCommand(deps))
 	root.AddCommand(newNewsCommand(deps))
+	root.AddCommand(newSkillsCommand(deps))
 	return root
 }
 
@@ -108,17 +224,33 @@ func newUpdateCommand(deps Dependencies) *cobra.Command {
 	return &cobra.Command{
 		Use:   "update",
 		Short: "Update cyeam from GitHub Releases",
+		Long:  "Update cyeam binary and sync AI agent skills via npx skills add",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if deps.Updater == nil {
 				return fmt.Errorf("updater is required")
 			}
-			result, err := deps.Updater.Update(cmd.Context(), deps.VersionInfo())
+			current := deps.VersionInfo()
+			result, err := deps.Updater.Update(cmd.Context(), current)
 			if err != nil {
 				return err
 			}
 			_, err = deps.Stdout.Write([]byte(result.String()))
-			return err
+			if err != nil {
+				return err
+			}
+
+			if !result.Updated {
+				if ok := syncSkills(cmd.Context(), deps.Stdout); ok {
+					setSkillsSynced(current.Version)
+				}
+				return nil
+			}
+
+			if syncSkills(cmd.Context(), deps.Stdout) {
+				setSkillsSynced(result.NewVersion)
+			}
+			return nil
 		},
 	}
 }

@@ -1,6 +1,6 @@
 ---
 name: cyeam-cli
-description: Use when a user asks to use cyeam.com public site capabilities from the command line, including ask/search, date holiday lookup, Mo calligraphy/OCR, roadbook sharing, OneDrive-backed roadbook/note workflows, Microsoft login, CLI version checks, CLI self-update, or TV schedule lookup for NBA / FIFA World Cup / China national football teams with broadcaster info.
+description: cyeam.com public site CLI — ask/search architecture, date holiday, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All commands support --json for structured output.
 ---
 
 # Cyeam CLI
@@ -33,9 +33,12 @@ Use the `cyeam` command for supported public cyeam.com capabilities. Do not expo
     ```
   - Windows: Download `cyeam_Windows_x86_64.zip`, unzip it, and add `cyeam.exe` to `PATH`.
 - Run `cyeam version` first when the user asks about installation state, updates, or compatibility.
-- Use `cyeam update` only when the user asks to update the CLI. It updates from GitHub Release assets.
+- Use `cyeam update` only when the user asks to update the CLI. It updates from GitHub Release assets and auto-syncs this skill file.
 - Commands call the production cyeam.com service by default; there is no config command.
 - For multi-threaded downloads, use `aria2c` directly. Install via `brew install aria2` if missing. Default output to `~/Downloads/`. Supports `--all-proxy` for proxy.
+- All commands support `--json` flag. When set, output is a JSON envelope: `{"ok": true, "data": ..., "_notice": {...}}`. The `_notice` field may contain update/skill sync reminders.
+- Set `CYEAM_CLI_NO_UPDATE_NOTIFIER=1` to suppress update/skill notices.
+- In CI environments (`CI=true`), update checks are skipped automatically.
 
 ## Supported Commands
 
@@ -81,6 +84,12 @@ cyeam tv list --from 2026-06-15 --to 2026-06-20
 cyeam tv list --json
 cyeam tv today
 cyeam tv next --league nba
+
+cyeam news list
+cyeam news list --from 2026-06-10 --to 2026-06-14
+cyeam news get --date 2026-06-14
+
+cyeam update --help
 ```
 
 ## Behavior Notes
