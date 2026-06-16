@@ -108,6 +108,7 @@ cyeam update --help
 - `--league` accepts `nba`, `worldcup`, `cn-football` (comma-separated or repeatable). `--from`/`--to` override `--days` start. `--include-finished` to also show finished matches; `--source` filters by broadcaster (e.g. CCTV5); `--team` filters by team name or abbreviation.
 - Broadcasters (CCTV5, 央视频, 腾讯体育, 咪咕视频, etc.) are read-only viewing hints. The CLI does not capture streams, decode m3u8, or bypass paywalls. Names render as clickable terminal hyperlinks when supported.
 - `tv` does not require login or call cyeam.com. If a data source (cdn.nba.com, ESPN site API) is unreachable, that league is skipped with a warning instead of failing the whole command.
+- Team/country names and league stages (e.g. "Finals", "Regular", "Playoffs") are in English. Translate them to Chinese and add flag emojis when presenting to the user.
 
 ## Unsupported Requests
 

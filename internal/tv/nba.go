@@ -110,7 +110,7 @@ func parseNBASchedule(body []byte, q Query) ([]Match, error) {
 			stage := nbaStage(g.GameLabel, g.SeriesText)
 			out = append(out, Match{
 				League:     LeagueNBA,
-				LeagueName: nbaLeagueName(stage),
+				LeagueName: stage,
 				Stage:      stage,
 				Round:      strings.TrimSpace(g.GameSubLabel),
 				Start:      start,
@@ -132,9 +132,6 @@ func parseNBASchedule(body []byte, q Query) ([]Match, error) {
 }
 
 func nbaTeamName(t nbaTeam) string {
-	if name, ok := nbaTeamCN[t.TeamTricode]; ok {
-		return name
-	}
 	if t.TeamCity != "" && t.TeamName != "" {
 		return t.TeamCity + " " + t.TeamName
 	}
@@ -166,25 +163,6 @@ func nbaStage(label, series string) string {
 	return "Regular"
 }
 
-func nbaLeagueName(stage string) string {
-	switch stage {
-	case "Finals":
-		return "NBA 总决赛"
-	case "Playoffs":
-		return "NBA 季后赛"
-	case "Play-In":
-		return "NBA 附加赛"
-	case "Preseason":
-		return "NBA 季前赛"
-	case "All-Star":
-		return "NBA 全明星"
-	case "Cup":
-		return "NBA 杯赛"
-	default:
-		return "NBA 常规赛"
-	}
-}
-
 func nbaStatus(s int) Status {
 	switch s {
 	case 1:
@@ -198,13 +176,4 @@ func nbaStatus(s int) Status {
 	}
 }
 
-var nbaTeamCN = map[string]string{
-	"ATL": "老鹰", "BOS": "凯尔特人", "BKN": "篮网", "CHA": "黄蜂",
-	"CHI": "公牛", "CLE": "骑士", "DAL": "独行侠", "DEN": "掘金",
-	"DET": "活塞", "GSW": "勇士", "HOU": "火箭", "IND": "步行者",
-	"LAC": "快船", "LAL": "湖人", "MEM": "灰熊", "MIA": "热火",
-	"MIL": "雄鹿", "MIN": "森林狼", "NOP": "鹈鹕", "NYK": "尼克斯",
-	"OKC": "雷霆", "ORL": "魔术", "PHI": "76 人", "PHX": "太阳",
-	"POR": "开拓者", "SAC": "国王", "SAS": "马刺", "TOR": "猛龙",
-	"UTA": "爵士", "WAS": "奇才",
-}
+

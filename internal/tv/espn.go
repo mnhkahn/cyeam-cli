@@ -189,8 +189,8 @@ func (f *espnFetcher) parse(body []byte) ([]Match, error) {
 			LeagueName: f.LeagueName,
 			Stage:      stage,
 			Start:      e.Date.Time,
-			Home:       Team{Name: localizeTeam(home.Team.DisplayName), Abbr: home.Team.Abbreviation},
-			Away:       Team{Name: localizeTeam(away.Team.DisplayName), Abbr: away.Team.Abbreviation},
+			Home:       Team{Name: home.Team.DisplayName, Abbr: home.Team.Abbreviation},
+			Away:       Team{Name: away.Team.DisplayName, Abbr: away.Team.Abbreviation},
 			HomeScore:  home.Score,
 			AwayScore:  away.Score,
 			Venue:      comp.Venue.FullName,
@@ -263,61 +263,4 @@ func dedupMatches(in []Match) []Match {
 		out = append(out, m)
 	}
 	return out
-}
-
-func localizeTeam(name string) string {
-	if cn, ok := teamLocalize[name]; ok {
-		return cn
-	}
-	return name
-}
-
-var teamLocalize = map[string]string{
-	"China PR":     "中国",
-	"China":        "中国",
-	"Chinese Taipei": "中国台北",
-	"Hong Kong":    "中国香港",
-	"Argentina":    "阿根廷",
-	"Brazil":       "巴西",
-	"France":       "法国",
-	"Germany":      "德国",
-	"Spain":        "西班牙",
-	"Portugal":     "葡萄牙",
-	"England":      "英格兰",
-	"Italy":        "意大利",
-	"Netherlands":  "荷兰",
-	"Belgium":      "比利时",
-	"Croatia":      "克罗地亚",
-	"Morocco":      "摩洛哥",
-	"Mexico":       "墨西哥",
-	"Uruguay":      "乌拉圭",
-	"Colombia":     "哥伦比亚",
-	"Japan":        "日本",
-	"South Korea":  "韩国",
-	"Korea Republic": "韩国",
-	"Saudi Arabia": "沙特阿拉伯",
-	"Iran":         "伊朗",
-	"Australia":    "澳大利亚",
-	"United States": "美国",
-	"USA":          "美国",
-	"Canada":       "加拿大",
-	"Qatar":        "卡塔尔",
-	"Senegal":      "塞内加尔",
-	"Ghana":        "加纳",
-	"Cameroon":     "喀麦隆",
-	"Tunisia":      "突尼斯",
-	"Switzerland":  "瑞士",
-	"Denmark":      "丹麦",
-	"Poland":       "波兰",
-	"Serbia":       "塞尔维亚",
-	"Wales":        "威尔士",
-	"Ecuador":      "厄瓜多尔",
-	"Costa Rica":   "哥斯达黎加",
-	"Sweden":       "瑞典",
-	"Ivory Coast":  "科特迪瓦",
-	"Cape Verde":   "佛得角",
-	"Curacao":      "库拉索",
-	"Curaçao":      "库拉索",
-	"Bosnia and Herzegovina": "波黑",
-	"Bosnia":       "波黑",
 }
