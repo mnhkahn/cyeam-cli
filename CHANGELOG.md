@@ -1,4 +1,13 @@
 
+<a name="v0.1.9"></a>
+## [v0.1.9](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.8...v0.1.9) (2026-06-16)
+
+### Features
+
+
+- **cli:** 统一所有输出为 JSON 信封格式
+
+
 <a name="v0.1.8"></a>
 ## [v0.1.8](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.7...v0.1.8) (2026-06-16)
 
@@ -6,6 +15,11 @@
 
 
 - **tv:** 移除队伍名中英映射，交由模型翻译
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.7"></a>
