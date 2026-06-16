@@ -1,4 +1,13 @@
 
+<a name="v0.1.7"></a>
+## [v0.1.7](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.6...v0.1.7) (2026-06-16)
+
+### Features
+
+
+- **cli:** JSON 信封输出、更新通知与技能同步
+
+
 <a name="v0.1.6"></a>
 ## [v0.1.6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.5...v0.1.6) (2026-06-15)
 
@@ -26,6 +35,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - update changelog [skip ci]
 
