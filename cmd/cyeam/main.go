@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/mnhkahn/cyeam-cli/internal/cli"
@@ -22,7 +21,7 @@ func main() {
 		Updater: updater,
 	})
 	if err := cmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+		cli.WriteError(os.Stderr, err)
 		os.Exit(1)
 	}
 }

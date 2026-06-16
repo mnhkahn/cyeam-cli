@@ -1,6 +1,6 @@
 ---
 name: cyeam-cli
-description: cyeam.com public site CLI — ask/search architecture, date holiday, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All commands support --json for structured output.
+description: cyeam.com public site CLI — ask/search architecture, date holiday, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All output is JSON envelope.
 ---
 
 # Cyeam CLI
@@ -36,7 +36,7 @@ Use the `cyeam` command for supported public cyeam.com capabilities. Do not expo
 - Use `cyeam update` only when the user asks to update the CLI. It updates from GitHub Release assets and auto-syncs this skill file.
 - Commands call the production cyeam.com service by default; there is no config command.
 - For multi-threaded downloads, use `aria2c` directly. Install via `brew install aria2` if missing. Default output to `~/Downloads/`. Supports `--all-proxy` for proxy.
-- All commands support `--json` flag. When set, output is a JSON envelope: `{"ok": true, "data": ..., "_notice": {...}}`. The `_notice` field may contain update/skill sync reminders.
+- All commands output JSON envelope: `{"ok": true, "data": "...", "_notice": {...}}`. On error: `{"ok": false, "error": {"type": "...", "message": "..."}, "_notice": {...}}`. The `_notice` field may contain update/skill sync reminders.
 - Set `CYEAM_CLI_NO_UPDATE_NOTIFIER=1` to suppress update/skill notices.
 - In CI environments (`CI=true`), update checks are skipped automatically.
 
@@ -81,7 +81,7 @@ cyeam tv list --league worldcup,cn-football
 cyeam tv list --team 湖人
 cyeam tv list --source CCTV5
 cyeam tv list --from 2026-06-15 --to 2026-06-20
-cyeam tv list --json
+cyeam tv list --team 湖人
 cyeam tv today
 cyeam tv next --league nba
 

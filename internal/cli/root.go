@@ -100,30 +100,24 @@ func setupNotices(deps Dependencies) {
 	}()
 }
 
-func writeNotice(out io.Writer) {
+func consumeNotice() *output.Notice {
 	mu.Lock()
-	var notice *output.Notice
-	if pendingUpdate.Current != "" || pendingSkills.Current != "" {
-		n := output.Notice{}
-		if pendingUpdate.Current != "" {
-			u := pendingUpdate
-			n.Update = &u
-			pendingUpdate = output.UpdateNotice{}
-		}
-		if pendingSkills.Current != "" {
-			s := pendingSkills
-			n.Skills = &s
-			pendingSkills = output.SkillsNotice{}
-		}
-		notice = &n
+	defer mu.Unlock()
+	if pendingUpdate.Current == "" && pendingSkills.Current == "" {
+		return nil
 	}
-	mu.Unlock()
-
-	if notice != nil {
-		env := map[string]interface{}{"_notice": notice}
-		b, _ := json.Marshal(env)
-		fmt.Fprintln(out, string(b))
+	n := output.Notice{}
+	if pendingUpdate.Current != "" {
+		u := pendingUpdate
+		n.Update = &u
+		pendingUpdate = output.UpdateNotice{}
 	}
+	if pendingSkills.Current != "" {
+		s := pendingSkills
+		n.Skills = &s
+		pendingSkills = output.SkillsNotice{}
+	}
+	return &n
 }
 
 func syncSkills(ctx context.Context, out io.Writer) bool {
@@ -168,6 +162,15 @@ func newSkillsCommand(deps Dependencies) *cobra.Command {
 	return cmd
 }
 
+func WriteError(out io.Writer, err error) {
+	enc := json.NewEncoder(out)
+	_ = enc.Encode(output.ErrorEnvelope{
+		OK:     false,
+		Error:  output.ErrorInfo{Type: "error", Message: err.Error()},
+		Notice: consumeNotice(),
+	})
+}
+
 func NewRootCommand(deps Dependencies) *cobra.Command {
 	if deps.Stdout == nil {
 		deps.Stdout = io.Discard
@@ -179,6 +182,10 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 		deps.VersionInfo = version.Current
 	}
 
+	originalStdout := deps.Stdout
+	var buf bytes.Buffer
+	deps.Stdout = &buf
+
 	root := &cobra.Command{
 		Use:           "cyeam",
 		SilenceUsage:  true,
@@ -188,10 +195,14 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 			return nil
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
-			writeNotice(deps.Stdout)
-			return nil
+			notice := consumeNotice()
+			env := output.Envelope{OK: true, Data: buf.String(), Notice: notice}
+			enc := json.NewEncoder(originalStdout)
+			return enc.Encode(env)
 		},
 	}
+	root.SetOut(&buf)
+
 	root.AddCommand(newVersionCommand(deps))
 	root.AddCommand(newUpdateCommand(deps))
 	root.AddCommand(newAskCommand(deps))
@@ -304,6 +315,7 @@ func newDateCommand(deps Dependencies) *cobra.Command {
 			if len(args) > 0 {
 				return fmt.Errorf("unknown date command %q", args[0])
 			}
+			cmd.SetOut(deps.Stdout)
 			return cmd.Help()
 		},
 	}

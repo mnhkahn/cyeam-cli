@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
+	"github.com/mnhkahn/cyeam-cli/internal/output"
 	"github.com/mnhkahn/cyeam-cli/internal/update"
 	"github.com/mnhkahn/cyeam-cli/internal/version"
 )
@@ -148,6 +150,19 @@ func init() {
 	os.Setenv("CYEAM_CLI_NO_UPDATE_NOTIFIER", "1")
 }
 
+func envelopeData(t *testing.T, buf *bytes.Buffer) string {
+	t.Helper()
+	var env output.Envelope
+	if err := json.Unmarshal(buf.Bytes(), &env); err != nil {
+		t.Fatalf("unmarshal envelope: %v\nraw: %s", err, buf.String())
+	}
+	if !env.OK {
+		t.Fatalf("envelope ok false, data: %s", buf.String())
+	}
+	s, _ := env.Data.(string)
+	return s
+}
+
 func TestAskDefaultsToArchitectureFastMode(t *testing.T) {
 	service := &fakeService{}
 	stdout := new(bytes.Buffer)
@@ -164,8 +179,8 @@ func TestAskDefaultsToArchitectureFastMode(t *testing.T) {
 	if service.architectureMode != "fast" {
 		t.Fatalf("architecture mode = %q, want fast", service.architectureMode)
 	}
-	if stdout.String() != "architecture answer" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != "architecture answer" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -190,8 +205,8 @@ func TestVersionPrintsVersionInfo(t *testing.T) {
 	}
 
 	want := "version: v1.2.3\ncommit: abc123\nbuild_date: 2026-06-09T12:00:00Z\ngoos: darwin\ngoarch: arm64\n"
-	if stdout.String() != want {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != want {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -218,7 +233,7 @@ func TestUpdateDelegatesToUpdater(t *testing.T) {
 	if updater.current.Version != "v1.0.0" {
 		t.Fatalf("current version = %q", updater.current.Version)
 	}
-	got := stdout.String()
+	got := envelopeData(t, stdout)
 	if !strings.Contains(got, "updated: v1.0.0 -> v1.1.0") {
 		t.Fatalf("stdout = %q, want update message", got)
 	}
@@ -280,8 +295,8 @@ func TestDateHolidayDefaultsToToday(t *testing.T) {
 		t.Fatalf("date = %q", service.dateHolidayDate)
 	}
 	want := "日期: 2026-06-09\n星期: 周二\n状态: 工作日\n"
-	if stdout.String() != want {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != want {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -298,8 +313,8 @@ func TestDateHolidayFormatsHoliday(t *testing.T) {
 	}
 
 	want := "日期: 2026-06-19\n星期: 周五\n状态: 休息日\n名称: 端午节\n薪资倍数: 3\n"
-	if stdout.String() != want {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != want {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -316,8 +331,8 @@ func TestDateHolidayFormatsAdjustedWorkday(t *testing.T) {
 	}
 
 	want := "日期: 2026-05-09\n星期: 周六\n状态: 调休补班\n名称: 劳动节后补班\n目标假期: 劳动节\n"
-	if stdout.String() != want {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != want {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -350,8 +365,8 @@ func TestRoadbookShareReadsFileAndPrintsURL(t *testing.T) {
 	if service.roadbookShareBody != `[{"name":"A"}]` {
 		t.Fatalf("body = %q", service.roadbookShareBody)
 	}
-	if stdout.String() != "{\"id\":\"abc123\",\"url\":\"https://www.cyeam.com/tool/roadbook?id=abc123\"}\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != "{\"id\":\"abc123\",\"url\":\"https://www.cyeam.com/tool/roadbook?id=abc123\"}\n" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -368,8 +383,8 @@ func TestRoadbookGetUsesID(t *testing.T) {
 	if service.roadbookGetID != "abc123" {
 		t.Fatalf("id = %q", service.roadbookGetID)
 	}
-	if stdout.String() != "{\"data\":\"[]\"}\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != "{\"data\":\"[]\"}\n" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -451,8 +466,8 @@ func TestCnoteGetDefaultsToMarkdown(t *testing.T) {
 	if od.readFolder != "Notes" || od.readName != "日记.html" {
 		t.Fatalf("read = %s/%s", od.readFolder, od.readName)
 	}
-	if stdout.String() != "# 标题\n\nHello **world**\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != "# 标题\n\nHello **world**\n" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -470,8 +485,8 @@ func TestCnoteGetSupportsTextFormat(t *testing.T) {
 	if err := cmd.Execute(); err != nil {
 		t.Fatalf("execute cnote get: %v", err)
 	}
-	if stdout.String() != "标题\n\nHello world\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != "标题\n\nHello world\n" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -522,8 +537,8 @@ func TestMoGuwenUsesTextAndAIComposeFlag(t *testing.T) {
 	if !service.moGuwenCompose {
 		t.Fatal("ai compose flag not passed")
 	}
-	if stdout.String() != "{\"text\":\"兰亭序\"}\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != "{\"text\":\"兰亭序\"}\n" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -604,8 +619,8 @@ func TestMoOCRUploadsImageFile(t *testing.T) {
 	if service.moOCRBody != "png-data" {
 		t.Fatalf("body = %q", service.moOCRBody)
 	}
-	if stdout.String() != "{\"code\":0}\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+	if envelopeData(t, stdout) != "{\"code\":0}\n" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
 
@@ -622,7 +637,7 @@ func TestAskSearchCallsSearchEndpoint(t *testing.T) {
 	if service.searchQuery != "golang 优化" {
 		t.Fatalf("search query = %q", service.searchQuery)
 	}
-if stdout.String() != "{\"docs\":[]}\n" {
-		t.Fatalf("stdout = %q", stdout.String())
+if envelopeData(t, stdout) != "{\"docs\":[]}\n" {
+		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
