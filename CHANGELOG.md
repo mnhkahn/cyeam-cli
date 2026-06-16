@@ -1,4 +1,13 @@
 
+<a name="v0.1.8"></a>
+## [v0.1.8](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.7...v0.1.8) (2026-06-16)
+
+### Code Refactoring
+
+
+- **tv:** 移除队伍名中英映射，交由模型翻译
+
+
 <a name="v0.1.7"></a>
 ## [v0.1.7](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.6...v0.1.7) (2026-06-16)
 
@@ -6,6 +15,11 @@
 
 
 - **cli:** JSON 信封输出、更新通知与技能同步
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.6"></a>
