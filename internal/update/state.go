@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -90,7 +91,9 @@ func CheckCached(current string) (string, bool) {
 	if err != nil || state.LatestVersion == "" {
 		return "", false
 	}
-	if state.LatestVersion != current && state.LatestVersion != "" {
+	v := strings.TrimPrefix(state.LatestVersion, "v")
+	c := strings.TrimPrefix(current, "v")
+	if v != c && state.LatestVersion != "" {
 		return state.LatestVersion, true
 	}
 	return "", false
@@ -98,8 +101,10 @@ func CheckCached(current string) (string, bool) {
 
 func RefreshCache(current string) (string, bool) {
 	state, err := LoadState()
+	c := strings.TrimPrefix(current, "v")
 	if err == nil && !state.IsStale() {
-		if state.LatestVersion != "" && state.LatestVersion != current {
+		v := strings.TrimPrefix(state.LatestVersion, "v")
+		if v != "" && v != c {
 			return state.LatestVersion, true
 		}
 		return "", false
@@ -115,7 +120,7 @@ func RefreshCache(current string) (string, bool) {
 		CheckedAt:     time.Now().Unix(),
 	})
 
-	if tag != current {
+	if strings.TrimPrefix(tag, "v") != c {
 		return tag, true
 	}
 	return "", false

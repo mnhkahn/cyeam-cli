@@ -124,12 +124,13 @@ func syncSkills(ctx context.Context, out io.Writer) bool {
 		return false
 	}
 	cmd := exec.CommandContext(ctx, "npx", "skills", "add", "mnhkahn/cyeam-cli", "-y")
-	output, err := cmd.CombinedOutput()
-	if err != nil {
+	cmd.Stdout = nil
+	cmd.Stderr = nil
+	if err := cmd.Run(); err != nil {
 		fmt.Fprintf(out, "skill sync failed: %v\n", err)
 		return false
 	}
-	fmt.Fprintf(out, "skills synced: %s\n", strings.TrimSpace(string(output)))
+	fmt.Fprintf(out, "skills synced\n")
 	return true
 }
 
