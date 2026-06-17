@@ -1,4 +1,13 @@
 
+<a name="v0.1.10"></a>
+## [v0.1.10](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.9...v0.1.10) (2026-06-17)
+
+### Bug Fixes
+
+
+- **skills:** 为所有 SKILL.md 添加 version 字段修复全局安装
+
+
 <a name="v0.1.9"></a>
 ## [v0.1.9](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.8...v0.1.9) (2026-06-16)
 
@@ -6,6 +15,11 @@
 
 
 - **cli:** 统一所有输出为 JSON 信封格式
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.8"></a>
