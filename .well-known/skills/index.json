@@ -43,6 +43,12 @@
       "description": "假期查询——查某一天是上班还是放假、调休安排、节假日名称",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/holiday"
+    },
+    {
+      "name": "news",
+      "description": "AI 新闻与科技资讯——获取最新 AI 资讯和技术动向，支持按日期筛选",
+      "repo": "mnhkahn/cyeam-cli",
+      "source": "skills/news"
     }
   ]
 }
