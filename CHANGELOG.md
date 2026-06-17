@@ -1,4 +1,15 @@
 
+<a name="v0.1.12"></a>
+## [v0.1.12](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.11...v0.1.12) (2026-06-17)
+
+### Code Refactoring
+
+
+- **cli:** 清理 ask 遗留代码和 SKILL 文档
+
+- **cli:** 移除 ask 命令，architect skill 改为 MCP 地址
+
+
 <a name="v0.1.11"></a>
 ## [v0.1.11](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.10...v0.1.11) (2026-06-17)
 
@@ -11,6 +22,11 @@
 
 
 - **skills:** 新增 news skill 查询 AI 新闻与科技资讯
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.10"></a>
