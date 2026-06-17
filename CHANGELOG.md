@@ -1,4 +1,13 @@
 
+<a name="v0.1.13"></a>
+## [v0.1.13](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.12...v0.1.13) (2026-06-17)
+
+### Features
+
+
+- **pinyin:** 新增拼音查询和看拼音写字练习纸 PDF 功能
+
+
 <a name="v0.1.12"></a>
 ## [v0.1.12](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.11...v0.1.12) (2026-06-17)
 
@@ -8,6 +17,11 @@
 - **cli:** 清理 ask 遗留代码和 SKILL 文档
 
 - **cli:** 移除 ask 命令，architect skill 改为 MCP 地址
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.11"></a>
@@ -166,7 +180,7 @@
 
 
 <a name="v0.1.3"></a>
-## [v0.1.3](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...v0.1.3) (2026-06-12)
+## [v0.1.3](https://github.com/mnhkahn/cyeam-cli/compare/skill-6...v0.1.3) (2026-06-12)
 
 ### Documentation
 
@@ -177,8 +191,6 @@
 
 - **cyeam-cli:** 更新SKILL.md中aria2c下载的默认输出路径
 
-- **skills:** add cyeam-cli installation steps for different platforms
-
 ### Features
 
 
@@ -187,8 +199,21 @@
 - **tv:** add tv schedule command for NBA / World Cup / China national football
 
 
+<a name="skill-6"></a>
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
+
+### Documentation
+
+
+- **skills:** add cyeam-cli installation steps for different platforms
+
+
+<a name="skill-5"></a>
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
+
+
 <a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...v0.1.2) (2026-06-12)
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.2) (2026-06-12)
 
 ### Documentation
 
@@ -208,22 +233,17 @@
 - 更新gitignore并添加终端表格设计 brainstorm 笔记
 
 
+<a name="skill-4"></a>
+## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-4) (2026-06-11)
+
+
 <a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.0...v0.1.1) (2026-06-11)
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...v0.1.1) (2026-06-11)
 
 ### Bug Fixes
 
 
 - skill release 标记为预发布，latest 指向正式版本
-
-- 修复 README 下载链接，使用具体版本号
-
-- 简化 skill 发布工作流，移除跨仓库写入
-
-### CI/CD
-
-
-- 添加 skill 发布工作流，自动提交到各平台
 
 ### Code Refactoring
 
@@ -233,8 +253,6 @@
 ### Documentation
 
 
-- 新增 README 文档，包含安装说明和命令使用指南
-
 - **cli:** 同步最新命令说明
 
 - **release:** 移除 Homebrew 后续支持说明
@@ -243,6 +261,34 @@
 
 
 - 新增微软登录、OneDrive 集成及笔记功能
+
+
+<a name="skill-3"></a>
+## [skill-3](https://github.com/mnhkahn/cyeam-cli/compare/skill-2...skill-3) (2026-06-10)
+
+### Bug Fixes
+
+
+- 修复 README 下载链接，使用具体版本号
+
+
+<a name="skill-2"></a>
+## [skill-2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.0...skill-2) (2026-06-10)
+
+### Bug Fixes
+
+
+- 简化 skill 发布工作流，移除跨仓库写入
+
+### CI/CD
+
+
+- 添加 skill 发布工作流，自动提交到各平台
+
+### Documentation
+
+
+- 新增 README 文档，包含安装说明和命令使用指南
 
 ### Miscellaneous Tasks
 
