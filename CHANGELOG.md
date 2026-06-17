@@ -1,4 +1,13 @@
 
+<a name="v0.1.16"></a>
+## [v0.1.16](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.15...v0.1.16) (2026-06-18)
+
+### Features
+
+
+- --help 纯文本输出，新增 --pretty 人类可读模式
+
+
 <a name="v0.1.15"></a>
 ## [v0.1.15](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.14...v0.1.15) (2026-06-17)
 
@@ -6,6 +15,11 @@
 
 
 - npx skills add 静默安装，版本号 v 前缀比对修复
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 ### Tests
 
