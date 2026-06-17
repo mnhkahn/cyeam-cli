@@ -1,6 +1,6 @@
 {
   "name": "cyeam-cli",
-  "version": "0.1.9",
+  "version": "0.1.13",
   "skills": [
     {
       "name": "cyeam-cli",
@@ -49,6 +49,12 @@
       "description": "AI 新闻与科技资讯——获取最新 AI 资讯和技术动向，支持按日期筛选",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/news"
+    },
+    {
+      "name": "pinyin",
+      "description": "看拼音写字——中文拼音本地转换，无需网络",
+      "repo": "mnhkahn/cyeam-cli",
+      "source": "skills/pinyin"
     }
   ]
 }

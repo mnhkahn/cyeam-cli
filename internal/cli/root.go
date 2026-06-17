@@ -213,6 +213,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newTVCommand(deps))
 	root.AddCommand(newNewsCommand(deps))
 	root.AddCommand(newSkillsCommand(deps))
+	root.AddCommand(newPinyinCommand())
 	return root
 }
 

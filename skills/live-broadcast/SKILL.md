@@ -1,6 +1,6 @@
 ---
 name: live-broadcast
-version: 0.1.9
+version: 0.1.13
 description: 直播预报——查询 NBA / 世界杯 / 中国男女足比赛的赛程时间和转播源（CCTV5、央视频、腾讯体育、咪咕视频等）。想看球但不知道哪播、几点播的时候用。
 ---
 

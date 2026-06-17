@@ -1,7 +1,7 @@
 ---
 name: cyeam-cli
-version: 0.1.9
-description: cyeam.com public site CLI — date holiday, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All output is JSON envelope. Architecture knowledge base queries use MCP directly.
+version: 0.1.13
+description: cyeam.com public site CLI — date holiday, pinyin, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All output is JSON envelope. Architecture knowledge base queries use MCP directly.
 ---
 
 # Cyeam CLI
@@ -53,6 +53,10 @@ cyeam whoami
 cyeam date holiday
 cyeam date holiday 2026-06-09
 
+cyeam pinyin "你好世界"
+cyeam pinyin sheet "你好世界"
+cyeam pinyin sheet --out practice.pdf "你好世界"
+
 cyeam mo guwen "兰亭序"
 cyeam mo guwen "兰亭序" --ai-compose
 cyeam mo char detail "之"
@@ -102,6 +106,8 @@ cyeam update --help
 - Broadcasters (CCTV5, 央视频, 腾讯体育, 咪咕视频, etc.) are read-only viewing hints. The CLI does not capture streams, decode m3u8, or bypass paywalls. Names render as clickable terminal hyperlinks when supported.
 - `tv` does not require login or call cyeam.com. If a data source (cdn.nba.com, ESPN site API) is unreachable, that league is skipped with a warning instead of failing the whole command.
 - Team/country names and league stages (e.g. "Finals", "Regular", "Playoffs") are in English. **Must** translate them to Chinese and add flag emojis when presenting to the user. Never show raw English names.
+- `pinyin` converts Chinese text to pinyin locally using go-pinyin library. No API call needed. Returns JSON array of `{char, pinyin}`.
+- `pinyin sheet` generates a "看拼音写字" PDF practice worksheet with mi-zi-ge grid. Use `--out` / `-o` to save the PDF to a file. Without `--out`, returns the PDF as base64 in the JSON envelope.
 
 ## Unsupported Requests
 

@@ -1,6 +1,6 @@
 ---
 name: architect
-version: 0.1.9
+version: 0.1.13
 description: Architecture consultancy — MCP-based knowledge base for system design, technical proposals, code review, and more. Use the MCP server directly instead of CLI.
 ---
 
