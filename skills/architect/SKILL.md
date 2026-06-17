@@ -1,5 +1,6 @@
 ---
 name: architect
+version: 0.1.9
 description: Architecture consultancy — ask an AI architect for system design, technical proposals, code review, and more. Supports fast/think/expert modes.
 ---
 

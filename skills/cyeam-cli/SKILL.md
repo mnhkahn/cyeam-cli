@@ -1,5 +1,6 @@
 ---
 name: cyeam-cli
+version: 0.1.9
 description: cyeam.com public site CLI — ask/search architecture, date holiday, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All output is JSON envelope.
 ---
 
