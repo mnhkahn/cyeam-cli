@@ -1,4 +1,18 @@
 
+<a name="v0.1.15"></a>
+## [v0.1.15](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.14...v0.1.15) (2026-06-17)
+
+### Bug Fixes
+
+
+- npx skills add 静默安装，版本号 v 前缀比对修复
+
+### Tests
+
+
+- **update:** 使用真实版本号替换虚构的 v1.1.0
+
+
 <a name="v0.1.14"></a>
 ## [v0.1.14](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.13...v0.1.14) (2026-06-17)
 
@@ -6,6 +20,11 @@
 
 
 - **skills:** 移除 -g 参数兼容 PromptScript
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.13"></a>
