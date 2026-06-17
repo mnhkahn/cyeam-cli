@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,9 +18,6 @@ import (
 )
 
 type fakeService struct {
-	architectureQuery string
-	architectureMode  string
-	searchQuery       string
 	dateHolidayDate   string
 	dateHolidayBody   string
 	roadbookShareBody string
@@ -78,18 +74,6 @@ func (f *fakeOneDrive) GetUserInfo(ctx context.Context) (onedrive.UserInfo, erro
 func (f *fakeUpdater) Update(ctx context.Context, current version.Info) (update.Result, error) {
 	f.current = current
 	return f.result, nil
-}
-
-func (f *fakeService) AskArchitecture(ctx context.Context, query string, mode string, out io.Writer) error {
-	f.architectureQuery = query
-	f.architectureMode = mode
-	_, _ = io.WriteString(out, "architecture answer")
-	return nil
-}
-
-func (f *fakeService) Search(ctx context.Context, query string) ([]byte, error) {
-	f.searchQuery = query
-	return []byte(`{"docs":[]}`), nil
 }
 
 func (f *fakeService) DateHoliday(ctx context.Context, date string) ([]byte, error) {
@@ -161,27 +145,6 @@ func envelopeData(t *testing.T, buf *bytes.Buffer) string {
 	}
 	s, _ := env.Data.(string)
 	return s
-}
-
-func TestAskDefaultsToArchitectureFastMode(t *testing.T) {
-	service := &fakeService{}
-	stdout := new(bytes.Buffer)
-	cmd := NewRootCommand(Dependencies{Service: service, Stdout: stdout})
-	cmd.SetArgs([]string{"ask", "系统怎么做限流"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute ask: %v", err)
-	}
-
-	if service.architectureQuery != "系统怎么做限流" {
-		t.Fatalf("architecture query = %q", service.architectureQuery)
-	}
-	if service.architectureMode != "fast" {
-		t.Fatalf("architecture mode = %q, want fast", service.architectureMode)
-	}
-	if envelopeData(t, stdout) != "architecture answer" {
-		t.Fatalf("stdout = %q", envelopeData(t, stdout))
-	}
 }
 
 func TestVersionPrintsVersionInfo(t *testing.T) {
@@ -620,24 +583,6 @@ func TestMoOCRUploadsImageFile(t *testing.T) {
 		t.Fatalf("body = %q", service.moOCRBody)
 	}
 	if envelopeData(t, stdout) != "{\"code\":0}\n" {
-		t.Fatalf("stdout = %q", envelopeData(t, stdout))
-	}
-}
-
-func TestAskSearchCallsSearchEndpoint(t *testing.T) {
-	service := &fakeService{}
-	stdout := new(bytes.Buffer)
-	cmd := NewRootCommand(Dependencies{Service: service, Stdout: stdout})
-	cmd.SetArgs([]string{"ask", "search", "golang 优化"})
-
-	if err := cmd.Execute(); err != nil {
-		t.Fatalf("execute ask search: %v", err)
-	}
-
-	if service.searchQuery != "golang 优化" {
-		t.Fatalf("search query = %q", service.searchQuery)
-	}
-if envelopeData(t, stdout) != "{\"docs\":[]}\n" {
 		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }

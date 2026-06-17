@@ -53,42 +53,6 @@ func TestPostRawSendsBodyAndReturnsBody(t *testing.T) {
 	}
 }
 
-func TestStreamGETCopiesResponseToWriter(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte("chunk one\nchunk two\n"))
-	}))
-	defer server.Close()
-
-	c := New(server.URL, server.Client())
-	var out strings.Builder
-	if err := c.StreamGET(context.Background(), "/ai/architecture", map[string]string{"q": "限流", "mode": "fast"}, &out); err != nil {
-		t.Fatalf("StreamGET: %v", err)
-	}
-	if out.String() != "chunk one\nchunk two\n" {
-		t.Fatalf("out = %q", out.String())
-	}
-}
-
-func TestStreamGETWritesSSEContent(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/event-stream; charset=utf-8")
-		_, _ = w.Write([]byte("data: {\"content\":\"G\",\"done\":false}\r\n\r\n"))
-		_, _ = w.Write([]byte("data: {\"content\":\"olang\",\"done\":false}\r\n\r\n"))
-		_, _ = w.Write([]byte("data: {\"content\":\"的\",\"done\":false}\r\n\r\n"))
-		_, _ = w.Write([]byte("data: {\"done\":true}\r\n\r\n"))
-	}))
-	defer server.Close()
-
-	c := New(server.URL, server.Client())
-	var out strings.Builder
-	if err := c.StreamGET(context.Background(), "/ai/architecture", map[string]string{"q": "golang", "mode": "fast"}, &out); err != nil {
-		t.Fatalf("StreamGET: %v", err)
-	}
-	if out.String() != "Golang的" {
-		t.Fatalf("out = %q", out.String())
-	}
-}
-
 func TestDownloadBinaryReturnsBytes(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "image/png")

@@ -11,13 +11,11 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/client"
 )
 
-func TestServiceMapsAskSearchDateAndRoadbook(t *testing.T) {
+func TestServiceMapsDateAndRoadbook(t *testing.T) {
 	paths := make([]string, 0)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.String())
 		switch r.URL.Path {
-		case "/search/api":
-			_, _ = w.Write([]byte(`{"docs":[]}`))
 		case "/api/holiday/year/2026":
 			_, _ = w.Write([]byte(`{"code":0,"holiday":{},"type":{}}`))
 		case "/api/roadbook/share":
@@ -37,9 +35,6 @@ func TestServiceMapsAskSearchDateAndRoadbook(t *testing.T) {
 	svc := NewService(client.New(server.URL, server.Client()), server.URL)
 	svc.holidayClient = client.New(server.URL, server.Client())
 
-	if _, err := svc.Search(context.Background(), "golang 优化"); err != nil {
-		t.Fatalf("Search: %v", err)
-	}
 	if _, err := svc.DateHoliday(context.Background(), "2026-06-09"); err != nil {
 		t.Fatalf("DateHoliday: %v", err)
 	}
@@ -55,7 +50,6 @@ func TestServiceMapsAskSearchDateAndRoadbook(t *testing.T) {
 	}
 
 	want := []string{
-		"/search/api?q=golang+%E4%BC%98%E5%8C%96",
 		"/api/holiday/year/2026?type=Y&weekday=Y",
 		"/api/roadbook/share",
 		"/api/roadbook/get?id=abc123",
@@ -200,27 +194,6 @@ func TestDateHolidayHandlesRegularWeekdayAndWeekend(t *testing.T) {
 	}
 }
 
-func TestAskArchitectureStreamsFromArchitectureEndpoint(t *testing.T) {
-	var gotPath string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.String()
-		_, _ = w.Write([]byte("answer"))
-	}))
-	defer server.Close()
-
-	svc := NewService(client.New(server.URL, server.Client()), server.URL)
-	var out testWriter
-	if err := svc.AskArchitecture(context.Background(), "限流", "expert", &out); err != nil {
-		t.Fatalf("AskArchitecture: %v", err)
-	}
-	if gotPath != "/ai/architecture?mode=expert&q=%E9%99%90%E6%B5%81" {
-		t.Fatalf("path = %q", gotPath)
-	}
-	if out.String() != "answer" {
-		t.Fatalf("out = %q", out.String())
-	}
-}
-
 func TestServiceMapsMoEndpointsWithXingshuFont(t *testing.T) {
 	paths := make([]string, 0)
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -282,17 +255,4 @@ func TestServiceMapsMoEndpointsWithXingshuFont(t *testing.T) {
 			t.Fatalf("path %d = %q, want %q", i, paths[i], want[i])
 		}
 	}
-}
-
-type testWriter struct {
-	data []byte
-}
-
-func (w *testWriter) Write(p []byte) (int, error) {
-	w.data = append(w.data, p...)
-	return len(p), nil
-}
-
-func (w *testWriter) String() string {
-	return string(w.data)
 }

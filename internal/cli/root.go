@@ -21,8 +21,6 @@ import (
 )
 
 type Service interface {
-	AskArchitecture(ctx context.Context, query string, mode string, out io.Writer) error
-	Search(ctx context.Context, query string) ([]byte, error)
 	DateHoliday(ctx context.Context, date string) ([]byte, error)
 	RoadbookShare(ctx context.Context, body []byte) ([]byte, error)
 	RoadbookGet(ctx context.Context, id string) ([]byte, error)
@@ -205,7 +203,6 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 
 	root.AddCommand(newVersionCommand(deps))
 	root.AddCommand(newUpdateCommand(deps))
-	root.AddCommand(newAskCommand(deps))
 	root.AddCommand(newDateCommand(deps))
 	root.AddCommand(newMoCommand(deps))
 	root.AddCommand(newRoadbookCommand(deps))
@@ -262,47 +259,6 @@ func newUpdateCommand(deps Dependencies) *cobra.Command {
 				setSkillsSynced(result.NewVersion)
 			}
 			return nil
-		},
-	}
-}
-
-func newAskCommand(deps Dependencies) *cobra.Command {
-	var mode string
-	cmd := &cobra.Command{
-		Use:   "ask <question>",
-		Short: "Ask the cyeam architecture assistant",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if deps.Service == nil {
-				return fmt.Errorf("service is required")
-			}
-			switch mode {
-			case "fast", "think", "expert":
-			default:
-				return fmt.Errorf("unsupported mode %q", mode)
-			}
-			return deps.Service.AskArchitecture(cmd.Context(), args[0], mode, deps.Stdout)
-		},
-	}
-	cmd.Flags().StringVar(&mode, "mode", "fast", "architecture mode: fast, think, expert")
-	cmd.AddCommand(newAskSearchCommand(deps))
-	return cmd
-}
-
-func newAskSearchCommand(deps Dependencies) *cobra.Command {
-	return &cobra.Command{
-		Use:   "search <query>",
-		Short: "Search cyeam.com",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if deps.Service == nil {
-				return fmt.Errorf("service is required")
-			}
-			body, err := deps.Service.Search(cmd.Context(), args[0])
-			if err != nil {
-				return err
-			}
-			return output.WriteJSON(deps.Stdout, body)
 		},
 	}
 }
