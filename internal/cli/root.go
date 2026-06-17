@@ -185,6 +185,8 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	var buf bytes.Buffer
 	deps.Stdout = &buf
 
+	var pretty bool
+
 	root := &cobra.Command{
 		Use:           "cyeam",
 		SilenceUsage:  true,
@@ -195,12 +197,24 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			notice := consumeNotice()
+			if pretty {
+				_, err := originalStdout.Write([]byte(buf.String()))
+				return err
+			}
 			env := output.Envelope{OK: true, Data: buf.String(), Notice: notice}
 			enc := json.NewEncoder(originalStdout)
 			return enc.Encode(env)
 		},
 	}
 	root.SetOut(&buf)
+	root.PersistentFlags().BoolVar(&pretty, "pretty", false, "human-readable output (omit JSON envelope)")
+
+	helpFunc := root.HelpFunc()
+	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		cmd.SetOut(originalStdout)
+		helpFunc(cmd, args)
+		cmd.SetOut(&buf)
+	})
 
 	root.AddCommand(newVersionCommand(deps))
 	root.AddCommand(newUpdateCommand(deps))
