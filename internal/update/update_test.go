@@ -111,13 +111,13 @@ func TestSelectAssetFindsMatchingReleaseAsset(t *testing.T) {
 }
 
 func TestResultString(t *testing.T) {
-	updated := Result{Updated: true, OldVersion: "v1.0.0", NewVersion: "v1.1.0"}
-	if updated.String() != "updated: v1.0.0 -> v1.1.0\n" {
+	updated := Result{Updated: true, OldVersion: "v0.1.12", NewVersion: "v0.1.13"}
+	if updated.String() != "updated: v0.1.12 -> v0.1.13\n" {
 		t.Fatalf("updated string = %q", updated.String())
 	}
 
-	current := Result{Updated: false, OldVersion: "v1.1.0", NewVersion: "v1.1.0"}
-	if current.String() != "already up to date: v1.1.0\n" {
+	current := Result{Updated: false, OldVersion: "v0.1.13", NewVersion: "v0.1.13"}
+	if current.String() != "already up to date: v0.1.13\n" {
 		t.Fatalf("current string = %q", current.String())
 	}
 }
@@ -133,7 +133,7 @@ func TestGitHubUpdaterReturnsCurrentWhenAlreadyLatest(t *testing.T) {
 		if r.TLS != nil {
 			scheme = "https"
 		}
-		http.Redirect(w, r, scheme+"://"+r.Host+"/mnhkahn/cyeam-cli/releases/tag/v1.1.0", http.StatusFound)
+		http.Redirect(w, r, scheme+"://"+r.Host+"/mnhkahn/cyeam-cli/releases/tag/v0.1.13", http.StatusFound)
 	}))
 	defer server.Close()
 
@@ -145,14 +145,14 @@ func TestGitHubUpdaterReturnsCurrentWhenAlreadyLatest(t *testing.T) {
 		GOARCH:     "arm64",
 		Installer:  fakeInstaller{},
 	}
-	result, err := updater.Update(context.Background(), version.Info{Version: "v1.1.0"})
+	result, err := updater.Update(context.Background(), version.Info{Version: "v0.1.13"})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if result.Updated {
 		t.Fatal("expected no update")
 	}
-	if result.NewVersion != "v1.1.0" {
+	if result.NewVersion != "v0.1.13" {
 		t.Fatalf("new version = %q", result.NewVersion)
 	}
 }
@@ -169,7 +169,7 @@ func TestGitHubUpdaterInstallsMatchingAssetWhenNewer(t *testing.T) {
 		if r.TLS != nil {
 			secheme = "https"
 		}
-		http.Redirect(w, r, secheme+"://"+r.Host+"/mnhkahn/cyeam-cli/releases/tag/v1.1.0", http.StatusFound)
+		http.Redirect(w, r, secheme+"://"+r.Host+"/mnhkahn/cyeam-cli/releases/tag/v0.1.13", http.StatusFound)
 	}))
 	defer server.Close()
 
@@ -180,14 +180,14 @@ func TestGitHubUpdaterInstallsMatchingAssetWhenNewer(t *testing.T) {
 		GOARCH:     "arm64",
 		Installer:  installer,
 	}
-	result, err := updater.Update(context.Background(), version.Info{Version: "v1.0.0"})
+	result, err := updater.Update(context.Background(), version.Info{Version: "v0.1.12"})
 	if err != nil {
 		t.Fatalf("Update: %v", err)
 	}
 	if !result.Updated {
 		t.Fatal("expected update")
 	}
-	wantURL := "https://github.com/mnhkahn/cyeam-cli/releases/download/v1.1.0/cyeam_Darwin_arm64.tar.gz"
+	wantURL := "https://github.com/mnhkahn/cyeam-cli/releases/download/v0.1.13/cyeam_Darwin_arm64.tar.gz"
 	if installer.asset.BrowserDownloadURL != wantURL {
 		t.Fatalf("download url = %q, want %q", installer.asset.BrowserDownloadURL, wantURL)
 	}
