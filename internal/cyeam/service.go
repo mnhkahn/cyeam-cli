@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"strings"
 	"time"
 
@@ -25,17 +24,6 @@ func NewService(apiClient *client.Client, baseURL string) *Service {
 		holidayClient: client.New(timorHolidayBaseURL, nil),
 		baseURL:       strings.TrimRight(baseURL, "/"),
 	}
-}
-
-func (s *Service) AskArchitecture(ctx context.Context, query string, mode string, out io.Writer) error {
-	return s.client.StreamGET(ctx, "/ai/architecture", map[string]string{
-		"q":    query,
-		"mode": mode,
-	}, out)
-}
-
-func (s *Service) Search(ctx context.Context, query string) ([]byte, error) {
-	return s.client.GetJSON(ctx, "/search/api", map[string]string{"q": query})
 }
 
 func (s *Service) DateHoliday(ctx context.Context, date string) ([]byte, error) {

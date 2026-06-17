@@ -1,7 +1,7 @@
 ---
 name: cyeam-cli
 version: 0.1.9
-description: cyeam.com public site CLI — ask/search architecture, date holiday, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All output is JSON envelope.
+description: cyeam.com public site CLI — date holiday, Mo calligraphy/OCR, roadbook sharing, cnote cloud notes, TV schedule (NBA/World Cup/China football), geek news & AI news, Microsoft login, self-update. All output is JSON envelope. Architecture knowledge base queries use MCP directly.
 ---
 
 # Cyeam CLI
@@ -50,12 +50,6 @@ cyeam login
 cyeam logout
 cyeam whoami
 
-cyeam ask "How should this system do rate limiting?"
-cyeam ask "How should this system do rate limiting?" --mode fast
-cyeam ask "How should this system do rate limiting?" --mode think
-cyeam ask "How should this system do rate limiting?" --mode expert
-cyeam ask search "golang optimization"
-
 cyeam date holiday
 cyeam date holiday 2026-06-09
 
@@ -96,8 +90,6 @@ cyeam update --help
 ## Behavior Notes
 
 - `date` subcommands accept an optional `YYYY-MM-DD`; omit it for today.
-- `ask` streams architecture output to stdout. Default mode is `fast`.
-- `ask search` returns normal site search JSON.
 - `login` uses Microsoft Device Code Flow, requests offline access for refresh tokens, and stores tokens in the system keychain. `logout` clears stored credentials. `whoami` prints login status, access-token expiry, auto-refresh availability, and user info when available.
 - `mo` uses xingshu only. Do not add or request a font option.
 - `mo char compose` writes a PNG file. Require `--out` when the user needs a saved image.
@@ -119,7 +111,7 @@ If the user asks for an unsupported capability, say it is intentionally not part
 - Developer conversion tools: curl2go, json2go, json2ddl, ddl2go, XML, SQL, msgpack, base encoders
 - Translation
 - Search suggestions
-- Top-level `search` or `architecture` commands; use `ask search` or `ask`
+- Top-level `search` or `architecture` commands are removed; use the MCP server for knowledge base queries at `mcp: https://www.cyeam.com/arch/mcp`
 - QR code or barcode generation
 - Mo AI glyph save/write-db API
 - Roadbook CSV token flow unless explicitly added later

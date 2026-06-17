@@ -1,10 +1,8 @@
 package client
 
 import (
-	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -47,27 +45,6 @@ func (c *Client) PostRaw(ctx context.Context, path string, params map[string]str
 	}
 	req.Header.Set("Content-Type", "application/json")
 	return c.doBytes(req)
-}
-
-func (c *Client) StreamGET(ctx context.Context, path string, params map[string]string, out io.Writer) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url(path, params), nil)
-	if err != nil {
-		return err
-	}
-	applyDefaultHeaders(req)
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if err := checkStatus(resp); err != nil {
-		return err
-	}
-	if isEventStream(resp.Header.Get("Content-Type")) {
-		return streamSSEContent(resp.Body, out)
-	}
-	_, err = io.Copy(out, resp.Body)
-	return err
 }
 
 func (c *Client) DownloadBinary(ctx context.Context, path string, params map[string]string) ([]byte, error) {
@@ -141,61 +118,4 @@ func checkStatus(resp *http.Response) error {
 		return fmt.Errorf("http %d %s", resp.StatusCode, resp.Status)
 	}
 	return fmt.Errorf("http %d %s: %s", resp.StatusCode, resp.Status, excerpt)
-}
-
-func isEventStream(contentType string) bool {
-	return strings.Contains(strings.ToLower(contentType), "text/event-stream")
-}
-
-func streamSSEContent(r io.Reader, out io.Writer) error {
-	scanner := bufio.NewScanner(r)
-	scanner.Buffer(make([]byte, 1024), 1024*1024)
-
-	var data []string
-	for scanner.Scan() {
-		line := scanner.Text()
-		if line == "" {
-			if err := writeSSEData(out, data); err != nil {
-				return err
-			}
-			data = nil
-			continue
-		}
-		if strings.HasPrefix(line, ":") {
-			continue
-		}
-		if strings.HasPrefix(line, "data:") {
-			value := strings.TrimPrefix(line, "data:")
-			if strings.HasPrefix(value, " ") {
-				value = value[1:]
-			}
-			data = append(data, value)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-	return writeSSEData(out, data)
-}
-
-func writeSSEData(out io.Writer, data []string) error {
-	if len(data) == 0 {
-		return nil
-	}
-	payload := strings.Join(data, "\n")
-	if payload == "[DONE]" {
-		return nil
-	}
-	var event struct {
-		Content string `json:"content"`
-		Done    bool   `json:"done"`
-	}
-	if err := json.Unmarshal([]byte(payload), &event); err != nil {
-		return fmt.Errorf("parse SSE data: %w", err)
-	}
-	if event.Done || event.Content == "" {
-		return nil
-	}
-	_, err := io.WriteString(out, event.Content)
-	return err
 }

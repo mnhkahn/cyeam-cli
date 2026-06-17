@@ -1,53 +1,31 @@
 ---
 name: architect
 version: 0.1.9
-description: Architecture consultancy — ask an AI architect for system design, technical proposals, code review, and more. Supports fast/think/expert modes.
+description: Architecture consultancy — MCP-based knowledge base for system design, technical proposals, code review, and more. Use the MCP server directly instead of CLI.
 ---
 
-# 架构师
+# 架构师知识库 (MCP)
 
-## 概述
+## MCP 服务
 
-向 cyeam.com 的 AI 架构师提问，支持 streaming 输出，三种思考模式。
-
-```bash
-cyeam ask "如何设计一个高并发消息队列？"
-cyeam ask "这个系统的限流怎么做？" --mode think
-cyeam ask "Review 这段代码" --mode expert
-cyeam ask search "golang 性能优化"
-```
-
-## 安装
-
-```bash
-# macOS Apple Silicon
-curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Darwin_arm64.tar.gz | tar xz && chmod +x cyeam && sudo mv cyeam /usr/local/bin/
-
-# macOS Intel
-curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Darwin_x86_64.tar.gz | tar xz && chmod +x cyeam && sudo mv cyeam /usr/local/bin/
-
-# Linux amd64
-curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Linux_x86_64.tar.gz | tar xz && chmod +x cyeam && sudo mv cyeam /usr/local/bin/
-```
-
-检查安装：`which cyeam && cyeam version`
-
-## 命令
+知识库通过 MCP 协议暴露，AI Agent 直接连接即可使用，无需经过 CLI。
 
 ```
-cyeam ask <问题>              默认 fast 模式
-cyeam ask <问题> --mode fast   快速回答（默认）
-cyeam ask <问题> --mode think  深度思考
-cyeam ask <问题> --mode expert 专家模式
-cyeam ask search <关键词>      搜索 cyeam.com 站内内容
+mcp: https://www.cyeam.com/arch/mcp
 ```
 
-## 输出
+## 功能
 
-`ask` 实时 streaming 输出到 stdout，适合管道或重定向。`ask search` 输出 JSON。
+Agent 连上后通过 MCP discovery 自动获取可用的 prompts、tools、resources，包括但不限于：
 
-## 注意事项
+- 搜索架构知识库
+- 获取系统设计方案
+- 技术选型建议
+- 代码审查
 
-- 需要联网，调用 `cyeam.com` 后端
+## 说明
+
 - 不需要登录
-- `search` 子命令返回站内搜索 JSON 结果，不是 AI 问答
+- 不需要安装 cyeam CLI
+- Agent 直接调 MCP 协议，比走 CLI 更直接
+- 此 Skill 仅用于描述 MCP 服务地址，不涉及 CLI 命令
