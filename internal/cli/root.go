@@ -123,7 +123,7 @@ func syncSkills(ctx context.Context, out io.Writer) bool {
 		fmt.Fprintf(out, "skill sync skipped: npx not found (%v)\n", err)
 		return false
 	}
-	cmd := exec.CommandContext(ctx, "npx", "skills", "add", "mnhkahn/cyeam-cli", "-g", "-y")
+	cmd := exec.CommandContext(ctx, "npx", "skills", "add", "mnhkahn/cyeam-cli", "-y")
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		fmt.Fprintf(out, "skill sync failed: %v\n", err)
