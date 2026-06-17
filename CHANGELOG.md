@@ -1,4 +1,13 @@
 
+<a name="v0.1.14"></a>
+## [v0.1.14](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.13...v0.1.14) (2026-06-17)
+
+### Bug Fixes
+
+
+- **skills:** 移除 -g 参数兼容 PromptScript
+
+
 <a name="v0.1.13"></a>
 ## [v0.1.13](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.12...v0.1.13) (2026-06-17)
 
@@ -6,6 +15,11 @@
 
 
 - **pinyin:** 新增拼音查询和看拼音写字练习纸 PDF 功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.12"></a>
