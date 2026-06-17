@@ -1,4 +1,18 @@
 
+<a name="v0.1.11"></a>
+## [v0.1.11](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.10...v0.1.11) (2026-06-17)
+
+### Documentation
+
+
+- **skills:** 强调模型必须翻译球队名并加国旗 emoji
+
+### Features
+
+
+- **skills:** 新增 news skill 查询 AI 新闻与科技资讯
+
+
 <a name="v0.1.10"></a>
 ## [v0.1.10](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.9...v0.1.10) (2026-06-17)
 
@@ -6,6 +20,11 @@
 
 
 - **skills:** 为所有 SKILL.md 添加 version 字段修复全局安装
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.9"></a>
