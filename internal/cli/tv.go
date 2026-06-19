@@ -40,6 +40,7 @@ func newTVCommand(deps Dependencies) *cobra.Command {
 	}
 	cmd.AddCommand(newTVListCommand(deps, td))
 	cmd.AddCommand(newTVTodayCommand(deps, td))
+	cmd.AddCommand(newTVTomorrowCommand(deps, td))
 	cmd.AddCommand(newTVNextCommand(deps, td))
 	return cmd
 }
@@ -87,7 +88,43 @@ func newTVTodayCommand(deps Dependencies, td tvDeps) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			fc := *f
-			fc.days = 1
+			now := time.Now
+			if td.Now != nil {
+				now = td.Now
+			}
+			loc := time.UTC
+			if l, err := time.LoadLocation(f.tz); err == nil {
+				loc = l
+			}
+			today := now().In(loc).Format(time.DateOnly)
+			fc.from = today
+			fc.to = today
+			return runTVList(cmd.Context(), deps, td, fc)
+		},
+	}
+	tvAddFlags(cmd, f)
+	return cmd
+}
+
+func newTVTomorrowCommand(deps Dependencies, td tvDeps) *cobra.Command {
+	f := &tvFlags{}
+	cmd := &cobra.Command{
+		Use:   "tomorrow",
+		Short: "List tomorrow's matches",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			fc := *f
+			now := time.Now
+			if td.Now != nil {
+				now = td.Now
+			}
+			loc := time.UTC
+			if l, err := time.LoadLocation(f.tz); err == nil {
+				loc = l
+			}
+			tomorrow := now().In(loc).AddDate(0, 0, 1).Format(time.DateOnly)
+			fc.from = tomorrow
+			fc.to = tomorrow
 			return runTVList(cmd.Context(), deps, td, fc)
 		},
 	}
@@ -194,14 +231,14 @@ func buildTVQuery(td tvDeps, f tvFlags) (tv.Query, *time.Location, error) {
 	startOfDay := now().In(loc)
 	startOfDay = time.Date(startOfDay.Year(), startOfDay.Month(), startOfDay.Day(), 0, 0, 0, 0, loc)
 	from := startOfDay
-	to := from.AddDate(0, 0, days)
+	to := from.AddDate(0, 0, days+1).Add(-time.Nanosecond)
 	if f.from != "" {
 		t, err := time.ParseInLocation(time.DateOnly, f.from, loc)
 		if err != nil {
 			return tv.Query{}, nil, fmt.Errorf("invalid --from %q", f.from)
 		}
 		from = t
-		to = from.AddDate(0, 0, days)
+		to = from.AddDate(0, 0, days+1).Add(-time.Nanosecond)
 	}
 	if f.to != "" {
 		t, err := time.ParseInLocation(time.DateOnly, f.to, loc)
