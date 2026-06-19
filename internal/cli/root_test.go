@@ -196,7 +196,7 @@ func TestUpdateDelegatesToUpdater(t *testing.T) {
 	if updater.current.Version != "v1.0.0" {
 		t.Fatalf("current version = %q", updater.current.Version)
 	}
-	got := envelopeData(t, stdout)
+	got := stdout.String()
 	if !strings.Contains(got, "updated: v1.0.0 -> v1.1.0") {
 		t.Fatalf("stdout = %q, want update message", got)
 	}

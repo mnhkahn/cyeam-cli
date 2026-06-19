@@ -197,7 +197,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			notice := consumeNotice()
-			if pretty {
+			if pretty || cmd.Name() == "update" {
 				_, err := originalStdout.Write([]byte(buf.String()))
 				return err
 			}
