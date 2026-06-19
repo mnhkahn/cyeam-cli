@@ -1,4 +1,18 @@
 
+<a name="v0.1.18"></a>
+## [v0.1.18](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.17...v0.1.18) (2026-06-19)
+
+### Bug Fixes
+
+
+- **tv:** 修复赛程查询的日期范围、NBA 403 及新增 tomorrow 命令
+
+### Documentation
+
+
+- skill 描述加不可直接作为工具名调用提示
+
+
 <a name="v0.1.17"></a>
 ## [v0.1.17](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.16...v0.1.17) (2026-06-19)
 
@@ -11,6 +25,11 @@
 
 
 - **ai:** 新增 ai-models skill 和 cyeam ai models 命令
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.16"></a>
