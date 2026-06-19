@@ -1,11 +1,30 @@
 
+<a name="v0.1.17"></a>
+## [v0.1.17](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.16...v0.1.17) (2026-06-19)
+
+### Code Refactoring
+
+
+- **live-broadcast:** 精简 skill，禁止预加载/缓存/分析
+
+### Features
+
+
+- **ai:** 新增 ai-models skill 和 cyeam ai models 命令
+
+
 <a name="v0.1.16"></a>
-## [v0.1.16](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.15...v0.1.16) (2026-06-18)
+## [v0.1.16](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.15...v0.1.16) (2026-06-17)
 
 ### Features
 
 
 - --help 纯文本输出，新增 --pretty 人类可读模式
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.15"></a>
