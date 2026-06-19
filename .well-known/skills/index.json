@@ -4,61 +4,61 @@
   "skills": [
     {
       "name": "cyeam-cli",
-      "description": "cyeam.com CLI: architecture advice, date holiday, calligraphy, roadbook, notes, TV schedule, news, Microsoft login",
+      "description": "cyeam.com CLI: architecture advice, date holiday, calligraphy, roadbook, notes, TV schedule, news, Microsoft login. 不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/cyeam-cli"
     },
     {
       "name": "architect",
-      "description": "Architecture consultancy — system design, technical proposals, code review. Supports fast/think/expert modes.",
+      "description": "Architecture consultancy — system design, technical proposals, code review. 不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/architect"
     },
     {
       "name": "live-broadcast",
-      "description": "直播预报——NBA/世界杯/中国男女足比赛赛程与转播源（CCTV5、央视频、腾讯体育等）",
+      "description": "直播预报——NBA/世界杯/中国男女足比赛赛程与转播源。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/live-broadcast"
     },
     {
       "name": "mo",
-      "description": "书法与OCR——行书书法查询及碑帖图片文字识别",
+      "description": "书法与OCR——行书书法查询及碑帖图片文字识别。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/mo"
     },
     {
       "name": "cnote",
-      "description": "云端笔记——在 OneDrive 上管理轻量 HTML 笔记，支持查看、新建、追加、列表",
+      "description": "云端笔记——在 OneDrive 上管理轻量 HTML 笔记。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/cnote"
     },
     {
       "name": "roadbook",
-      "description": "路书分享——在 OneDrive 管理旅行路书，支持列出、分享、查看详情",
+      "description": "路书分享——在 OneDrive 管理旅行路书。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/roadbook"
     },
     {
       "name": "holiday",
-      "description": "假期查询——查某一天是上班还是放假、调休安排、节假日名称",
+      "description": "假期查询——查某一天是上班还是放假、调休安排。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/holiday"
     },
     {
       "name": "news",
-      "description": "AI 新闻与科技资讯——获取最新 AI 资讯和技术动向，支持按日期筛选",
+      "description": "AI 新闻与科技资讯——获取最新 AI 资讯和技术动向。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/news"
     },
     {
       "name": "pinyin",
-      "description": "看拼音写字——中文拼音本地转换，无需网络",
+      "description": "看拼音写字——中文拼音本地转换。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/pinyin"
     },
     {
       "name": "ai-models",
-      "description": "AI免费模型查询——各平台免费模型排行榜，支持按平台/类型筛选",
+      "description": "AI免费模型查询——各平台免费模型排行榜。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/ai-models"
     }

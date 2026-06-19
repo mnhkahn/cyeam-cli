@@ -1,7 +1,7 @@
 ---
 name: ai-models
 version: 0.1.16
-description: AI免费模型查询——从 cyeam.com 获取各平台免费模型排行榜，支持按平台/类型/名称筛选。
+description: AI免费模型查询——从 cyeam.com 获取各平台免费模型排行榜，支持按平台/类型/名称筛选。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
 ---
 
 # AI免费模型查询

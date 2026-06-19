@@ -1,7 +1,7 @@
 ---
 name: news
 version: 0.1.16
-description: AI 新闻与科技资讯——从 cyeam.com 获取最新 AI 资讯和技术动向，支持按日期范围筛选。使用 cyeam news 命令。
+description: AI 新闻与科技资讯——从 cyeam.com 获取最新 AI 资讯和技术动向，支持按日期范围筛选。使用 cyeam news 命令。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
 ---
 
 # AI 新闻与科技资讯
