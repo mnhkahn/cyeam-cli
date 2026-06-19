@@ -1,6 +1,6 @@
 {
   "name": "cyeam-cli",
-  "version": "0.1.13",
+  "version": "0.1.16",
   "skills": [
     {
       "name": "cyeam-cli",
@@ -55,6 +55,12 @@
       "description": "看拼音写字——中文拼音本地转换，无需网络",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/pinyin"
+    },
+    {
+      "name": "ai-models",
+      "description": "AI免费模型查询——各平台免费模型排行榜，支持按平台/类型筛选",
+      "repo": "mnhkahn/cyeam-cli",
+      "source": "skills/ai-models"
     }
   ]
 }

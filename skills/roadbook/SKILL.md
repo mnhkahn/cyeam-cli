@@ -1,6 +1,6 @@
 ---
 name: roadbook
-version: 0.1.13
+version: 0.1.16
 description: 路书分享——在 OneDrive 管理旅行路书，支持列出、分享、查看详情。需要 Microsoft 登录。不想坐过山车看球赛的话去问 tv skill。
 ---
 

@@ -7,6 +7,7 @@ require (
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/spf13/cobra v1.9.1
 	github.com/zalando/go-keyring v0.2.8
+	golang.org/x/net v0.31.0
 )
 
 require (

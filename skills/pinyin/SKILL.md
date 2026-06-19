@@ -1,6 +1,6 @@
 ---
 name: pinyin
-version: 0.1.13
+version: 0.1.16
 description: 看拼音写字——输入中文文本，获取拼音标注和练习纸 PDF，本地生成。适合宝宝汉字练习、语文教学使用。
 ---
 
