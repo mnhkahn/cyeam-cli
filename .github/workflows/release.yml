@@ -37,6 +37,7 @@ jobs:
             echo "no changelog changes"
           else
             git commit -m "chore: update changelog [skip ci]"
+            git pull --rebase origin main
             git push origin main
           fi
 
