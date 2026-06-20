@@ -1,4 +1,18 @@
 
+<a name="v0.1.19"></a>
+## [v0.1.19](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.18...v0.1.19) (2026-06-20)
+
+### Code Refactoring
+
+
+- **cli:** update命令输出改为纯文本
+
+### Features
+
+
+- **pdf:** 新增 Markdown/HTML 转 PDF 命令和 skill
+
+
 <a name="v0.1.18"></a>
 ## [v0.1.18](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.17...v0.1.18) (2026-06-19)
 
@@ -11,6 +25,11 @@
 
 
 - skill 描述加不可直接作为工具名调用提示
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.17"></a>
