@@ -230,6 +230,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newSkillsCommand(deps))
 	root.AddCommand(newPinyinCommand())
 	root.AddCommand(newAICommand())
+	root.AddCommand(newPDFCommand())
 	return root
 }
 

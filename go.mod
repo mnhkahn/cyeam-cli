@@ -6,6 +6,7 @@ require (
 	github.com/mnhkahn/gofpdf v0.0.0-20241007103317-36f676dfaa45
 	github.com/mozillazg/go-pinyin v0.20.0
 	github.com/spf13/cobra v1.9.1
+	github.com/yuin/goldmark v1.8.2
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/net v0.31.0
 )
