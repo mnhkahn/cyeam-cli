@@ -63,6 +63,7 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 		// outer rectangle for entire block
 		pdf.SetLineWidth(0.3)
 		pdf.Rect(xStart, cy, blockWidth, wMi, "D")
+		pdf.SetDashPattern([]float64{0.8, 0.8}, 0)
 
 		// vertical dividers between characters
 		pdf.SetLineWidth(0.15)
@@ -99,6 +100,8 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 
 			charIdx++
 		}
+
+		pdf.SetDashPattern([]float64{}, 0)
 
 		xStart += blockWidth + 5
 	}
