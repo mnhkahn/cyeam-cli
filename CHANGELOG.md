@@ -1,6 +1,25 @@
 
+<a name="v0.1.20"></a>
+## [v0.1.20](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.19...v0.1.20) (2026-06-21)
+
+### Bug Fixes
+
+
+- **pinyin:** 米字格内线改为虚线，实线看不清
+
+### Features
+
+
+- **tv:** today 命令默认展示已完成比赛
+
+
 <a name="v0.1.19"></a>
 ## [v0.1.19](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.18...v0.1.19) (2026-06-20)
+
+### CI/CD
+
+
+- **release:** 修复 changelog 推送时远程 main 已前进的冲突问题
 
 ### Code Refactoring
 
@@ -11,6 +30,11 @@
 
 
 - **pdf:** 新增 Markdown/HTML 转 PDF 命令和 skill
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.18"></a>
@@ -317,7 +341,7 @@
 
 
 <a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.2) (2026-06-12)
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...v0.1.2) (2026-06-12)
 
 ### Documentation
 
@@ -337,12 +361,12 @@
 - 更新gitignore并添加终端表格设计 brainstorm 笔记
 
 
-<a name="skill-4"></a>
-## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-4) (2026-06-11)
-
-
 <a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...v0.1.1) (2026-06-11)
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.1) (2026-06-11)
+
+
+<a name="skill-4"></a>
+## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...skill-4) (2026-06-11)
 
 ### Bug Fixes
 
