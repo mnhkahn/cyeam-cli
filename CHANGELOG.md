@@ -1,11 +1,22 @@
 
-<a name="v0.1.21"></a>
-## [v0.1.21](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.20...v0.1.21) (2026-06-21)
+<a name="v0.1.22"></a>
+## [v0.1.22](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.21...v0.1.22) (2026-06-21)
 
 ### Features
 
 
+- **auth:** 新增文件 token 后备存储和 --print-link 登录
+
 - **roadbook:** 新增 csv 命令和完整 AI 执行流程
+
+
+<a name="v0.1.21"></a>
+## [v0.1.21](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.20...v0.1.21) (2026-06-21)
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.20"></a>
@@ -342,7 +353,7 @@
 
 
 <a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
 
 ### Documentation
 
@@ -350,12 +361,12 @@
 - **skills:** add cyeam-cli installation steps for different platforms
 
 
-<a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
-
-
 <a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...v0.1.2) (2026-06-12)
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
+
+
+<a name="skill-5"></a>
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
 
 ### Documentation
 
