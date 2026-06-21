@@ -787,9 +787,9 @@ func newLoginCommand(deps Dependencies) *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if printLink {
-				return auth.LoginPrintLink(cmd.Context(), deps.Stdout)
+				return auth.LoginPrintLink(cmd.Context(), os.Stderr)
 			}
-			return auth.Login(cmd.Context(), deps.Stdout)
+			return auth.Login(cmd.Context(), os.Stderr)
 		},
 	}
 	cmd.Flags().BoolVar(&printLink, "print-link", false, "print login link and code without opening browser (for remote/headless servers)")

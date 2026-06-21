@@ -63,7 +63,7 @@ func login(ctx context.Context, out io.Writer, printLinkOnly bool) error {
 
 	fmt.Fprintf(out, "Waiting for authentication...\n")
 
-	token, err := pollForToken(ctx, dcResp.DeviceCode, dcResp.Interval)
+	token, err := pollForToken(context.WithoutCancel(ctx), dcResp.DeviceCode, dcResp.Interval)
 	if err != nil {
 		return fmt.Errorf("poll for token: %w", err)
 	}
