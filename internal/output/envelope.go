@@ -9,9 +9,9 @@ type Envelope struct {
 }
 
 type ErrorEnvelope struct {
-	OK     bool       `json:"ok"`
-	Error  ErrorInfo  `json:"error"`
-	Notice *Notice    `json:"_notice,omitempty"`
+	OK     bool      `json:"ok"`
+	Error  ErrorInfo `json:"error"`
+	Notice *Notice   `json:"_notice,omitempty"`
 }
 
 type ErrorInfo struct {

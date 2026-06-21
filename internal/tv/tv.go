@@ -13,9 +13,9 @@ import (
 type League string
 
 const (
-	LeagueNBA         League = "nba"
-	LeagueWorldCup    League = "worldcup"
-	LeagueCNFootball  League = "cn-football"
+	LeagueNBA        League = "nba"
+	LeagueWorldCup   League = "worldcup"
+	LeagueCNFootball League = "cn-football"
 )
 
 func KnownLeagues() []League {
@@ -83,13 +83,13 @@ type Match struct {
 }
 
 type Query struct {
-	Leagues          []League
-	From             time.Time
-	To               time.Time
-	Team             string
-	Source           string
-	IncludeFinished  bool
-	Location         *time.Location
+	Leagues         []League
+	From            time.Time
+	To              time.Time
+	Team            string
+	Source          string
+	IncludeFinished bool
+	Location        *time.Location
 }
 
 type Fetcher interface {

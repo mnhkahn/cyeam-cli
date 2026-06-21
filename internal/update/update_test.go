@@ -174,11 +174,11 @@ func TestGitHubUpdaterInstallsMatchingAssetWhenNewer(t *testing.T) {
 	defer server.Close()
 
 	updater := GitHubUpdater{
-		Repo:       "mnhkahn/cyeam-cli",
-		BaseURL:    server.URL,
-		GOOS:       "darwin",
-		GOARCH:     "arm64",
-		Installer:  installer,
+		Repo:      "mnhkahn/cyeam-cli",
+		BaseURL:   server.URL,
+		GOOS:      "darwin",
+		GOARCH:    "arm64",
+		Installer: installer,
 	}
 	result, err := updater.Update(context.Background(), version.Info{Version: "v0.1.12"})
 	if err != nil {

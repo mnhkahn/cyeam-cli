@@ -11,9 +11,9 @@ import (
 )
 
 type modelsFilter struct {
-	platform string
+	platform  string
 	modelType string
-	search   string
+	search    string
 }
 
 func newAIModelsCommand() *cobra.Command {

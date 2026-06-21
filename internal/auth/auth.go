@@ -37,18 +37,28 @@ func openBrowser(url string) error {
 }
 
 func Login(ctx context.Context, out io.Writer) error {
+	return login(ctx, out, false)
+}
+
+func LoginPrintLink(ctx context.Context, out io.Writer) error {
+	return login(ctx, out, true)
+}
+
+func login(ctx context.Context, out io.Writer, printLinkOnly bool) error {
 	dcResp, err := requestDeviceCode(ctx)
 	if err != nil {
 		return fmt.Errorf("request device code: %w", err)
 	}
 
-	fmt.Fprintf(out, "Opening browser for sign in...\n")
-	fmt.Fprintf(out, "If browser doesn't open, visit:\n%s\n\nEnter code: %s\n",
+	fmt.Fprintf(out, "Visit:\n%s\n\nEnter code: %s\n",
 		dcResp.VerificationURI, dcResp.UserCode)
 
-	if err := openBrowser(dcResp.VerificationURI); err != nil {
-		fmt.Fprintf(out, "Tip: open %s manually and enter code %s\n",
-			dcResp.VerificationURI, dcResp.UserCode)
+	if !printLinkOnly {
+		fmt.Fprintf(out, "Opening browser for sign in...\n")
+		if err := openBrowser(dcResp.VerificationURI); err != nil {
+			fmt.Fprintf(out, "Tip: open %s manually and enter code %s\n",
+				dcResp.VerificationURI, dcResp.UserCode)
+		}
 	}
 
 	fmt.Fprintf(out, "Waiting for authentication...\n")

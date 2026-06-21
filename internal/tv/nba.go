@@ -36,27 +36,27 @@ type nbaScheduleResp struct {
 }
 
 type nbaGame struct {
-	GameID         string `json:"gameId"`
-	GameCode       string `json:"gameCode"`
-	GameStatus     int    `json:"gameStatus"`
-	GameStatusText string `json:"gameStatusText"`
-	GameDateTimeUTC string `json:"gameDateTimeUTC"`
-	GameLabel      string `json:"gameLabel"`
-	GameSubLabel   string `json:"gameSubLabel"`
-	SeriesText     string `json:"seriesText"`
-	WeekName       string `json:"weekName"`
-	HomeTeam       nbaTeam `json:"homeTeam"`
-	AwayTeam       nbaTeam `json:"awayTeam"`
-	ArenaName      string  `json:"arenaName"`
-	ArenaCity      string  `json:"arenaCity"`
+	GameID          string  `json:"gameId"`
+	GameCode        string  `json:"gameCode"`
+	GameStatus      int     `json:"gameStatus"`
+	GameStatusText  string  `json:"gameStatusText"`
+	GameDateTimeUTC string  `json:"gameDateTimeUTC"`
+	GameLabel       string  `json:"gameLabel"`
+	GameSubLabel    string  `json:"gameSubLabel"`
+	SeriesText      string  `json:"seriesText"`
+	WeekName        string  `json:"weekName"`
+	HomeTeam        nbaTeam `json:"homeTeam"`
+	AwayTeam        nbaTeam `json:"awayTeam"`
+	ArenaName       string  `json:"arenaName"`
+	ArenaCity       string  `json:"arenaCity"`
 }
 
 type nbaTeam struct {
-	TeamID       int    `json:"teamId"`
-	TeamCity     string `json:"teamCity"`
-	TeamName     string `json:"teamName"`
-	TeamTricode  string `json:"teamTricode"`
-	Score        int    `json:"score"`
+	TeamID      int    `json:"teamId"`
+	TeamCity    string `json:"teamCity"`
+	TeamName    string `json:"teamName"`
+	TeamTricode string `json:"teamTricode"`
+	Score       int    `json:"score"`
 }
 
 func (f *NBAFetcher) Fetch(ctx context.Context, q Query) ([]Match, error) {
@@ -177,5 +177,3 @@ func nbaStatus(s int) Status {
 		return StatusScheduled
 	}
 }
-
-

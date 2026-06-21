@@ -12,13 +12,14 @@ import (
 )
 
 // ESPN site API. league codes:
-//   fifa.world           - FIFA World Cup (men)
-//   fifa.wwc             - FIFA Women's World Cup
-//   fifa.worldq.afc      - World Cup Qualifying - AFC (亚洲区)
-//   fifa.friendly        - international friendlies (men)
-//   fifa.friendly.w      - international friendlies (women)
-//   fifa.olympics        - Olympics men
-//   fifa.w_olympics      - Olympics women
+//
+//	fifa.world           - FIFA World Cup (men)
+//	fifa.wwc             - FIFA Women's World Cup
+//	fifa.worldq.afc      - World Cup Qualifying - AFC (亚洲区)
+//	fifa.friendly        - international friendlies (men)
+//	fifa.friendly.w      - international friendlies (women)
+//	fifa.olympics        - Olympics men
+//	fifa.w_olympics      - Olympics women
 const espnScoreboardBase = "https://site.api.espn.com/apis/site/v2/sports/soccer"
 
 type espnTime struct {
@@ -128,11 +129,11 @@ type espnScoreboard struct {
 }
 
 type espnEvent struct {
-	ID         string    `json:"id"`
-	Date       espnTime  `json:"date"`
-	Name       string    `json:"name"`
-	ShortName  string    `json:"shortName"`
-	Season     struct {
+	ID        string   `json:"id"`
+	Date      espnTime `json:"date"`
+	Name      string   `json:"name"`
+	ShortName string   `json:"shortName"`
+	Season    struct {
 		Type int    `json:"type"`
 		Slug string `json:"slug"`
 	} `json:"season"`
@@ -179,7 +180,7 @@ func (f *espnFetcher) parse(body []byte) ([]Match, error) {
 			continue
 		}
 		comp := e.Competitions[0]
-	home, away := splitCompetitors(comp.Competitors)
+		home, away := splitCompetitors(comp.Competitors)
 		stage := ""
 		if len(comp.Notes) > 0 {
 			stage = comp.Notes[0].Headline

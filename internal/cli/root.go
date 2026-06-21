@@ -780,14 +780,20 @@ func newMoOCRCommand(deps Dependencies) *cobra.Command {
 }
 
 func newLoginCommand(deps Dependencies) *cobra.Command {
-	return &cobra.Command{
+	var printLink bool
+	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Sign in with Microsoft account",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if printLink {
+				return auth.LoginPrintLink(cmd.Context(), deps.Stdout)
+			}
 			return auth.Login(cmd.Context(), deps.Stdout)
 		},
 	}
+	cmd.Flags().BoolVar(&printLink, "print-link", false, "print login link and code without opening browser (for remote/headless servers)")
+	return cmd
 }
 
 func newLogoutCommand(deps Dependencies) *cobra.Command {
