@@ -45,10 +45,12 @@ func LoginPrintLink(ctx context.Context, out io.Writer) error {
 }
 
 func login(ctx context.Context, out io.Writer, printLinkOnly bool) error {
+	fmt.Fprintf(out, "[1] requesting device code from Microsoft...\n")
 	dcResp, err := requestDeviceCode(ctx)
 	if err != nil {
 		return fmt.Errorf("request device code: %w", err)
 	}
+	fmt.Fprintf(out, "[2] device code received, user_code=%s\n", dcResp.UserCode)
 
 	fmt.Fprintf(out, "Visit:\n%s\n\nEnter code: %s\n",
 		dcResp.VerificationURI, dcResp.UserCode)
@@ -61,12 +63,15 @@ func login(ctx context.Context, out io.Writer, printLinkOnly bool) error {
 		}
 	}
 
-	fmt.Fprintf(out, "Waiting for authentication...\n")
+	fmt.Fprintf(out, "[3] Waiting for authentication...\n")
 
-	token, err := pollForToken(context.WithoutCancel(ctx), dcResp.DeviceCode, dcResp.Interval)
+	pollCtx := context.WithoutCancel(ctx)
+	fmt.Fprintf(out, "[4] starting poll loop (interval=%ds)...\n", dcResp.Interval)
+	token, err := pollForToken(pollCtx, dcResp.DeviceCode, dcResp.Interval)
 	if err != nil {
 		return fmt.Errorf("poll for token: %w", err)
 	}
+	fmt.Fprintf(out, "[5] token received\n")
 
 	expiry := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second).Unix()
 	if err := StoreToken(TokenSet{
@@ -77,7 +82,7 @@ func login(ctx context.Context, out io.Writer, printLinkOnly bool) error {
 		return fmt.Errorf("store token: %w", err)
 	}
 
-	fmt.Fprintf(out, "Login successful!\n")
+	fmt.Fprintf(out, "[6] token saved, login successful!\n")
 	return nil
 }
 
