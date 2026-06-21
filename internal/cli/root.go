@@ -3,11 +3,15 @@ package cli
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
+	"encoding/csv"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -418,6 +422,7 @@ func newRoadbookCommand(deps Dependencies) *cobra.Command {
 		},
 	})
 	cmd.AddCommand(newRoadbookGetCommand(deps))
+	cmd.AddCommand(newRoadbookCSVCommand(deps))
 	return cmd
 }
 
@@ -514,6 +519,147 @@ func newRoadbookGetCommand(deps Dependencies) *cobra.Command {
 			return output.WriteJSON(deps.Stdout, resp)
 		},
 	}
+}
+
+func newRoadbookCSVCommand(deps Dependencies) *cobra.Command {
+	var title string
+	cmd := &cobra.Command{
+		Use:   "csv",
+		Short: "Generate a roadbook from CSV text (stdin)",
+		Args:  cobra.NoArgs,
+		Long: `Read CSV from stdin, save to OneDrive, and generate a shareable roadbook link.
+Requires login (cyeam login) first.
+
+CSV format: 名称,地址,类型,日期,备注
+ - 类型: 景点/餐饮/住宿/起点/其他
+ - 日期: Day1, Day2... 或 5.1, 5.2...
+
+Example:
+  printf "%s\n" "故宫博物院,北京市东城区景山前街4号,景点,Day1,上午" | cyeam roadbook csv`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if deps.Service == nil {
+				return fmt.Errorf("service is required")
+			}
+			csvData, err := io.ReadAll(cmd.InOrStdin())
+			if err != nil {
+				return err
+			}
+			if len(bytes.TrimSpace(csvData)) == 0 {
+				return fmt.Errorf("no CSV data provided (stdin is empty)")
+			}
+			items := parseCSVToItems(csvData)
+			if len(items) == 0 {
+				return fmt.Errorf("no valid items found in CSV")
+			}
+
+			// Build roadbook payload
+			payload := map[string]interface{}{
+				"title": title,
+				"items": items,
+			}
+			payloadJSON, err := json.Marshal(payload)
+			if err != nil {
+				return err
+			}
+
+			// Generate fileId from sha256 hash (matches web's saveToOneDrive)
+			h := sha256.Sum256(payloadJSON)
+			fileID := "p_" + hex.EncodeToString(h[:])[:14]
+
+			// Save to OneDrive 路书 folder
+			oc := oneDriveClient(deps)
+			filename := fileID + ".json"
+			if err := oc.WriteFile(cmd.Context(), "路书", filename, "application/json", payloadJSON); err != nil {
+				return fmt.Errorf("save to OneDrive: %w", err)
+			}
+
+			// Share via API to get short link
+			sharePayload, err := json.Marshal(map[string]interface{}{"data": payload})
+			if err != nil {
+				return err
+			}
+			resp, err := deps.Service.RoadbookShare(cmd.Context(), sharePayload)
+			if err != nil {
+				return err
+			}
+			return output.WriteJSON(deps.Stdout, resp)
+		},
+	}
+	cmd.Flags().StringVar(&title, "title", "", "roadbook title")
+	return cmd
+}
+
+type csvItem struct {
+	Name    string `json:"name"`
+	Address string `json:"address"`
+	Type    string `json:"type"`
+	Day     string `json:"day"`
+	Note    string `json:"note"`
+}
+
+var (
+	dayNoteDayRegex  = regexp.MustCompile(`^(?i)(Day\d+)\s*`)
+	dayNoteDateRegex = regexp.MustCompile(`^(\d{1,2}\.\d{1,2})\s*`)
+)
+
+func parseCSVToItems(data []byte) []csvItem {
+	r := csv.NewReader(bytes.NewReader(data))
+	r.LazyQuotes = true
+	r.TrimLeadingSpace = true
+	records, err := r.ReadAll()
+	if err != nil {
+		return nil
+	}
+	var items []csvItem
+	for _, cols := range records {
+		if len(cols) < 3 {
+			continue
+		}
+		name := strings.TrimSpace(cols[0])
+		address := strings.TrimSpace(cols[1])
+		if name == "" || (name == "名称" && address == "地址") {
+			continue
+		}
+		typ := strings.TrimSpace(cols[2])
+		switch typ {
+		case "景点", "餐饮", "住宿", "起点", "其他":
+		default:
+			typ = "其他"
+		}
+
+		day := "Day1"
+		note := ""
+		if len(cols) > 3 {
+			dayPart := strings.TrimSpace(cols[3])
+			if m := dayNoteDayRegex.FindStringSubmatch(dayPart); m != nil {
+				day = m[1]
+				note = strings.TrimSpace(dayPart[len(m[0]):])
+			} else if m := dayNoteDateRegex.FindStringSubmatch(dayPart); m != nil {
+				day = m[1]
+				note = strings.TrimSpace(dayPart[len(m[0]):])
+			} else {
+				note = dayPart
+			}
+		}
+		if len(cols) > 4 {
+			extra := strings.TrimSpace(cols[4])
+			if extra != "" {
+				if note != "" {
+					note += " "
+				}
+				note += extra
+			}
+		}
+
+		items = append(items, csvItem{
+			Name:    name,
+			Address: address,
+			Type:    typ,
+			Day:     day,
+			Note:    note,
+		})
+	}
+	return items
 }
 
 func newMoCommand(deps Dependencies) *cobra.Command {
@@ -928,14 +1074,14 @@ type newsAPIResponse struct {
 }
 
 type newsGeekNews struct {
-	CreateTime int64         `json:"create_time"`
-	News       []newsItem    `json:"news"`
-	Summary    string        `json:"summary"`
+	CreateTime int64      `json:"create_time"`
+	News       []newsItem `json:"news"`
+	Summary    string     `json:"summary"`
 }
 
 type newsAINews struct {
-	CreateTime int64         `json:"create_time"`
-	News       []newsItem    `json:"news"`
+	CreateTime int64      `json:"create_time"`
+	News       []newsItem `json:"news"`
 }
 
 type newsItem struct {

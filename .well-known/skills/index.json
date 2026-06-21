@@ -34,7 +34,7 @@
     },
     {
       "name": "roadbook",
-      "description": "路书分享——在 OneDrive 管理旅行路书。不可直接作为工具名调用",
+      "description": "路书分享——需要先 cyeam login（OneDrive），支持 CSV 文本生成路书",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/roadbook"
     },

@@ -47,6 +47,22 @@ func (c *Client) PostRaw(ctx context.Context, path string, params map[string]str
 	return c.doBytes(req)
 }
 
+func (c *Client) PostText(ctx context.Context, path string, params map[string]string, body []byte) ([]byte, error) {
+	return c.PostTextAuth(ctx, path, params, body, "")
+}
+
+func (c *Client) PostTextAuth(ctx context.Context, path string, params map[string]string, body []byte, bearerToken string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url(path, params), bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	if bearerToken != "" {
+		req.Header.Set("Authorization", "Bearer "+bearerToken)
+	}
+	return c.doBytes(req)
+}
+
 func (c *Client) DownloadBinary(ctx context.Context, path string, params map[string]string) ([]byte, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.url(path, params), nil)
 	if err != nil {

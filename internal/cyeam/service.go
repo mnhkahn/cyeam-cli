@@ -10,7 +10,9 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/client"
 )
 
-const timorHolidayBaseURL = "https://timor.tech"
+const (
+	timorHolidayBaseURL = "https://timor.tech"
+)
 
 type Service struct {
 	client        *client.Client

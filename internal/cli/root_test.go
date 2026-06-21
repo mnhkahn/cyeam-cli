@@ -40,9 +40,12 @@ type fakeUpdater struct {
 }
 
 type fakeOneDrive struct {
-	readFolder string
-	readName   string
-	readBody   []byte
+	readFolder   string
+	readName     string
+	readBody     []byte
+	writeFolder  string
+	writeName    string
+	writeContent []byte
 }
 
 func (f *fakeOneDrive) ListFolder(ctx context.Context, folderPath string) ([]onedrive.Item, error) {
@@ -60,6 +63,9 @@ func (f *fakeOneDrive) ReadFile(ctx context.Context, folderPath, filename string
 }
 
 func (f *fakeOneDrive) WriteFile(ctx context.Context, folderPath, filename, contentType string, content []byte) error {
+	f.writeFolder = folderPath
+	f.writeName = filename
+	f.writeContent = content
 	return nil
 }
 
@@ -348,6 +354,244 @@ func TestRoadbookGetUsesID(t *testing.T) {
 	}
 	if envelopeData(t, stdout) != "{\"data\":\"[]\"}\n" {
 		t.Fatalf("stdout = %q", envelopeData(t, stdout))
+	}
+}
+
+func TestRoadbookCSVParsesCSVAndSavesToOneDrive(t *testing.T) {
+	service := &fakeService{}
+	od := &fakeOneDrive{}
+	stdout := new(bytes.Buffer)
+	stdin := strings.NewReader("故宫博物院,北京市东城区景山前街4号,景点,Day1,上午\n国家博物馆,北京市东城区东长安街16号,景点,Day1,下午")
+
+	cmd := NewRootCommand(Dependencies{
+		Service:  service,
+		Stdout:   stdout,
+		OneDrive: func() OneDriveClient { return od },
+	})
+	cmd.SetIn(stdin)
+	cmd.SetArgs([]string{"roadbook", "csv"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute roadbook csv: %v", err)
+	}
+
+	if od.writeFolder != "路书" {
+		t.Fatalf("write folder = %q, want 路书", od.writeFolder)
+	}
+	if od.writeName == "" {
+		t.Fatalf("write filename is empty")
+	}
+	if !strings.HasPrefix(od.writeName, "p_") {
+		t.Fatalf("write filename = %q, want p_ prefix", od.writeName)
+	}
+	var written struct {
+		Title string    `json:"title"`
+		Items []csvItem `json:"items"`
+	}
+	if err := json.Unmarshal(od.writeContent, &written); err != nil {
+		t.Fatalf("unmarshal od content: %v", err)
+	}
+	if len(written.Items) != 2 {
+		t.Fatalf("items count = %d, want 2", len(written.Items))
+	}
+	if written.Items[0].Name != "故宫博物院" {
+		t.Fatalf("item[0].Name = %q", written.Items[0].Name)
+	}
+	if written.Items[0].Day != "Day1" {
+		t.Fatalf("item[0].Day = %q", written.Items[0].Day)
+	}
+	if written.Items[1].Name != "国家博物馆" {
+		t.Fatalf("item[1].Name = %q", written.Items[1].Name)
+	}
+
+	var sharePayload struct {
+		Data struct {
+			Title string    `json:"title"`
+			Items []csvItem `json:"items"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal([]byte(service.roadbookShareBody), &sharePayload); err != nil {
+		t.Fatalf("unmarshal share body: %v", err)
+	}
+	if len(sharePayload.Data.Items) != 2 {
+		t.Fatalf("share items = %d", len(sharePayload.Data.Items))
+	}
+
+	resp := envelopeData(t, stdout)
+	if !strings.Contains(resp, "url") {
+		t.Fatalf("stdout = %q, want url field", resp)
+	}
+}
+
+func TestRoadbookCSVWithCommaInQuotedField(t *testing.T) {
+	service := &fakeService{}
+	od := &fakeOneDrive{}
+	stdout := new(bytes.Buffer)
+	stdin := strings.NewReader(`"北京,故宫",北京市东城区景山前街4号,景点,Day1,上午`)
+
+	cmd := NewRootCommand(Dependencies{
+		Service:  service,
+		Stdout:   stdout,
+		OneDrive: func() OneDriveClient { return od },
+	})
+	cmd.SetIn(stdin)
+	cmd.SetArgs([]string{"roadbook", "csv"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute roadbook csv with commas: %v", err)
+	}
+
+	var written struct {
+		Items []csvItem `json:"items"`
+	}
+	if err := json.Unmarshal(od.writeContent, &written); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if len(written.Items) != 1 {
+		t.Fatalf("items = %d, want 1", len(written.Items))
+	}
+	if written.Items[0].Name != "北京,故宫" {
+		t.Fatalf("name = %q, want 北京,故宫", written.Items[0].Name)
+	}
+	if written.Items[0].Address != "北京市东城区景山前街4号" {
+		t.Fatalf("address = %q", written.Items[0].Address)
+	}
+}
+
+func TestRoadbookCSVWithTitleFlag(t *testing.T) {
+	service := &fakeService{}
+	od := &fakeOneDrive{}
+	stdout := new(bytes.Buffer)
+	stdin := strings.NewReader("故宫博物院,北京市东城区景山前街4号,景点,Day1,上午")
+
+	cmd := NewRootCommand(Dependencies{
+		Service:  service,
+		Stdout:   stdout,
+		OneDrive: func() OneDriveClient { return od },
+	})
+	cmd.SetIn(stdin)
+	cmd.SetArgs([]string{"roadbook", "csv", "--title", "北京行"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute roadbook csv with title: %v", err)
+	}
+
+	var written struct {
+		Title string `json:"title"`
+	}
+	if err := json.Unmarshal(od.writeContent, &written); err != nil {
+		t.Fatalf("unmarshal: %v", err)
+	}
+	if written.Title != "北京行" {
+		t.Fatalf("title = %q, want 北京行", written.Title)
+	}
+}
+
+func TestRoadbookCSVEmptyInput(t *testing.T) {
+	service := &fakeService{}
+	od := &fakeOneDrive{}
+	stdout := new(bytes.Buffer)
+	stdin := strings.NewReader("")
+
+	cmd := NewRootCommand(Dependencies{
+		Service:  service,
+		Stdout:   stdout,
+		OneDrive: func() OneDriveClient { return od },
+	})
+	cmd.SetIn(stdin)
+	cmd.SetArgs([]string{"roadbook", "csv"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatalf("expected error for empty input")
+	}
+	if !strings.Contains(err.Error(), "empty") {
+		t.Fatalf("error = %q, want empty message", err.Error())
+	}
+}
+
+func TestParseCSVToItemsSkipsHeaderLine(t *testing.T) {
+	input := []byte("名称,地址,类型,日期,备注\n故宫博物院,北京市东城区景山前街4号,景点,Day1,上午")
+	items := parseCSVToItems(input)
+	if len(items) != 1 {
+		t.Fatalf("items = %d, want 1", len(items))
+	}
+	if items[0].Name != "故宫博物院" {
+		t.Fatalf("name = %q", items[0].Name)
+	}
+}
+
+func TestParseCSVToItemsWithDayDateNotation(t *testing.T) {
+	input := []byte("淄博酒店,淄博市张店区某路,住宿,5.1,入住")
+	items := parseCSVToItems(input)
+	if len(items) != 1 {
+		t.Fatalf("items = %d", len(items))
+	}
+	if items[0].Day != "5.1" {
+		t.Fatalf("day = %q, want 5.1", items[0].Day)
+	}
+	if items[0].Note != "入住" {
+		t.Fatalf("note = %q", items[0].Note)
+	}
+}
+
+func TestParseCSVToItemsWithCommaInQuotedField(t *testing.T) {
+	input := []byte(`"北京,故宫博物院",北京市东城区景山前街4号,景点,Day1,上午`)
+	items := parseCSVToItems(input)
+	if len(items) != 1 {
+		t.Fatalf("items = %d", len(items))
+	}
+	if items[0].Name != "北京,故宫博物院" {
+		t.Fatalf("name = %q, want 北京,故宫博物院", items[0].Name)
+	}
+	if items[0].Address != "北京市东城区景山前街4号" {
+		t.Fatalf("address = %q", items[0].Address)
+	}
+}
+
+func TestParseCSVToItemsFiltersInvalidType(t *testing.T) {
+	input := []byte("未知地点,地址未知,unknown_type,Day1,测试")
+	items := parseCSVToItems(input)
+	if len(items) != 1 {
+		t.Fatalf("items = %d", len(items))
+	}
+	if items[0].Type != "其他" {
+		t.Fatalf("type = %q, want 其他", items[0].Type)
+	}
+}
+
+func TestParseCSVToItemsLessThan3Columns(t *testing.T) {
+	input := []byte("故宫博物院")
+	items := parseCSVToItems(input)
+	if len(items) != 0 {
+		t.Fatalf("items = %d, want 0", len(items))
+	}
+}
+
+func TestRoadbookCSVOutputHasValidJSONEnvelope(t *testing.T) {
+	service := &fakeService{}
+	od := &fakeOneDrive{}
+	stdout := new(bytes.Buffer)
+	stdin := strings.NewReader("故宫博物院,北京市东城区景山前街4号,景点,Day1,上午")
+
+	cmd := NewRootCommand(Dependencies{
+		Service:  service,
+		Stdout:   stdout,
+		OneDrive: func() OneDriveClient { return od },
+	})
+	cmd.SetIn(stdin)
+	cmd.SetArgs([]string{"roadbook", "csv"})
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute: %v", err)
+	}
+
+	var env output.Envelope
+	if err := json.Unmarshal(stdout.Bytes(), &env); err != nil {
+		t.Fatalf("unmarshal envelope: %v\nraw: %s", err, stdout.String())
+	}
+	if !env.OK {
+		t.Fatalf("envelope ok false")
 	}
 }
 
