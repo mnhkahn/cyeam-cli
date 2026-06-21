@@ -1,4 +1,13 @@
 
+<a name="v0.1.21"></a>
+## [v0.1.21](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.20...v0.1.21) (2026-06-21)
+
+### Features
+
+
+- **roadbook:** 新增 csv 命令和完整 AI 执行流程
+
+
 <a name="v0.1.20"></a>
 ## [v0.1.20](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.19...v0.1.20) (2026-06-21)
 
@@ -11,6 +20,11 @@
 
 
 - **tv:** today 命令默认展示已完成比赛
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.19"></a>
