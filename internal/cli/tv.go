@@ -99,6 +99,9 @@ func newTVTodayCommand(deps Dependencies, td tvDeps) *cobra.Command {
 			today := now().In(loc).Format(time.DateOnly)
 			fc.from = today
 			fc.to = today
+			if !cmd.Flags().Changed("include-finished") {
+				fc.includeFinished = true
+			}
 			return runTVList(cmd.Context(), deps, td, fc)
 		},
 	}
