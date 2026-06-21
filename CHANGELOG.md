@@ -1,11 +1,22 @@
 
-<a name="v0.1.23"></a>
-## [v0.1.23](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.22...v0.1.23) (2026-06-21)
+<a name="v0.1.24"></a>
+## [v0.1.24](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.23...v0.1.24) (2026-06-21)
 
 ### Bug Fixes
 
 
+- **login:** 添加调试日志，登录流程输出到 stderr 避免缓冲
+
 - **login:** 登录提示输出到 stderr 避免被 cobra stdout 缓冲吞掉
+
+
+<a name="v0.1.23"></a>
+## [v0.1.23](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.22...v0.1.23) (2026-06-21)
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.22"></a>
