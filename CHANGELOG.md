@@ -1,4 +1,13 @@
 
+<a name="v0.1.23"></a>
+## [v0.1.23](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.22...v0.1.23) (2026-06-21)
+
+### Bug Fixes
+
+
+- **login:** 登录提示输出到 stderr 避免被 cobra stdout 缓冲吞掉
+
+
 <a name="v0.1.22"></a>
 ## [v0.1.22](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.21...v0.1.22) (2026-06-21)
 
@@ -8,6 +17,11 @@
 - **auth:** 新增文件 token 后备存储和 --print-link 登录
 
 - **roadbook:** 新增 csv 命令和完整 AI 执行流程
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.21"></a>
