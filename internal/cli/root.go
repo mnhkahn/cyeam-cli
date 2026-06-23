@@ -127,11 +127,18 @@ func syncSkills(ctx context.Context, out io.Writer) bool {
 		fmt.Fprintf(out, "skill sync skipped: npx not found (%v)\n", err)
 		return false
 	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
 	cmd := exec.CommandContext(ctx, "npx", "skills", "add", "mnhkahn/cyeam-cli", "-y")
-	cmd.Stdout = nil
-	cmd.Stderr = nil
+	var output bytes.Buffer
+	cmd.Stdout = &output
+	cmd.Stderr = &output
 	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(out, "skill sync failed: %v\n", err)
+		msg := strings.TrimSpace(output.String())
+		if msg == "" {
+			msg = err.Error()
+		}
+		fmt.Fprintf(out, "skill sync failed: %v: %s\n", err, msg)
 		return false
 	}
 	fmt.Fprintf(out, "skills synced\n")
