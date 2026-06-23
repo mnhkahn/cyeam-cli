@@ -1,4 +1,8 @@
 
+<a name="v0.1.27"></a>
+## [v0.1.27](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.26...v0.1.27) (2026-06-23)
+
+
 <a name="v0.1.26"></a>
 ## [v0.1.26](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.25...v0.1.26) (2026-06-23)
 
@@ -6,6 +10,16 @@
 
 
 - **login:** 登录链接输出到 stdout 并与轮询解耦
+
+### CI/CD
+
+
+- **release:** 发版时推送飞书群机器人通知
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.25"></a>
