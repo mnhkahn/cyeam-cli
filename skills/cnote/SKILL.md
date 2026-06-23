@@ -8,10 +8,9 @@ description: 云端笔记——在 OneDrive 上管理轻量 HTML 笔记，支持
 
 ## 概述
 
-在 OneDrive `Notes` 文件夹中管理 HTML 笔记。需要先登录 Microsoft 账号。
+在 OneDrive `Notes` 文件夹中管理 HTML 笔记。需要先登录 Microsoft 账号（登录方式见 cyeam-cli skill 的"登录方式"，无桌面环境的服务器须用 `cyeam login --print-link`）。
 
 ```bash
-cyeam login                          # 先登录
 cyeam cnote list                     # 列出所有笔记
 cyeam cnote get "笔记标题"            # 查看（默认 markdown 格式）
 cyeam cnote get "笔记标题" --format text
@@ -37,9 +36,7 @@ curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Linu
 ## 命令
 
 ```
-cyeam login                          首次使用需要登录
-cyeam logout                         退出登录
-cyeam whoami                         查看登录状态
+cyeam whoami                         查看登录状态（登录方式见 cyeam-cli skill）
 
 cyeam cnote list                     列出笔记（显示文件名、修改时间、可点击链接）
 cyeam cnote get <title>              读取笔记内容（默认 markdown 渲染）
@@ -54,7 +51,7 @@ cyeam cnote append <title> < note.html
 
 ## 注意事项
 
-- 需要 Microsoft 账号登录，`cyeam login` 使用 Device Code 流程
+- 需要 Microsoft 账号登录，使用 Device Code 流程（登录方式见 cyeam-cli skill）
 - 登录后 token 自动刷新（带 refresh_token）
 - 内容是纯 HTML，`get` 命令会解析并转换为 markdown/text 显示
 - `new` 和 `append` 从 stdin 读取，适合管道：`echo "<h1>hello</h1>" | cyeam cnote new test`

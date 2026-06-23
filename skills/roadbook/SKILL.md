@@ -125,7 +125,7 @@ cyeam login
 ```
 这会打开浏览器。
 
-如果用户在远程服务器（如 Fly.io、SSH 终端 等无桌面环境）：
+如果用户在远程服务器（SSH 终端等无桌面环境）：
 ```bash
 cyeam login --print-link
 ```

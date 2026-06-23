@@ -39,7 +39,7 @@ cyeam whoami                          # 查看当前登录状态
 
 - token 优先存系统钥匙串（macOS Keychain / Linux D-Bus），不可用时自动回退到 `~/.cyeam/token.json`
 - `--print-link` 不尝试打开浏览器，只输出 URL + 验证码，用户在本地浏览器打开授权后 CLI 自动获取 token
-- Fly.io 等无 D-Bus 服务器必须用 `--print-link`
+- 无 D-Bus 钥匙串的服务器（无桌面环境）必须用 `--print-link`
 
 ## 完整命令列表
 
