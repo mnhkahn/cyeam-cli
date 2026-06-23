@@ -63,20 +63,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Send release webhook
+      - name: Notify Feishu
         continue-on-error: true
+        env:
+          FEISHU_WEBHOOK_URL: ${{ secrets.FEISHU_WEBHOOK_URL }}
+          REPO: ${{ github.repository }}
+          REF_NAME: ${{ github.ref_name }}
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          CHANGELOG=$(git-chglog --template .chglog/webhook.tpl.md "${GITHUB_REF_NAME}" 2>/dev/null || echo "")
-          curl -s -X POST "${{ secrets.RELEASE_WEBHOOK_URL }}" \
+          if [ -z "$FEISHU_WEBHOOK_URL" ]; then
+            echo "FEISHU_WEBHOOK_URL not set, skip"
+            exit 0
+          fi
+          CHANGELOG=$(git-chglog --template .chglog/webhook.tpl.md "${REF_NAME}" 2>/dev/null || echo "")
+          RELEASE_URL="https://github.com/${REPO}/releases/tag/${REF_NAME}"
+          TEXT=$(printf '🚀 %s 发布 %s\n%s\n%s' "$REPO" "$REF_NAME" "$CHANGELOG" "$RELEASE_URL")
+          PAYLOAD=$(jq -cn --arg t "$TEXT" '{msg_type:"text",content:{text:$t}}')
+          curl -sf -X POST "$FEISHU_WEBHOOK_URL" \
             -H "Content-Type: application/json" \
-            -d "$(cat <<-END
-          {
-            "event": "release",
-            "repository": "${{ github.repository }}",
-            "version": "$VERSION",
-            "ref": "${{ github.ref_name }}",
-            "changelog": "$CHANGELOG"
-          }
-          END
-          )" || echo "webhook skipped (no URL configured)"
+            -d "$PAYLOAD" && echo "feishu notified" || echo "feishu notify failed"
