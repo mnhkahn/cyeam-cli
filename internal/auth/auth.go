@@ -36,42 +36,34 @@ func openBrowser(url string) error {
 	return exec.Command(cmd, args...).Start()
 }
 
-func Login(ctx context.Context, out io.Writer) error {
-	return login(ctx, out, false)
-}
-
-func LoginPrintLink(ctx context.Context, out io.Writer) error {
-	return login(ctx, out, true)
-}
-
-func login(ctx context.Context, out io.Writer, printLinkOnly bool) error {
-	fmt.Fprintf(out, "[1] requesting device code from Microsoft...\n")
+// Login runs the OAuth device-code flow. The actionable link and verification
+// code go to stdout so a calling agent reading the stream sees them immediately;
+// diagnostic progress lines go to stderr. The flow is identical on every
+// platform — on machines with a browser we also try to open it as a convenience.
+func Login(ctx context.Context, stdout, stderr io.Writer) error {
+	fmt.Fprintf(stderr, "[1] requesting device code from Microsoft...\n")
 	dcResp, err := requestDeviceCode(ctx)
 	if err != nil {
 		return fmt.Errorf("request device code: %w", err)
 	}
-	fmt.Fprintf(out, "[2] device code received, user_code=%s\n", dcResp.UserCode)
+	fmt.Fprintf(stderr, "[2] device code received, user_code=%s\n", dcResp.UserCode)
 
-	fmt.Fprintf(out, "Visit:\n%s\n\nEnter code: %s\n",
+	fmt.Fprintf(stdout, "Visit:\n%s\n\nEnter code: %s\n",
 		dcResp.VerificationURI, dcResp.UserCode)
 
-	if !printLinkOnly {
-		fmt.Fprintf(out, "Opening browser for sign in...\n")
-		if err := openBrowser(dcResp.VerificationURI); err != nil {
-			fmt.Fprintf(out, "Tip: open %s manually and enter code %s\n",
-				dcResp.VerificationURI, dcResp.UserCode)
-		}
-	}
+	// Best-effort: open a browser on machines that have one. On headless
+	// servers this fails silently and the user follows the link above manually.
+	_ = openBrowser(dcResp.VerificationURI)
 
-	fmt.Fprintf(out, "[3] Waiting for authentication...\n")
+	fmt.Fprintf(stderr, "[3] waiting for authentication...\n")
 
 	pollCtx := context.WithoutCancel(ctx)
-	fmt.Fprintf(out, "[4] starting poll loop (interval=%ds)...\n", dcResp.Interval)
+	fmt.Fprintf(stderr, "[4] starting poll loop (interval=%ds)...\n", dcResp.Interval)
 	token, err := pollForToken(pollCtx, dcResp.DeviceCode, dcResp.Interval)
 	if err != nil {
 		return fmt.Errorf("poll for token: %w", err)
 	}
-	fmt.Fprintf(out, "[5] token received\n")
+	fmt.Fprintf(stderr, "[5] token received\n")
 
 	expiry := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second).Unix()
 	if err := StoreToken(TokenSet{
@@ -82,7 +74,7 @@ func login(ctx context.Context, out io.Writer, printLinkOnly bool) error {
 		return fmt.Errorf("store token: %w", err)
 	}
 
-	fmt.Fprintf(out, "[6] token saved, login successful!\n")
+	fmt.Fprintf(stdout, "Login successful.\n")
 	return nil
 }
 

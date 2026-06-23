@@ -31,15 +31,14 @@ curl -L https://github.com/mnhkahn/cyeam-cli/releases/latest/download/cyeam_Linu
 ## 登录方式
 
 ```bash
-cyeam login                           # 默认：打开浏览器完成 Microsoft 登录
-cyeam login --print-link              # 仅打印链接和验证码，适合远程/服务器环境
+cyeam login                           # 登录 Microsoft 账号
 cyeam logout                          # 退出登录
 cyeam whoami                          # 查看当前登录状态
 ```
 
+- 登录采用设备码流程：命令会打印授权链接和验证码，并在有桌面环境的机器上自动尝试打开浏览器
+- 无桌面环境的服务器上浏览器打开会静默失败，按打印出的链接和验证码在任意浏览器完成授权即可，CLI 会自动获取 token
 - token 优先存系统钥匙串（macOS Keychain / Linux D-Bus），不可用时自动回退到 `~/.cyeam/token.json`
-- `--print-link` 不尝试打开浏览器，只输出 URL + 验证码，用户在本地浏览器打开授权后 CLI 自动获取 token
-- 无 D-Bus 钥匙串的服务器（无桌面环境）必须用 `--print-link`
 
 ## 完整命令列表
 

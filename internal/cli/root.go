@@ -201,7 +201,9 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 		},
 		PersistentPostRunE: func(cmd *cobra.Command, args []string) error {
 			notice := consumeNotice()
-			if pretty || cmd.Name() == "update" {
+			// `update` and `login` stream directly to stdout/stderr and must not
+			// be wrapped in (or trailed by) the JSON envelope.
+			if pretty || cmd.Name() == "update" || cmd.Name() == "login" {
 				_, err := originalStdout.Write([]byte(buf.String()))
 				return err
 			}
@@ -780,20 +782,16 @@ func newMoOCRCommand(deps Dependencies) *cobra.Command {
 }
 
 func newLoginCommand(deps Dependencies) *cobra.Command {
-	var printLink bool
-	cmd := &cobra.Command{
+	return &cobra.Command{
 		Use:   "login",
 		Short: "Sign in with Microsoft account",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if printLink {
-				return auth.LoginPrintLink(cmd.Context(), os.Stderr)
-			}
-			return auth.Login(cmd.Context(), os.Stderr)
+			// Write the link/code straight to the real stdout (not the envelope
+			// buffer) so a streaming caller sees them while polling continues.
+			return auth.Login(cmd.Context(), os.Stdout, os.Stderr)
 		},
 	}
-	cmd.Flags().BoolVar(&printLink, "print-link", false, "print login link and code without opening browser (for remote/headless servers)")
-	return cmd
 }
 
 func newLogoutCommand(deps Dependencies) *cobra.Command {

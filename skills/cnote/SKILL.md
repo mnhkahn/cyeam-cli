@@ -8,7 +8,7 @@ description: 云端笔记——在 OneDrive 上管理轻量 HTML 笔记，支持
 
 ## 概述
 
-在 OneDrive `Notes` 文件夹中管理 HTML 笔记。需要先登录 Microsoft 账号（登录方式见 cyeam-cli skill 的"登录方式"，无桌面环境的服务器须用 `cyeam login --print-link`）。
+在 OneDrive `Notes` 文件夹中管理 HTML 笔记。需要先登录 Microsoft 账号（登录方式见 cyeam-cli skill 的"登录方式"）。
 
 ```bash
 cyeam cnote list                     # 列出所有笔记
