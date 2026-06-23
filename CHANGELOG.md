@@ -1,4 +1,13 @@
 
+<a name="v0.1.26"></a>
+## [v0.1.26](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.25...v0.1.26) (2026-06-23)
+
+### Bug Fixes
+
+
+- **login:** 登录链接输出到 stdout 并与轮询解耦
+
+
 <a name="v0.1.25"></a>
 ## [v0.1.25](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.24...v0.1.25) (2026-06-23)
 
@@ -6,6 +15,11 @@
 
 
 - **skill:** 统一登录指引到 cyeam-cli skill，移除 Fly.io 字样
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.24"></a>
@@ -392,7 +406,7 @@
 
 
 <a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
 
 ### Documentation
 
@@ -400,12 +414,12 @@
 - **skills:** add cyeam-cli installation steps for different platforms
 
 
-<a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
-
-
 <a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.2) (2026-06-12)
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
+
+
+<a name="skill-5"></a>
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
 
 ### Documentation
 
@@ -425,12 +439,12 @@
 - 更新gitignore并添加终端表格设计 brainstorm 笔记
 
 
-<a name="skill-4"></a>
-## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-4) (2026-06-11)
-
-
 <a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...v0.1.1) (2026-06-11)
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.1) (2026-06-11)
+
+
+<a name="skill-4"></a>
+## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...skill-4) (2026-06-11)
 
 ### Bug Fixes
 
