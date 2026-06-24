@@ -244,6 +244,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newPinyinCommand())
 	root.AddCommand(newAICommand())
 	root.AddCommand(newPDFCommand())
+	root.AddCommand(newImageCommand())
 	return root
 }
 

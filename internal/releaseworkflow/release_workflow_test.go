@@ -18,7 +18,7 @@ func TestReleaseWorkflowPublishesReleaseAndNotifiesFeishu(t *testing.T) {
 	assertContains(t, text, "contents: write")
 	assertContains(t, text, "goreleaser/goreleaser-action")
 	assertContains(t, text, "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}")
-	assertContains(t, text, "RELEASE_WEBHOOK_URL")
+	assertContains(t, text, "FEISHU_WEBHOOK_URL")
 	assertContains(t, text, "changelog")
 	assertContains(t, text, "continue-on-error: true")
 }
