@@ -1,0 +1,75 @@
+---
+name: mail
+version: 0.1.16
+description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支持 Zoho/cyeam、Gmail、iCloud 等多个账户。用户要看邮件、读某封邮件、发邮件时使用。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+---
+
+# 多邮箱收发
+
+## 规则
+
+**用户要看/读/发邮件 → 跑 cyeam mail 命令 → 返回结果。账户用名字指定（如 cyeam、gmail）。**
+
+```
+用户: "看看我 cyeam 邮箱有什么新邮件"   →  cyeam mail list cyeam
+用户: "读一下 UID 123 那封"            →  cyeam mail read cyeam 123
+用户: "给 x@y.com 发封邮件"            →  cyeam mail send cyeam --to x@y.com --subject "..." --body "..."
+```
+
+读邮件分两步：先 `list` 拿到 UID，再 `read <账户> <uid>` 读正文。
+
+## 命令
+
+```
+cyeam mail list <账户> [--limit 20]                列最近邮件：UID/发件人/主题/时间/未读
+cyeam mail read <账户> <uid>                        读单封：发件人/收件人/主题/日期/正文
+cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
+    [--cc <地址>] [--body-file <文件>]              发送邮件（--to/--cc 可重复）
+```
+
+## 配置
+
+账户列表写在 `~/.cyeam/mail.json`，密码本身不进文件，存在环境变量里：
+
+```json
+{
+  "accounts": [
+    {
+      "name": "cyeam",
+      "imap_host": "imap.zoho.com",
+      "imap_port": 993,
+      "username": "you@cyeam.com",
+      "password_env": "ZOHO_MAIL_PASS",
+      "smtp_host": "smtp.zoho.com",
+      "smtp_port": 465
+    }
+  ]
+}
+```
+
+- `password_env`：应用专用密码所在的环境变量名，运行前需 `export ZOHO_MAIL_PASS=xxx`
+- `smtp_host`/`smtp_port` 可省略：默认把 `imap.` 换成 `smtp.`，端口默认 465
+- 多账户就在 `accounts` 里多加几项，命令里用 `name` 指定
+
+常见邮箱 IMAP/SMTP：
+
+| 邮箱   | IMAP            | SMTP            |
+|--------|-----------------|-----------------|
+| Zoho   | imap.zoho.com   | smtp.zoho.com   |
+| Gmail  | imap.gmail.com  | smtp.gmail.com  |
+| iCloud | imap.mail.me.com| smtp.mail.me.com|
+
+## 前置条件（用户侧）
+
+- 邮箱后台开启 IMAP 访问
+- 生成「应用专用密码」（不是登录密码），设到对应环境变量
+- 端口 465 用 TLS，587 用 STARTTLS
+
+## 输出
+
+所有命令输出 JSON 信封，加 `--pretty` 去掉信封。
+
+## 不做的事
+
+- 删除、移动、标记已读/未读
+- 附件下载、全文搜索

@@ -245,6 +245,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newAICommand())
 	root.AddCommand(newPDFCommand())
 	root.AddCommand(newImageCommand())
+	root.AddCommand(newMailCommand())
 	return root
 }
 

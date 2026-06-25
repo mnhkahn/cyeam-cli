@@ -53,6 +53,7 @@ cyeam pinyin ...                       # 拼音 → 见 pinyin skill
 cyeam mo ...                           # 书法 → 见 mo skill
 cyeam roadbook ...                     # 路书 → 见 roadbook skill
 cyeam cnote ...                        # 云笔记 → 见 cnote skill
+cyeam mail ...                         # 多邮箱收发 → 见 mail skill
 cyeam ai models [...]                  # AI免费模型 → 见 ai-models skill
 ```
 
