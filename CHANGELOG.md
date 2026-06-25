@@ -1,4 +1,13 @@
 
+<a name="v0.1.30"></a>
+## [v0.1.30](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.29...v0.1.30) (2026-06-26)
+
+### Features
+
+
+- **mail:** add --all flag to list messages from all configured accounts
+
+
 <a name="v0.1.29"></a>
 ## [v0.1.29](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.28...v0.1.29) (2026-06-25)
 
@@ -13,6 +22,11 @@
 - **cloudinary:** 新增 Cloudinary 图片上传 skill
 
 - **update:** 添加 brew 风格的下载进度条和状态输出
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.28"></a>
@@ -475,7 +489,7 @@
 
 
 <a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...v0.1.2) (2026-06-12)
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.2) (2026-06-12)
 
 ### Documentation
 
@@ -495,12 +509,12 @@
 - 更新gitignore并添加终端表格设计 brainstorm 笔记
 
 
-<a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.1) (2026-06-11)
-
-
 <a name="skill-4"></a>
-## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...skill-4) (2026-06-11)
+## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-4) (2026-06-11)
+
+
+<a name="v0.1.1"></a>
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...v0.1.1) (2026-06-11)
 
 ### Bug Fixes
 
