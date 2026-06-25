@@ -271,10 +271,16 @@ func newUpdateCommand(deps Dependencies) *cobra.Command {
 			if deps.Updater == nil {
 				return fmt.Errorf("updater is required")
 			}
+			fmt.Fprintln(os.Stderr, "==> Checking for updates")
 			current := deps.VersionInfo()
 			result, err := deps.Updater.Update(cmd.Context(), current)
 			if err != nil {
 				return err
+			}
+			if result.Updated {
+				fmt.Fprintf(os.Stderr, "==> Updated %s → %s\n", result.OldVersion, result.NewVersion)
+			} else {
+				fmt.Fprintf(os.Stderr, "==> Already up to date (%s)\n", result.NewVersion)
 			}
 			_, err = deps.Stdout.Write([]byte(result.String()))
 			if err != nil {
@@ -282,12 +288,14 @@ func newUpdateCommand(deps Dependencies) *cobra.Command {
 			}
 
 			if !result.Updated {
+				fmt.Fprintln(os.Stderr, "==> Syncing skills")
 				if ok := syncSkills(cmd.Context(), deps.Stdout); ok {
 					setSkillsSynced(current.Version)
 				}
 				return nil
 			}
 
+			fmt.Fprintln(os.Stderr, "==> Syncing skills")
 			if syncSkills(cmd.Context(), deps.Stdout) {
 				setSkillsSynced(result.NewVersion)
 			}

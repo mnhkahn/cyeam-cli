@@ -36,6 +36,40 @@ type Installer interface {
 type ArchiveInstaller struct {
 	HTTPClient     *http.Client
 	ExecutablePath func() (string, error)
+	ProgressWriter io.Writer // optional: writes status and download progress; use os.Stderr for CLI
+}
+
+// progressReader counts bytes read and prints download progress hashes to ProgressWriter.
+type progressReader struct {
+	r     io.Reader
+	pw    io.Writer
+	total int64
+	cur   int64
+	last  int // last printed percentage (0-100)
+}
+
+func newProgressReader(r io.Reader, total int64, pw io.Writer) io.Reader {
+	if pw == nil {
+		return r
+	}
+	return &progressReader{r: r, pw: pw, total: total, last: -1}
+}
+
+func (pr *progressReader) Read(p []byte) (n int, err error) {
+	n, err = pr.r.Read(p)
+	pr.cur += int64(n)
+	if pr.total > 0 {
+		pct := int(float64(pr.cur*100)/float64(pr.total) + 0.5)
+		if pct > pr.last {
+			pr.last = pct
+			hashes := pct * 70 / 100
+			fmt.Fprintf(pr.pw, "\r%s%3d%%", strings.Repeat("#", hashes), pct)
+			if pct == 100 {
+				fmt.Fprintln(pr.pw)
+			}
+		}
+	}
+	return
 }
 
 func (i ArchiveInstaller) Install(ctx context.Context, asset Asset) error {
@@ -43,15 +77,21 @@ func (i ArchiveInstaller) Install(ctx context.Context, asset Asset) error {
 	if httpClient == nil {
 		httpClient = &http.Client{Timeout: 5 * time.Minute}
 	}
+	pw := i.ProgressWriter
+	if pw == nil {
+		pw = io.Discard
+	}
 	executablePath := i.ExecutablePath
 	if executablePath == nil {
 		executablePath = os.Executable
 	}
 
+	fmt.Fprintln(pw, "==> Downloading release binary")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.BrowserDownloadURL, nil)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintf(pw, "==> Downloading %s\n", asset.Name)
 	resp, err := httpClient.Do(req)
 	if err != nil {
 		return err
@@ -60,14 +100,18 @@ func (i ArchiveInstaller) Install(ctx context.Context, asset Asset) error {
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return fmt.Errorf("download failed: %s", resp.Status)
 	}
-	archiveBytes, err := io.ReadAll(resp.Body)
+	body := newProgressReader(resp.Body, resp.ContentLength, pw)
+	archiveBytes, err := io.ReadAll(body)
 	if err != nil {
 		return err
 	}
+
+	fmt.Fprintln(pw, "==> Extracting archive")
 	bin, err := extractBinary(asset.Name, archiveBytes)
 	if err != nil {
 		return err
 	}
+	fmt.Fprintln(pw, "==> Replacing binary")
 	exe, err := executablePath()
 	if err != nil {
 		return err

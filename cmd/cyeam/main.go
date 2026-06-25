@@ -14,7 +14,7 @@ const baseURL = "https://www.cyeam.com"
 func main() {
 	httpClient := client.New(baseURL, nil)
 	service := cyeam.NewService(httpClient, baseURL)
-	updater := update.NewGitHubUpdater("mnhkahn/cyeam-cli", update.ArchiveInstaller{})
+	updater := update.NewGitHubUpdater("mnhkahn/cyeam-cli", update.ArchiveInstaller{ProgressWriter: os.Stderr})
 	cmd := cli.NewRootCommand(cli.Dependencies{
 		Service: service,
 		Stdout:  os.Stdout,
