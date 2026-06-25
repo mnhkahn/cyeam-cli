@@ -1,6 +1,27 @@
 
+<a name="v0.1.28"></a>
+## [v0.1.28](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.27...v0.1.28) (2026-06-25)
+
+### Bug Fixes
+
+
+- **skills:** 捕获 skill 同步输出并加超时，避免静默失败与卡死
+
+### Features
+
+
+- **image:** 新增 image convert 图片格式转换命令
+
+- **mail:** 新增多邮箱 IMAP 收取与 SMTP 发送命令
+
+
 <a name="v0.1.27"></a>
 ## [v0.1.27](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.26...v0.1.27) (2026-06-23)
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.26"></a>
@@ -420,7 +441,7 @@
 
 
 <a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
 
 ### Documentation
 
@@ -428,12 +449,12 @@
 - **skills:** add cyeam-cli installation steps for different platforms
 
 
-<a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
-
-
 <a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
+
+
+<a name="v0.1.2"></a>
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...v0.1.2) (2026-06-12)
 
 ### Documentation
 
