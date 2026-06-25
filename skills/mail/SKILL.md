@@ -8,23 +8,29 @@ description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支�
 
 ## 规则
 
-**用户要看/读/发邮件 → 跑 cyeam mail 命令 → 返回结果。账户用名字指定（如 cyeam、gmail）。**
+**用户要看/读/发邮件 → 跑 cyeam mail 命令 → 返回结果。**
+
+- **看邮件：默认用 `--all` 列出所有邮箱**，用户指定具体邮箱才用 `<账户>`
+- **读邮件：必须指定 `<账户> <uid>`**
+- **发邮件：必须指定 `<账户>`**
 
 ```
-用户: "看看我 cyeam 邮箱有什么新邮件"   →  cyeam mail list cyeam
-用户: "读一下 UID 123 那封"            →  cyeam mail read cyeam 123
-用户: "给 x@y.com 发封邮件"            →  cyeam mail send cyeam --to x@y.com --subject "..." --body "..."
+用户: "看看我有什么新邮件"            →  cyeam mail list --all
+用户: "看看我 cyeam 邮箱有什么邮件"   →  cyeam mail list cyeam
+用户: "读一下 UID 123 那封"          →  cyeam mail read cyeam 123
+用户: "给 x@y.com 发封邮件"          →  cyeam mail send cyeam --to x@y.com --subject "..." --body "..."
 ```
 
-读邮件分两步：先 `list` 拿到 UID，再 `read <账户> <uid>` 读正文。
+读邮件分两步：先 `list --all` 拿到 UID 和对应账户，再 `read <账户> <uid>` 读正文。
 
 ## 命令
 
 ```
-cyeam mail list <账户> [--limit 20]                列最近邮件：UID/发件人/主题/时间/未读
-cyeam mail read <账户> <uid>                        读单封：发件人/收件人/主题/日期/正文
+cyeam mail list --all [--limit 20]                列所有邮箱的最近邮件：账户/UID/发件人/主题/时间/未读
+cyeam mail list <账户> [--limit 20]               列指定邮箱的最近邮件
+cyeam mail read <账户> <uid>                       读单封：发件人/收件人/主题/日期/正文
 cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
-    [--cc <地址>] [--body-file <文件>]              发送邮件（--to/--cc 可重复）
+    [--cc <地址>] [--body-file <文件>]             发送邮件（--to/--cc 可重复）
 ```
 
 ## 配置

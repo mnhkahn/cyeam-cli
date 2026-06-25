@@ -37,34 +37,60 @@ func loadAccount(name string) (mail.Account, error) {
 
 func newMailListCommand() *cobra.Command {
 	var limit int
+	var all bool
 	cmd := &cobra.Command{
 		Use:   "list <account>",
 		Short: "List recent messages in an account's INBOX",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			acc, err := loadAccount(args[0])
+			cfg, err := mail.LoadConfig()
 			if err != nil {
 				return err
 			}
-			cl, err := mail.Dial(acc)
-			if err != nil {
-				return err
-			}
-			defer cl.Close()
 
-			msgs, err := cl.ListRecent(limit)
-			if err != nil {
-				return err
+			var accounts []mail.Account
+			if all {
+				accounts = cfg.Accounts
+			} else {
+				if len(args) == 0 {
+					return fmt.Errorf("account is required unless --all is used")
+				}
+				acc, err := cfg.FindAccount(args[0])
+				if err != nil {
+					return err
+				}
+				accounts = []mail.Account{acc}
 			}
-			body, _ := json.Marshal(map[string]any{
-				"account":  acc.Name,
-				"count":    len(msgs),
-				"messages": msgs,
-			})
+
+			result := make([]map[string]any, 0, len(accounts))
+			for _, acc := range accounts {
+				cl, err := mail.Dial(acc)
+				if err != nil {
+					return err
+				}
+				msgs, err := cl.ListRecent(limit)
+				cl.Close()
+				if err != nil {
+					return err
+				}
+				result = append(result, map[string]any{
+					"account":  acc.Name,
+					"count":    len(msgs),
+					"messages": msgs,
+				})
+			}
+
+			var body []byte
+			if all {
+				body, _ = json.Marshal(map[string]any{"results": result})
+			} else {
+				body, _ = json.Marshal(result[0])
+			}
 			return output.WriteJSON(cmd.OutOrStdout(), body)
 		},
 	}
 	cmd.Flags().IntVar(&limit, "limit", 20, "max number of messages to list")
+	cmd.Flags().BoolVar(&all, "all", false, "list messages from all configured accounts")
 	return cmd
 }
 
