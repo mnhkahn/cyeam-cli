@@ -1,4 +1,20 @@
 
+<a name="v0.1.29"></a>
+## [v0.1.29](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.28...v0.1.29) (2026-06-25)
+
+### Documentation
+
+
+- **image:** 补全图片转换 skill 文档
+
+### Features
+
+
+- **cloudinary:** 新增 Cloudinary 图片上传 skill
+
+- **update:** 添加 brew 风格的下载进度条和状态输出
+
+
 <a name="v0.1.28"></a>
 ## [v0.1.28](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.27...v0.1.28) (2026-06-25)
 
@@ -13,6 +29,11 @@
 - **image:** 新增 image convert 图片格式转换命令
 
 - **mail:** 新增多邮箱 IMAP 收取与 SMTP 发送命令
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.27"></a>
