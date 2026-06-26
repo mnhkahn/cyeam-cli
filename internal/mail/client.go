@@ -28,6 +28,10 @@ type Client struct {
 
 // Dial connects to the account's IMAP server, logs in and selects INBOX.
 func Dial(acc Account) (*Client, error) {
+	user, err := acc.GetUsername()
+	if err != nil {
+		return nil, err
+	}
 	pass, err := acc.Password()
 	if err != nil {
 		return nil, err
@@ -39,7 +43,7 @@ func Dial(acc Account) (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("connect %s: %w", acc.IMAPAddr(), err)
 	}
-	if err := c.Login(acc.Username, pass).Wait(); err != nil {
+	if err := c.Login(user, pass).Wait(); err != nil {
 		c.Close()
 		return nil, fmt.Errorf("login: %w", err)
 	}

@@ -1,6 +1,6 @@
 ---
 name: mail
-version: 0.1.16
+version: 0.1.17
 description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支持 Zoho/cyeam、Gmail、iCloud 等多个账户。用户要看邮件、读某封邮件、发邮件时使用。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
 ---
 
@@ -35,7 +35,7 @@ cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
 
 ## 配置
 
-账户列表写在 `~/.cyeam/mail.json`，密码本身不进文件，存在环境变量里：
+账户列表写在 `~/.cyeam/mail.json`，**推荐用户名和密码都从环境变量读取**，避免明文写入配置文件：
 
 ```json
 {
@@ -44,8 +44,8 @@ cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
       "name": "cyeam",
       "imap_host": "imap.zoho.com",
       "imap_port": 993,
-      "username": "you@cyeam.com",
-      "password_env": "ZOHO_MAIL_PASS",
+      "username_env": "CYEAM_MAIL_USERNAME",
+      "password_env": "CYEAM_MAIL_PASS",
       "smtp_host": "smtp.zoho.com",
       "smtp_port": 465
     }
@@ -53,7 +53,9 @@ cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
 }
 ```
 
-- `password_env`：应用专用密码所在的环境变量名，运行前需 `export ZOHO_MAIL_PASS=xxx`
+- `username_env`：用户名所在的环境变量名，运行前需 `export CYEAM_MAIL_USERNAME=you@cyeam.com`
+- `username`：用户名明文写在配置中（不推荐），如设置则优先级高于 username_env
+- `password_env`：应用专用密码所在的环境变量名，运行前需 `export CYEAM_MAIL_PASS=xxx`
 - `smtp_host`/`smtp_port` 可省略：默认把 `imap.` 换成 `smtp.`，端口默认 465
 - 多账户就在 `accounts` 里多加几项，命令里用 `name` 指定
 

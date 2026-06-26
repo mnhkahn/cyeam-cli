@@ -13,14 +13,18 @@ import (
 // Send delivers a UTF-8 message via the account's SMTP server. Port 465 uses
 // implicit TLS; any other port uses STARTTLS.
 func Send(acc Account, to, cc []string, subject, body string) error {
+	user, err := acc.GetUsername()
+	if err != nil {
+		return err
+	}
 	pass, err := acc.Password()
 	if err != nil {
 		return err
 	}
 	host, addr := acc.SMTPAddr()
-	auth := smtp.PlainAuth("", acc.Username, pass, host)
+	auth := smtp.PlainAuth("", user, pass, host)
 
-	msg := buildMIME(acc.Username, to, cc, subject, body)
+	msg := buildMIME(user, to, cc, subject, body)
 	rcpts := append(append([]string{}, to...), cc...)
 	if len(rcpts) == 0 {
 		return fmt.Errorf("no recipients")
@@ -31,9 +35,9 @@ func Send(acc Account, to, cc []string, subject, body string) error {
 		port = 465
 	}
 	if port == 465 {
-		return sendTLS(host, addr, auth, acc.Username, rcpts, msg)
+		return sendTLS(host, addr, auth, user, rcpts, msg)
 	}
-	return sendSTARTTLS(addr, auth, acc.Username, rcpts, msg)
+	return sendSTARTTLS(addr, auth, user, rcpts, msg)
 }
 
 func sendTLS(host, addr string, auth smtp.Auth, from string, rcpts []string, msg []byte) error {

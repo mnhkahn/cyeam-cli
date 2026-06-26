@@ -11,13 +11,14 @@ import (
 // Account describes one mailbox. The password itself is never stored here; it
 // is read at runtime from the environment variable named by PasswordEnv.
 type Account struct {
-	Name        string `json:"name"`
-	IMAPHost    string `json:"imap_host"`
-	IMAPPort    int    `json:"imap_port"`
-	Username    string `json:"username"`
-	PasswordEnv string `json:"password_env"`
-	SMTPHost    string `json:"smtp_host,omitempty"`
-	SMTPPort    int    `json:"smtp_port,omitempty"`
+	Name         string `json:"name"`
+	IMAPHost     string `json:"imap_host"`
+	IMAPPort     int    `json:"imap_port"`
+	Username     string `json:"username,omitempty"`
+	UsernameEnv  string `json:"username_env,omitempty"`
+	PasswordEnv  string `json:"password_env"`
+	SMTPHost     string `json:"smtp_host,omitempty"`
+	SMTPPort     int    `json:"smtp_port,omitempty"`
 }
 
 // Config is the on-disk ~/.cyeam/mail.json structure.
@@ -65,6 +66,23 @@ func (c *Config) FindAccount(name string) (Account, error) {
 		names[i] = a.Name
 	}
 	return Account{}, fmt.Errorf("account %q not found (configured: %s)", name, strings.Join(names, ", "))
+}
+
+// GetUsername returns the account username. If Username is set, it is returned
+// directly. Otherwise, the username is read from the environment variable
+// named by UsernameEnv.
+func (a Account) GetUsername() (string, error) {
+	if a.Username != "" {
+		return a.Username, nil
+	}
+	if a.UsernameEnv == "" {
+		return "", fmt.Errorf("account %q has no username or username_env configured", a.Name)
+	}
+	user := os.Getenv(a.UsernameEnv)
+	if user == "" {
+		return "", fmt.Errorf("environment variable %s is not set (username for %q)", a.UsernameEnv, a.Name)
+	}
+	return user, nil
 }
 
 // Password reads the account's app-specific password from its environment
