@@ -126,6 +126,54 @@ func (cl *Client) FetchRaw(uid uint32) ([]byte, error) {
 	return raw, nil
 }
 
+// MarkRead adds the \Seen flag to messages by UID.
+// Returns the list of successfully updated UIDs.
+func (cl *Client) MarkRead(uids []uint32) ([]uint32, error) {
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(imap.UID(uid))
+	}
+	store := &imap.StoreFlags{
+		Op:     imap.StoreFlagsAdd,
+		Silent: false,
+		Flags:  []imap.Flag{imap.FlagSeen},
+	}
+	cmd := cl.c.Store(uidSet, store, nil)
+	msgs, err := cmd.Collect()
+	if err != nil {
+		return nil, fmt.Errorf("mark read: %w", err)
+	}
+	result := make([]uint32, 0, len(msgs))
+	for _, m := range msgs {
+		result = append(result, uint32(m.UID))
+	}
+	return result, nil
+}
+
+// MarkUnread removes the \Seen flag from messages by UID.
+// Returns the list of successfully updated UIDs.
+func (cl *Client) MarkUnread(uids []uint32) ([]uint32, error) {
+	uidSet := imap.UIDSet{}
+	for _, uid := range uids {
+		uidSet.AddNum(imap.UID(uid))
+	}
+	store := &imap.StoreFlags{
+		Op:     imap.StoreFlagsDel,
+		Silent: false,
+		Flags:  []imap.Flag{imap.FlagSeen},
+	}
+	cmd := cl.c.Store(uidSet, store, nil)
+	msgs, err := cmd.Collect()
+	if err != nil {
+		return nil, fmt.Errorf("mark unread: %w", err)
+	}
+	result := make([]uint32, 0, len(msgs))
+	for _, m := range msgs {
+		result = append(result, uint32(m.UID))
+	}
+	return result, nil
+}
+
 func hasSeenFlag(flags []imap.Flag) bool {
 	return slices.Contains(flags, imap.FlagSeen)
 }

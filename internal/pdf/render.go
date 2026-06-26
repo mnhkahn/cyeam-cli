@@ -4,11 +4,16 @@ import (
 	"bytes"
 	_ "embed"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 
+	"github.com/flopp/go-findfont"
 	"github.com/mnhkahn/gofpdf"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
@@ -16,6 +21,60 @@ import (
 
 //go:embed font/pinyin-wenkai-light.ttf
 var pdfFont []byte
+
+func findChineseFont() []byte {
+	// Try common Chinese fonts in order of preference
+	fonts := []string{
+		"Arial Unicode",
+		"Hiragino Sans GB",
+		"STHeiti",
+		"Heiti SC",
+		"PingFang",
+		"Songti",
+		"Microsoft YaHei",
+		"SimHei",
+		"SimSun",
+		"Noto Sans CJK SC",
+		"Noto Sans CJK TC",
+	}
+	for _, font := range fonts {
+		if fontBytes, err := loadFont(font); err == nil {
+			return fontBytes
+		}
+	}
+	// Fallback: list all fonts and find any with CJK in name
+	for _, path := range findfont.List() {
+		if strings.Contains(strings.ToLower(path), "cjk") || strings.Contains(strings.ToLower(path), "chinese") {
+			if fontBytes, err := loadFontByPath(path); err == nil {
+				return fontBytes
+			}
+		}
+	}
+	// Last resort: use embedded fallback font
+	return pdfFont
+}
+
+func loadFont(fontName string) ([]byte, error) {
+	path, err := findfont.Find(fontName)
+	if err != nil {
+		return nil, err
+	}
+	return loadFontByPath(path)
+}
+
+func loadFontByPath(path string) ([]byte, error) {
+	// Ensure absolute path
+	if !filepath.IsAbs(path) {
+		path = "/" + path
+	}
+	// Resolve symlinks
+	realPath, err := filepath.EvalSymlinks(path)
+	if err == nil {
+		path = realPath
+	}
+	// Read font file bytes
+	return os.ReadFile(path)
+}
 
 const (
 	marginLeft   = 20.0
@@ -32,14 +91,24 @@ type renderer struct {
 }
 
 func newRenderer() *renderer {
-	r := &renderer{
-		pdf: gofpdf.New("P", "mm", "A4", ""),
+	fontBytes := findChineseFont()
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetAutoPageBreak(false, 0)
+	pdf.AddPage()
+	pdf.AddUTF8FontFromBytes("pdf", "", fontBytes)
+	if pdf.Ok() {
+		// Try setting the font to verify it works
+		pdf.SetFont("pdf", "", 12)
+		if !pdf.Ok() {
+			// System font failed, fall back to embedded font
+			pdf = gofpdf.New("P", "mm", "A4", "")
+			pdf.SetAutoPageBreak(false, 0)
+			pdf.AddPage()
+			pdf.AddUTF8FontFromBytes("pdf", "", pdfFont)
+			pdf.SetFont("pdf", "", 12)
+		}
 	}
-	r.pdf.SetAutoPageBreak(false, 0)
-	r.pdf.AddPage()
-	r.pdf.AddUTF8FontFromBytes("pdf", "", pdfFont)
-	r.y = marginTop
-	return r
+	return &renderer{pdf: pdf, y: marginTop}
 }
 
 func (r *renderer) ensurePage(h float64) {
@@ -54,7 +123,9 @@ func (r *renderer) setFont(size float64) {
 }
 
 func RenderMarkdown(src []byte) ([]byte, error) {
-	md := goldmark.New()
+	md := goldmark.New(
+		goldmark.WithExtensions(extension.TaskList),
+	)
 	doc := md.Parser().Parse(text.NewReader(src))
 	r := newRenderer()
 	walkMarkdown(r, doc, src)
@@ -96,9 +167,6 @@ func walkMarkdown(r *renderer, node ast.Node, src []byte) {
 		}
 		r.pdf.MultiCell(contentW, 5, line.String(), "", "L", false)
 		r.y = r.pdf.GetY() + 2
-	case *ast.Text:
-	case *ast.String:
-	case *ast.CodeSpan:
 	case *ast.FencedCodeBlock:
 		r.renderCodeBlock(n, src)
 	case *ast.CodeBlock:
@@ -112,28 +180,17 @@ func walkMarkdown(r *renderer, node ast.Node, src []byte) {
 			walkList(r, child, src, n.IsOrdered(), n.Start, &idx)
 		}
 	case *ast.ListItem:
-	case *ast.Emphasis:
-	case *ast.Link:
+		// List items are handled by walkList
 	case *ast.ThematicBreak:
 		r.ensurePage(10)
 		r.y += 3
 		r.pdf.SetY(r.y)
 		r.pdf.Line(marginLeft, r.y, marginLeft+contentW, r.y)
 		r.y += 5
+	case *ast.Text, *ast.String, *ast.CodeSpan, *ast.Emphasis, *ast.Link:
+		// Leaf nodes or nodes whose text content is collected by parents
 	default:
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
-			walkMarkdown(r, child, src)
-		}
-	}
-
-	if !node.HasChildren() {
-		return
-	}
-
-	switch node.(type) {
-	case *ast.Paragraph, *ast.Heading, *ast.FencedCodeBlock, *ast.CodeBlock, *ast.List, *ast.ListItem, *ast.ThematicBreak:
-	default:
-		for child := node.FirstChild(); child != nil; child = child.NextSibling() {
 			walkMarkdown(r, child, src)
 		}
 	}
@@ -230,6 +287,12 @@ func walkText(node ast.Node, src []byte, buf *strings.Builder) {
 		buf.Write(n.Segment.Value(src))
 		if n.SoftLineBreak() {
 			buf.WriteString(" ")
+		}
+	case *east.TaskCheckBox:
+		if n.IsChecked {
+			buf.WriteString("[x] ")
+		} else {
+			buf.WriteString("[ ] ")
 		}
 	case *ast.CodeSpan:
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {

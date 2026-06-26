@@ -24,6 +24,8 @@ named by its "password_env" field.`,
 	cmd.AddCommand(newMailListCommand())
 	cmd.AddCommand(newMailReadCommand())
 	cmd.AddCommand(newMailSendCommand())
+	cmd.AddCommand(newMailMarkReadCommand())
+	cmd.AddCommand(newMailMarkUnreadCommand())
 	return cmd
 }
 
@@ -95,7 +97,8 @@ func newMailListCommand() *cobra.Command {
 }
 
 func newMailReadCommand() *cobra.Command {
-	return &cobra.Command{
+	var markRead bool
+	cmd := &cobra.Command{
 		Use:   "read <account> <uid>",
 		Short: "Read a single message by UID",
 		Args:  cobra.ExactArgs(2),
@@ -114,6 +117,13 @@ func newMailReadCommand() *cobra.Command {
 			}
 			defer cl.Close()
 
+			if markRead {
+				_, err := cl.MarkRead([]uint32{uint32(uid)})
+				if err != nil {
+					return err
+				}
+			}
+
 			raw, err := cl.FetchRaw(uint32(uid))
 			if err != nil {
 				return err
@@ -126,6 +136,142 @@ func newMailReadCommand() *cobra.Command {
 			return output.WriteJSON(cmd.OutOrStdout(), body)
 		},
 	}
+	cmd.Flags().BoolVar(&markRead, "mark-read", false, "mark message as read after reading")
+	return cmd
+}
+
+func newMailMarkReadCommand() *cobra.Command {
+	var uids string
+	cmd := &cobra.Command{
+		Use:   "mark-read <account> [uid]",
+		Short: "Mark messages as read by UID",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			acc, err := loadAccount(args[0])
+			if err != nil {
+				return err
+			}
+
+			var uidList []uint32
+			if len(args) == 2 {
+				uid, err := strconv.ParseUint(args[1], 10, 32)
+				if err != nil {
+					return fmt.Errorf("invalid uid %q: %w", args[1], err)
+				}
+				uidList = []uint32{uint32(uid)}
+			} else if uids != "" {
+				for _, s := range strings.Split(uids, ",") {
+					uid, err := strconv.ParseUint(strings.TrimSpace(s), 10, 32)
+					if err != nil {
+						return fmt.Errorf("invalid uid %q: %w", s, err)
+					}
+					uidList = append(uidList, uint32(uid))
+				}
+			} else {
+				return fmt.Errorf("uid is required, either as argument or via --uids")
+			}
+
+			cl, err := mail.Dial(acc)
+			if err != nil {
+				return err
+			}
+			defer cl.Close()
+
+			updatedUIDs, err := cl.MarkRead(uidList)
+			if err != nil {
+				return err
+			}
+
+			result := make([]map[string]any, 0, len(updatedUIDs))
+			for _, uid := range updatedUIDs {
+				result = append(result, map[string]any{
+					"account": acc.Name,
+					"uid":     uid,
+					"read":    true,
+				})
+			}
+			var body []byte
+			if len(result) == 1 {
+				body, _ = json.Marshal(result[0])
+			} else {
+				body, _ = json.Marshal(map[string]any{
+					"results":   result,
+					"requested": len(uidList),
+					"updated":   len(updatedUIDs),
+				})
+			}
+			return output.WriteJSON(cmd.OutOrStdout(), body)
+		},
+	}
+	cmd.Flags().StringVar(&uids, "uids", "", "comma-separated list of UIDs (e.g. 4150,4149,4148)")
+	return cmd
+}
+
+func newMailMarkUnreadCommand() *cobra.Command {
+	var uids string
+	cmd := &cobra.Command{
+		Use:   "mark-unread <account> [uid]",
+		Short: "Mark messages as unread by UID",
+		Args:  cobra.RangeArgs(1, 2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			acc, err := loadAccount(args[0])
+			if err != nil {
+				return err
+			}
+
+			var uidList []uint32
+			if len(args) == 2 {
+				uid, err := strconv.ParseUint(args[1], 10, 32)
+				if err != nil {
+					return fmt.Errorf("invalid uid %q: %w", args[1], err)
+				}
+				uidList = []uint32{uint32(uid)}
+			} else if uids != "" {
+				for _, s := range strings.Split(uids, ",") {
+					uid, err := strconv.ParseUint(strings.TrimSpace(s), 10, 32)
+					if err != nil {
+						return fmt.Errorf("invalid uid %q: %w", s, err)
+					}
+					uidList = append(uidList, uint32(uid))
+				}
+			} else {
+				return fmt.Errorf("uid is required, either as argument or via --uids")
+			}
+
+			cl, err := mail.Dial(acc)
+			if err != nil {
+				return err
+			}
+			defer cl.Close()
+
+			updatedUIDs, err := cl.MarkUnread(uidList)
+			if err != nil {
+				return err
+			}
+
+			result := make([]map[string]any, 0, len(updatedUIDs))
+			for _, uid := range updatedUIDs {
+				result = append(result, map[string]any{
+					"account": acc.Name,
+					"uid":     uid,
+					"read":    false,
+				})
+			}
+			var body []byte
+			if len(result) == 1 {
+				body, _ = json.Marshal(result[0])
+			} else {
+				body, _ = json.Marshal(map[string]any{
+					"results":   result,
+					"requested": len(uidList),
+					"updated":   len(updatedUIDs),
+				})
+			}
+			return output.WriteJSON(cmd.OutOrStdout(), body)
+		},
+	}
+	cmd.Flags().StringVar(&uids, "uids", "", "comma-separated list of UIDs (e.g. 4150,4149,4148)")
+	return cmd
 }
 
 func newMailSendCommand() *cobra.Command {
