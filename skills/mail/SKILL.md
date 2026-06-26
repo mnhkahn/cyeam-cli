@@ -1,24 +1,29 @@
 ---
 name: mail
-version: 0.1.17
-description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支持 Zoho/cyeam、Gmail、iCloud 等多个账户。用户要看邮件、读某封邮件、发邮件时使用。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+version: 0.1.18
+description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支持 Zoho/cyeam、Gmail、iCloud 等多个账户。用户要看邮件、读某封邮件、发邮件、标记已读/未读时使用。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
 ---
 
 # 多邮箱收发
 
 ## 规则
 
-**用户要看/读/发邮件 → 跑 cyeam mail 命令 → 返回结果。**
+**用户要看/读/发/标记邮件 → 跑 cyeam mail 命令 → 返回结果。**
 
 - **看邮件：默认用 `--all` 列出所有邮箱**，用户指定具体邮箱才用 `<账户>`
-- **读邮件：必须指定 `<账户> <uid>`**
+- **读邮件：必须指定 `<账户> <uid>`，可加 `--mark-read` 同时标记已读**
 - **发邮件：必须指定 `<账户>`**
+- **标记已读/未读：必须指定 `<账户>` 和 UID，或用 `--uids` 批量**
 
 ```
-用户: "看看我有什么新邮件"            →  cyeam mail list --all
-用户: "看看我 cyeam 邮箱有什么邮件"   →  cyeam mail list cyeam
-用户: "读一下 UID 123 那封"          →  cyeam mail read cyeam 123
-用户: "给 x@y.com 发封邮件"          →  cyeam mail send cyeam --to x@y.com --subject "..." --body "..."
+用户: "看看我有什么新邮件"                  →  cyeam mail list --all
+用户: "看看我 cyeam 邮箱有什么邮件"         →  cyeam mail list cyeam
+用户: "读一下 UID 123 那封"                →  cyeam mail read cyeam 123
+用户: "读一下 UID 123 并标记已读"           →  cyeam mail read cyeam 123 --mark-read
+用户: "把 UID 123 标记为已读"              →  cyeam mail mark-read cyeam 123
+用户: "把 UID 123,456,789 都标记为已读"    →  cyeam mail mark-read cyeam --uids 123,456,789
+用户: "把 UID 123 标记为未读"              →  cyeam mail mark-unread cyeam 123
+用户: "给 x@y.com 发封邮件"                →  cyeam mail send cyeam --to x@y.com --subject "..." --body "..."
 ```
 
 读邮件分两步：先 `list --all` 拿到 UID 和对应账户，再 `read <账户> <uid>` 读正文。
@@ -28,7 +33,11 @@ description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支�
 ```
 cyeam mail list --all [--limit 20]                列所有邮箱的最近邮件：账户/UID/发件人/主题/时间/未读
 cyeam mail list <账户> [--limit 20]               列指定邮箱的最近邮件
-cyeam mail read <账户> <uid>                       读单封：发件人/收件人/主题/日期/正文
+cyeam mail read <账户> <uid> [--mark-read]        读单封：发件人/收件人/主题/日期/正文，可选标记已读
+cyeam mail mark-read <账户> <uid>                 标记单封为已读
+cyeam mail mark-read <账户> --uids <uid1,uid2>    批量标记已读，逗号分隔
+cyeam mail mark-unread <账户> <uid>               标记单封为未读
+cyeam mail mark-unread <账户> --uids <uid1,uid2>  批量标记未读
 cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
     [--cc <地址>] [--body-file <文件>]             发送邮件（--to/--cc 可重复）
 ```
@@ -79,5 +88,5 @@ cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
 
 ## 不做的事
 
-- 删除、移动、标记已读/未读
+- 删除、移动邮件
 - 附件下载、全文搜索
