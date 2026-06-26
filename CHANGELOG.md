@@ -1,4 +1,13 @@
 
+<a name="v0.1.33"></a>
+## [v0.1.33](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.32...v0.1.33) (2026-06-26)
+
+### Documentation
+
+
+- **mail:** 更新 skill 文档，新增标记已读/未读命令说明
+
+
 <a name="v0.1.32"></a>
 ## [v0.1.32](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.31...v0.1.32) (2026-06-26)
 
@@ -6,6 +15,11 @@
 
 
 - 优化 PDF 字体加载和 mail 标记功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.31"></a>
