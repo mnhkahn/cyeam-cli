@@ -1,4 +1,15 @@
 
+<a name="v0.1.35"></a>
+## [v0.1.35](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.34...v0.1.35) (2026-06-27)
+
+### Documentation
+
+
+- **news:** 修正数据源名称 ai-news-zh → ai_news
+
+- **news:** 明确两个独立数据源：tech_news(技术动向) + ai-news-zh(AI资讯)
+
+
 <a name="v0.1.34"></a>
 ## [v0.1.34](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.33...v0.1.34) (2026-06-27)
 
@@ -6,6 +17,11 @@
 
 
 - **news:** 更新 news skill，添加完整处理流程
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.33"></a>
