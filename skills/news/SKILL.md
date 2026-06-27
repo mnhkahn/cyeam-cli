@@ -24,7 +24,7 @@ cyeam news get
 | 模块 | 数据源 | 说明 |
 |------|-------|------|
 | 技术动向 (`news`) | `tech_news` 工具 | 综合技术新闻 |
-| AI 资讯 (`ai_news`) | `ai-news-zh` 工具 | AI 专题新闻 |
+| AI 资讯 (`ai_news`) | `ai_news` 工具 | AI 专题新闻 |
 
 ### 处理流程
 
