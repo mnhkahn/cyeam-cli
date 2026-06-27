@@ -1,7 +1,7 @@
 ---
 name: pdf
 version: 0.1.16
-description: Markdown/HTML 转 PDF——输入 Markdown 或 HTML 文件，本地生成 PDF 文档。支持标题/列表/代码块/粗斜体等排版。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+description: Markdown/HTML 转 PDF——输入 Markdown 或 HTML 文件，本地生成 PDF 文档。支持标题/列表/代码块/粗斜体等排版。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
 # Markdown/HTML 转 PDF

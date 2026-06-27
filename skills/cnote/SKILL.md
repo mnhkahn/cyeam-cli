@@ -1,7 +1,7 @@
 ---
 name: cnote
 version: 0.1.16
-description: 云端笔记——在 OneDrive 上管理轻量 HTML 笔记，支持查看、新建、追加、列表。需要 Microsoft 登录。想查电视节目去问 tv skill。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+description: 云端笔记——在 OneDrive 上管理轻量 HTML 笔记，支持查看、新建、追加、列表。需要 Microsoft 登录。想查电视节目去问 tv skill。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
 # 云端笔记

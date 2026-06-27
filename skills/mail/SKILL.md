@@ -1,7 +1,7 @@
 ---
 name: mail
 version: 0.1.18
-description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支持 Zoho/cyeam、Gmail、iCloud 等多个账户。用户要看邮件、读某封邮件、发邮件、标记已读/未读时使用。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支持 Zoho/cyeam、Gmail、iCloud 等多个账户。用户要看邮件、读某封邮件、发邮件、标记已读/未读时使用。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
 # 多邮箱收发

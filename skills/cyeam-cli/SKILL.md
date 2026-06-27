@@ -1,7 +1,7 @@
 ---
 name: cyeam-cli
 version: 0.1.16
-description: cyeam.com CLI — 安装、更新、输出格式说明、命令速查。各领域详情见独立 skill（live-broadcast、pinyin 等）。架构咨询走 MCP。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+description: cyeam.com CLI — 安装、更新、输出格式说明、命令速查。各领域详情见独立 skill（live-broadcast、pinyin 等）。架构咨询走 MCP。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 allowed-tools: Bash(cyeam:*)
 ---
 

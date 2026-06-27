@@ -1,7 +1,7 @@
 ---
 name: architect
 version: 0.1.13
-description: Architecture consultancy — MCP-based knowledge base for system design, technical proposals, code review, and more. Use the MCP server directly instead of CLI. -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+description: Architecture consultancy — MCP-based knowledge base for system design, technical proposals, code review, and more. Use the MCP server directly instead of CLI.。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
 # 架构师知识库 (MCP)

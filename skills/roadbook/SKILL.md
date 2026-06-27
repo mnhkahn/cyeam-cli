@@ -1,7 +1,7 @@
 ---
 name: roadbook
 version: 0.1.16
-description: 路书分享——需要先 cyeam login（OneDrive），支持 CSV 文本生成路书列表、查看详情。不想坐过山车看球赛的话去问 tv skill。 -- 不可直接作为工具名调用，请通过 cyeam 命令使用
+description: 路书分享——需要先 cyeam login（OneDrive），支持 CSV 文本生成路书列表、查看详情。不想坐过山车看球赛的话去问 tv skill。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
 # 路书分享
