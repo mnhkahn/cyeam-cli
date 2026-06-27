@@ -1,4 +1,13 @@
 
+<a name="v0.1.34"></a>
+## [v0.1.34](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.33...v0.1.34) (2026-06-27)
+
+### Features
+
+
+- **news:** 更新 news skill，添加完整处理流程
+
+
 <a name="v0.1.33"></a>
 ## [v0.1.33](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.32...v0.1.33) (2026-06-26)
 
@@ -6,6 +15,11 @@
 
 
 - **mail:** 更新 skill 文档，新增标记已读/未读命令说明
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.32"></a>
@@ -518,7 +532,7 @@
 
 
 <a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
 
 ### Documentation
 
@@ -526,12 +540,12 @@
 - **skills:** add cyeam-cli installation steps for different platforms
 
 
-<a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
-
-
 <a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.2) (2026-06-12)
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
+
+
+<a name="skill-5"></a>
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
 
 ### Documentation
 
@@ -551,12 +565,12 @@
 - 更新gitignore并添加终端表格设计 brainstorm 笔记
 
 
-<a name="skill-4"></a>
-## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-4) (2026-06-11)
-
-
 <a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...v0.1.1) (2026-06-11)
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.1) (2026-06-11)
+
+
+<a name="skill-4"></a>
+## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...skill-4) (2026-06-11)
 
 ### Bug Fixes
 
