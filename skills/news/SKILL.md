@@ -65,13 +65,25 @@ cyeam news get
 
 爬取失败时回退到原始摘要。
 
-## AI 总结要求
+## 输出格式
 
-### 输出 JSON 结构（与 API 对齐）
+### CLI 返回结构
+
+`cyeam news get` 返回标准 JSON 信封：
 
 ```json
 {
-  "date": "2026-06-26",
+  "ok": true,
+  "data": "{...}",    // data 是字符串化的 JSON 对象，见下文结构
+  "_notice": {}
+}
+```
+
+### data 字段的 JSON 结构
+
+```json
+{
+  "date": "2026-06-27",
   "news": {
     "create_time": 1719331200,
     "summary": "今日科技要闻总结...",
@@ -79,7 +91,7 @@ cyeam news get
       {
         "title": "新闻标题",
         "link": "https://...",
-        "description": "AI提炼的要点，用\\n分隔，最多5条",
+        "description": "AI提炼的完整要点",
         "image": "https://.../img.jpg",
         "create_time": 1719331200
       }
@@ -104,16 +116,17 @@ cyeam news get
 
 | 字段 | 说明 |
 |------|------|
+| `date` | 新闻日期 YYYY-MM-DD |
 | `news.summary` | 全局总结，一段话概括最重要的3-5个趋势 |
 | `news[].title` | 新闻标题 |
 | `news[].link` | 原文链接 |
-| `news[].description` | AI 提炼的要点，用 `\n` 分隔，最多5条，每条一句话 |
+| `news[].description` | AI 提炼的完整要点内容 |
 | `news[].image` | 首图 URL（如有，空字符串代表无） |
-| `news[].create_time` | 新闻发布时间戳 |
+| `news[].create_time` | 新闻发布时间戳（Unix 秒） |
 
-### Markdown 展示格式
+### 展示建议
 
-拿到 JSON 后按以下格式展示给用户：
+拿到 data 后建议按以下格式展示给用户：
 
 ```
 ## 📊 今日科技要闻总结
@@ -124,10 +137,14 @@ cyeam news get
 {% for item in news.news %}
 ### {{item.title}}
 
-🔗 {{item.link}}
+{% if item.image %}
+![{{item.title}}]({{item.image}})
+{% endif %}
 
 💡 核心要点：
-{{item.description | split("\n") | map: "- " + item | join("\n")}}
+{{item.description}}
+
+🔗 {{item.link}}
 
 {% endfor %}
 
@@ -136,10 +153,14 @@ cyeam news get
 {% for item in ai_news.news %}
 ### {{item.title}}
 
-🔗 {{item.link}}
+{% if item.image %}
+![{{item.title}}]({{item.image}})
+{% endif %}
 
 💡 核心要点：
-{{item.description | split("\n") | map: "- " + item | join("\n")}}
+{{item.description}}
+
+🔗 {{item.link}}
 
 {% endfor %}
 ```

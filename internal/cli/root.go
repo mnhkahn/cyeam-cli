@@ -1174,49 +1174,6 @@ func renderNewsItemTable(out io.Writer, items []newsItem) error {
 }
 
 func renderNewsDetail(out io.Writer, body []byte) error {
-	var resp newsAPIResponse
-	if err := json.Unmarshal(body, &resp); err != nil {
-		return err
-	}
-	if resp.Error != "" {
-		_, err := io.WriteString(out, "error: "+resp.Error+"\n")
-		return err
-	}
-
-	if resp.News != nil {
-		fmt.Fprintf(out, "技术动向 %s\n", resp.Date)
-		if resp.News.Summary != "" {
-			fmt.Fprintf(out, "总结: %s\n\n", resp.News.Summary)
-		}
-		for _, item := range resp.News.News {
-			fmt.Fprintf(out, "## %s\n", item.Title)
-			if item.Description != "" {
-				fmt.Fprintf(out, "%s\n", item.Description)
-			}
-			if item.Link != "" {
-				fmt.Fprintf(out, "链接: %s\n", item.Link)
-			}
-			fmt.Fprintln(out)
-		}
-	}
-
-	if resp.AINews != nil && len(resp.AINews.News) > 0 {
-		aiDate := time.Unix(resp.AINews.CreateTime, 0).Format("2006-01-02")
-		if resp.AINews.CreateTime == 0 {
-			aiDate = resp.Date
-		}
-		fmt.Fprintf(out, "AI 资讯 %s\n", aiDate)
-		for _, item := range resp.AINews.News {
-			fmt.Fprintf(out, "## %s\n", item.Title)
-			if item.Description != "" {
-				fmt.Fprintf(out, "%s\n", item.Description)
-			}
-			if item.Link != "" {
-				fmt.Fprintf(out, "链接: %s\n", item.Link)
-			}
-			fmt.Fprintln(out)
-		}
-	}
-
-	return nil
+	_, err := out.Write(body)
+	return err
 }
