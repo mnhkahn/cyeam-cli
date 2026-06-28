@@ -177,18 +177,7 @@ func (s *Service) NewsGet(ctx context.Context, date string) ([]byte, error) {
 		return nil, fmt.Errorf("tech_news: %w", err)
 	}
 
-	// Get AI news from API directly
-	var aiItems []mcp.NewsItem
-	if aiResp, err := s.client.GetJSON(ctx, "/api/geek/news", map[string]string{"date": date}); err == nil {
-		var aiWrapper struct {
-			AINews struct {
-				News []mcp.NewsItem `json:"news"`
-			} `json:"ai_news"`
-		}
-		if json.Unmarshal(aiResp, &aiWrapper) == nil {
-			aiItems = aiWrapper.AINews.News
-		}
-	}
+	aiItems, _ := mcpClient.GetAINews(ctx)
 
 	// Clean up title prefix (remove [Github Trending], [Hacker News] etc.)
 	cleanTitleRe := regexp.MustCompile(`^\[.*?]\s*`)
