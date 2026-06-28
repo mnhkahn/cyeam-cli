@@ -33,7 +33,7 @@ type Service interface {
 	MoCharComposition(ctx context.Context, char string) ([]byte, error)
 	MoCharCompose(ctx context.Context, char string) ([]byte, error)
 	MoOCR(ctx context.Context, filename string, body []byte) ([]byte, error)
-	NewsList(ctx context.Context, from, to string) ([]byte, error)
+	NewsGet(ctx context.Context, date string) ([]byte, error)
 }
 
 type Dependencies struct {
@@ -211,11 +211,17 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 			// `update` and `login` stream directly to stdout/stderr and must not
 			// be wrapped in (or trailed by) the JSON envelope.
 			if pretty || cmd.Name() == "update" || cmd.Name() == "login" {
-				_, err := originalStdout.Write([]byte(buf.String()))
+				_, err := originalStdout.Write(buf.Bytes())
 				return err
 			}
-			env := output.Envelope{OK: true, Data: buf.String(), Notice: notice}
+			var env output.Envelope
+			if cmd.Name() == "news" || (cmd.Parent() != nil && cmd.Parent().Name() == "news") {
+				env = output.Envelope{OK: true, Data: json.RawMessage(buf.Bytes()), Notice: notice}
+			} else {
+				env = output.Envelope{OK: true, Data: string(buf.Bytes()), Notice: notice}
+			}
 			enc := json.NewEncoder(originalStdout)
+			enc.SetEscapeHTML(false)
 			return enc.Encode(env)
 		},
 	}
@@ -1047,7 +1053,7 @@ func newNewsListCommand(deps Dependencies) *cobra.Command {
 			if t == "" {
 				t = deps.Now().Format(time.DateOnly)
 			}
-			body, err := deps.Service.NewsList(cmd.Context(), f, t)
+			body, err := deps.Service.NewsGet(cmd.Context(), f)
 			if err != nil {
 				return err
 			}
@@ -1075,7 +1081,7 @@ func newNewsGetCommand(deps Dependencies) *cobra.Command {
 			if _, err := time.Parse(time.DateOnly, date); err != nil {
 				return fmt.Errorf("invalid date %q, want YYYY-MM-DD", date)
 			}
-			body, err := deps.Service.NewsList(cmd.Context(), date, date)
+			body, err := deps.Service.NewsGet(cmd.Context(), date)
 			if err != nil {
 				return err
 			}
@@ -1083,7 +1089,8 @@ func newNewsGetCommand(deps Dependencies) *cobra.Command {
 			if pretty {
 				return renderNewsDetailTable(deps.Stdout, body)
 			}
-			return renderNewsDetail(deps.Stdout, body)
+			_, err = deps.Stdout.Write(body)
+			return err
 		},
 	}
 	cmd.Flags().StringVar(&date, "date", "", "news date (YYYY-MM-DD)")
@@ -1156,23 +1163,27 @@ func renderNewsItemTable(out io.Writer, items []newsItem) error {
 	t := cliTable{
 		Headers: []tableCell{
 			{text: "标题", visible: "标题"},
+			{text: "图片", visible: "图片"},
 			{text: "描述", visible: "描述"},
 		},
 		Color: true,
 	}
 	for _, item := range items {
-		title := truncateDisplayWidth(item.Title, 40)
-		desc := truncateDisplayWidth(item.Description, 60)
-		link := terminalHyperlink(item.Link, "链接")
+		title := truncateDisplayWidth(item.Title, 35)
+		imageText := "无"
+		if item.Image != "" {
+			imageText = terminalHyperlink(item.Image, "有图")
+		}
+		desc := truncateDisplayWidth(item.Description, 50)
 		titleCell := title
 		if item.Link != "" {
 			titleCell = terminalHyperlink(item.Link, title)
 		}
 		t.Rows = append(t.Rows, []tableCell{
 			{text: titleCell, visible: title},
+			{text: imageText, visible: imageText},
 			{text: desc, visible: desc},
 		})
-		_ = link
 	}
 	return renderTable(out, t)
 }

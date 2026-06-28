@@ -1,6 +1,7 @@
 package cyeam
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"time"
 
 	"github.com/mnhkahn/cyeam-cli/internal/client"
+	"github.com/mnhkahn/cyeam-cli/internal/mcp"
+	"github.com/mnhkahn/cyeam-cli/internal/news"
 )
 
 const (
@@ -104,15 +107,59 @@ func (s *Service) MoOCR(ctx context.Context, filename string, body []byte) ([]by
 	return s.client.UploadFile(ctx, "/mo/api/ocr", "image", filename, body)
 }
 
-func (s *Service) NewsList(ctx context.Context, from, to string) ([]byte, error) {
-	params := map[string]string{}
-	if from != "" {
-		params["from"] = from
+
+type NewsResponse struct {
+	Date    string     `json:"date"`
+	News    *NewsData  `json:"news,omitempty"`
+	AINews  *NewsData  `json:"ai_news,omitempty"`
+}
+
+type NewsData struct {
+	CreateTime int64           `json:"create_time"`
+	News       []mcp.NewsItem `json:"news"`
+}
+
+func (s *Service) NewsGet(ctx context.Context, date string) ([]byte, error) {
+	mcpClient := mcp.NewClient(mcp.DefaultServerURL)
+
+	techItems, err := mcpClient.GetNews(ctx, "tech_news", date)
+	if err != nil {
+		return nil, fmt.Errorf("tech_news: %w", err)
 	}
-	if to != "" {
-		params["to"] = to
+
+	aiItems, _ := mcpClient.GetNews(ctx, "ai_news_zh", date)
+
+	for i := range techItems {
+		if techItems[i].Image == "" {
+			techItems[i].Image = news.ExtractImage(techItems[i].Link)
+		}
 	}
-	return s.client.GetJSON(ctx, "/api/geek/news", params)
+
+	for i := range aiItems {
+		if aiItems[i].Image == "" {
+			aiItems[i].Image = news.ExtractImage(aiItems[i].Link)
+		}
+	}
+
+	resp := NewsResponse{
+		Date: date,
+		News: &NewsData{
+			CreateTime: time.Now().Unix(),
+			News:       techItems,
+		},
+		AINews: &NewsData{
+			CreateTime: time.Now().Unix(),
+			News:       aiItems,
+		},
+	}
+
+	var buf bytes.Buffer
+	enc := json.NewEncoder(&buf)
+	enc.SetEscapeHTML(false)
+	if err := enc.Encode(resp); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 type timorYearResponse struct {

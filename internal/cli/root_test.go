@@ -127,7 +127,7 @@ func (f *fakeService) MoOCR(ctx context.Context, filename string, body []byte) (
 	return []byte(`{"code":0}`), nil
 }
 
-func (f *fakeService) NewsList(ctx context.Context, from, to string) ([]byte, error) {
+func (f *fakeService) NewsGet(ctx context.Context, date string) ([]byte, error) {
 	f.newsListFrom = from
 	f.newsListTo = to
 	if f.newsListBody != "" {
