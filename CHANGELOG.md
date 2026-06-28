@@ -1,4 +1,13 @@
 
+<a name="v0.1.40"></a>
+## [v0.1.40](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.39...v0.1.40) (2026-06-28)
+
+### Bug Fixes
+
+
+- **news:** 修复 pretty 表格列宽异常问题
+
+
 <a name="v0.1.39"></a>
 ## [v0.1.39](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.38...v0.1.39) (2026-06-28)
 
@@ -6,6 +15,11 @@
 
 
 - **news:** 恢复 AI 新闻数据源，使用 MCP curl 从 RSS 源获取
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.38"></a>
