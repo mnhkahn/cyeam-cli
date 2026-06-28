@@ -1079,6 +1079,10 @@ func newNewsGetCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			pretty, _ := cmd.Flags().GetBool("pretty")
+			if pretty {
+				return renderNewsDetailTable(deps.Stdout, body)
+			}
 			return renderNewsDetail(deps.Stdout, body)
 		},
 	}
@@ -1176,4 +1180,39 @@ func renderNewsItemTable(out io.Writer, items []newsItem) error {
 func renderNewsDetail(out io.Writer, body []byte) error {
 	_, err := out.Write(body)
 	return err
+}
+
+func renderNewsDetailTable(out io.Writer, body []byte) error {
+	var resp newsAPIResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return err
+	}
+	if resp.Error != "" {
+		_, err := io.WriteString(out, "error: "+resp.Error+"\n")
+		return err
+	}
+
+	if resp.News != nil {
+		fmt.Fprintf(out, "技术动向 %s\n", resp.Date)
+		if resp.News.Summary != "" {
+			fmt.Fprintf(out, "总结: %s\n\n", resp.News.Summary)
+		}
+		if err := renderNewsItemTable(out, resp.News.News); err != nil {
+			return err
+		}
+		fmt.Fprintln(out)
+	}
+
+	if resp.AINews != nil && len(resp.AINews.News) > 0 {
+		aiDate := time.Unix(resp.AINews.CreateTime, 0).Format("2006-01-02")
+		if resp.AINews.CreateTime == 0 {
+			aiDate = resp.Date
+		}
+		fmt.Fprintf(out, "AI 资讯 %s\n", aiDate)
+		if err := renderNewsItemTable(out, resp.AINews.News); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

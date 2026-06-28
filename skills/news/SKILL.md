@@ -124,51 +124,13 @@ cyeam news get
 | `news[].image` | 首图 URL（如有，空字符串代表无） |
 | `news[].create_time` | 新闻发布时间戳（Unix 秒） |
 
-### 展示建议
+### 输出格式参数
 
-拿到 data 后解析 JSON，可按以下任意形式展示：
+使用全局 `--pretty` 参数控制输出格式：
 
-**表格形式（简洁）：**
-
-| 标题 | 摘要 | 链接 |
-|------|------|------|
-| 新闻标题 | 要点摘要... | [链接](https://...) |
-
-**列表形式（详细）：**
-
-```
-## 📊 今日科技要闻总结
-{{news.summary}}
-
-## 📰 技术动向
-
-{% for item in news.news %}
-### {{item.title}}
-
-{% if item.image %}
-![{{item.title}}]({{item.image}})
-{% endif %}
-
-{{item.description}}
-
-🔗 {{item.link}}
-
-{% endfor %}
-
-## 🤖 AI 资讯
-
-{% for item in ai_news.news %}
-### {{item.title}}
-
-{% if item.image %}
-![{{item.title}}]({{item.image}})
-{% endif %}
-
-{{item.description}}
-
-🔗 {{item.link}}
-
-{% endfor %}
+```bash
+cyeam news get --date 2026-06-27           # 默认，结构化 JSON（在 envelope 中）
+cyeam news get --date 2026-06-27 --pretty  # 人类可读的表格形式
 ```
 
 ## 适合的场景
