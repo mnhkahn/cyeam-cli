@@ -1168,20 +1168,27 @@ func renderNewsItemTable(out io.Writer, items []newsItem) error {
 		},
 		Color: true,
 	}
+	const (
+		maxTitleWidth = 30
+		maxDescWidth  = 40
+	)
 	for _, item := range items {
-		title := truncateDisplayWidth(item.Title, 35)
+		title := truncateDisplayWidth(item.Title, maxTitleWidth)
+		imageVisible := "无"
 		imageText := "无"
 		if item.Image != "" {
+			imageVisible = "有图"
 			imageText = terminalHyperlink(item.Image, "有图")
 		}
-		desc := truncateDisplayWidth(item.Description, 50)
+		desc := truncateDisplayWidth(item.Description, maxDescWidth)
 		titleCell := title
+		titleVisible := title
 		if item.Link != "" {
 			titleCell = terminalHyperlink(item.Link, title)
 		}
 		t.Rows = append(t.Rows, []tableCell{
-			{text: titleCell, visible: title},
-			{text: imageText, visible: imageText},
+			{text: titleCell, visible: titleVisible},
+			{text: imageText, visible: imageVisible},
 			{text: desc, visible: desc},
 		})
 	}
