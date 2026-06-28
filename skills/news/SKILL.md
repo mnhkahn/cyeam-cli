@@ -126,7 +126,15 @@ cyeam news get
 
 ### 展示建议
 
-拿到 data 后建议按以下格式展示给用户：
+拿到 data 后解析 JSON，可按以下任意形式展示：
+
+**表格形式（简洁）：**
+
+| 标题 | 摘要 | 链接 |
+|------|------|------|
+| 新闻标题 | 要点摘要... | [链接](https://...) |
+
+**列表形式（详细）：**
 
 ```
 ## 📊 今日科技要闻总结
@@ -141,7 +149,6 @@ cyeam news get
 ![{{item.title}}]({{item.image}})
 {% endif %}
 
-💡 核心要点：
 {{item.description}}
 
 🔗 {{item.link}}
@@ -157,7 +164,6 @@ cyeam news get
 ![{{item.title}}]({{item.image}})
 {% endif %}
 
-💡 核心要点：
 {{item.description}}
 
 🔗 {{item.link}}
