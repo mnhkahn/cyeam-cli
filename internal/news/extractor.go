@@ -9,14 +9,38 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-var httpClient = &http.Client{Timeout: 10 * time.Second}
+var httpClient = &http.Client{Timeout: 5 * time.Second}
+
+// ExtractImageFromHTML 从 HTML 字符串中提取第一张图片
+func ExtractImageFromHTML(html string) string {
+	doc, err := goquery.NewDocumentFromReader(strings.NewReader(html))
+	if err != nil {
+		return ""
+	}
+
+	var firstImage string
+	doc.Find("img").EachWithBreak(func(i int, s *goquery.Selection) bool {
+		if src, exists := s.Attr("src"); exists && isValidImage(src) {
+			firstImage = src
+			return false
+		}
+		return true
+	})
+	return firstImage
+}
 
 func ExtractImage(pageURL string) string {
 	if strings.Contains(pageURL, "mp.weixin.qq.com") {
 		return ""
 	}
 
-	resp, err := httpClient.Get(pageURL)
+	req, err := http.NewRequest("GET", pageURL, nil)
+	if err != nil {
+		return ""
+	}
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return ""
 	}
@@ -31,17 +55,22 @@ func ExtractImage(pageURL string) string {
 		return ""
 	}
 
-	// 1. og:image
+	// 1. og:image (property)
 	if ogImage, exists := doc.Find(`meta[property="og:image"]`).Attr("content"); exists {
 		return toAbsoluteURL(pageURL, ogImage)
 	}
 
-	// 2. twitter:image
+	// 2. og:image (name)
+	if ogImage, exists := doc.Find(`meta[name="og:image"]`).Attr("content"); exists {
+		return toAbsoluteURL(pageURL, ogImage)
+	}
+
+	// 3. twitter:image
 	if twitterImage, exists := doc.Find(`meta[name="twitter:image"]`).Attr("content"); exists {
 		return toAbsoluteURL(pageURL, twitterImage)
 	}
 
-	// 3. 正文第一张图
+	// 4. 正文第一张图
 	var firstImage string
 	doc.Find("article img, main img, .content img, .post img").EachWithBreak(func(i int, s *goquery.Selection) bool {
 		if src, exists := s.Attr("src"); exists && isValidImage(src) {

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"strings"
 	"time"
 
@@ -119,6 +120,55 @@ type NewsData struct {
 	News       []mcp.NewsItem `json:"news"`
 }
 
+func htmlToMarkdown(html string) string {
+	// Remove script/style
+	html = regexp.MustCompile(`(?s)<script[^>]*>.*?</script>`).ReplaceAllString(html, "")
+	html = regexp.MustCompile(`(?s)<style[^>]*>.*?</style>`).ReplaceAllString(html, "")
+
+	// Links: <a href="url">text</a> -> [text](url)
+	html = regexp.MustCompile(`<a[^>]*href=["']([^"']+)["'][^>]*>([^<]+)</a>`).ReplaceAllString(html, "[$2]($1)")
+
+	// Headers: <h1>text</h1> -> # text
+	for i := 1; i <= 6; i++ {
+		tag := fmt.Sprintf("h%d", i)
+		re := regexp.MustCompile(fmt.Sprintf(`<%s[^>]*>([^<]+)</%s>`, tag, tag))
+		html = re.ReplaceAllString(html, strings.Repeat("#", i)+" $1\n\n")
+	}
+
+	// Bold: <b>text</b> -> **text**
+	html = regexp.MustCompile(`<b[^>]*>([^<]+)</b>`).ReplaceAllString(html, "**$1**")
+	html = regexp.MustCompile(`<strong[^>]*>([^<]+)</strong>`).ReplaceAllString(html, "**$1**")
+
+	// Italic: <i>text</i> or <em>text</em> -> *text*
+	html = regexp.MustCompile(`<i[^>]*>([^<]+)</i>`).ReplaceAllString(html, "*$1*")
+	html = regexp.MustCompile(`<em[^>]*>([^<]+)</em>`).ReplaceAllString(html, "*$1*")
+
+	// Code: <code>text</code> -> `text`
+	html = regexp.MustCompile(`<code[^>]*>([^<]+)</code>`).ReplaceAllString(html, "`$1`")
+
+	// Images: <img src="url" alt="text" ...> -> ![alt](url)
+	html = regexp.MustCompile(`<img[^>]*src=["']([^"']+)["'][^>]*alt=["']([^"']+)["'][^>]*>`).ReplaceAllString(html, "![$2]($1)")
+	html = regexp.MustCompile(`<img[^>]*alt=["']([^"']+)["'][^>]*src=["']([^"']+)["'][^>]*>`).ReplaceAllString(html, "![$1]($2)")
+
+	// Paragraphs: <p>text</p> -> text\n\n
+	html = regexp.MustCompile(`</p>`).ReplaceAllString(html, "\n\n")
+
+	// Lists: <li>item</li> -> - item
+	html = regexp.MustCompile(`<li[^>]*>([^<]+)</li>`).ReplaceAllString(html, "- $1\n")
+
+	// Remove all other HTML tags
+	html = regexp.MustCompile(`<[^>]+>`).ReplaceAllString(html, "")
+
+	// Clean up whitespace
+	html = strings.ReplaceAll(html, "\r", "")
+	html = strings.TrimSpace(html)
+
+	// Remove multiple newlines
+	html = regexp.MustCompile(`\n{3,}`).ReplaceAllString(html, "\n\n")
+
+	return html
+}
+
 func (s *Service) NewsGet(ctx context.Context, date string) ([]byte, error) {
 	mcpClient := mcp.NewClient(mcp.DefaultServerURL)
 
@@ -127,17 +177,56 @@ func (s *Service) NewsGet(ctx context.Context, date string) ([]byte, error) {
 		return nil, fmt.Errorf("tech_news: %w", err)
 	}
 
-	aiItems, _ := mcpClient.GetNews(ctx, "ai_news_zh", date)
+	// Get AI news from API directly
+	var aiItems []mcp.NewsItem
+	if aiResp, err := s.client.GetJSON(ctx, "/api/geek/news", map[string]string{"date": date}); err == nil {
+		var aiWrapper struct {
+			AINews struct {
+				News []mcp.NewsItem `json:"news"`
+			} `json:"ai_news"`
+		}
+		if json.Unmarshal(aiResp, &aiWrapper) == nil {
+			aiItems = aiWrapper.AINews.News
+		}
+	}
 
+	// Clean up title prefix (remove [Github Trending], [Hacker News] etc.)
+	cleanTitleRe := regexp.MustCompile(`^\[.*?]\s*`)
+	for i := range aiItems {
+		aiItems[i].Title = cleanTitleRe.ReplaceAllString(aiItems[i].Title, "")
+	}
 	for i := range techItems {
+		techItems[i].Title = cleanTitleRe.ReplaceAllString(techItems[i].Title, "")
+	}
+
+	const maxDescLen = 1500
+	for i := range techItems {
+		// 先从 HTML 描述中提取图片
+		if techItems[i].Image == "" {
+			techItems[i].Image = news.ExtractImageFromHTML(techItems[i].Description)
+		}
+		// 没找到再去站点爬
 		if techItems[i].Image == "" {
 			techItems[i].Image = news.ExtractImage(techItems[i].Link)
+		}
+		techItems[i].Description = htmlToMarkdown(techItems[i].Description)
+		if len(techItems[i].Description) > maxDescLen {
+			techItems[i].Description = techItems[i].Description[:maxDescLen] + "..."
 		}
 	}
 
 	for i := range aiItems {
+		// 先从 HTML 描述中提取图片
+		if aiItems[i].Image == "" {
+			aiItems[i].Image = news.ExtractImageFromHTML(aiItems[i].Description)
+		}
+		// 没找到再去站点爬
 		if aiItems[i].Image == "" {
 			aiItems[i].Image = news.ExtractImage(aiItems[i].Link)
+		}
+		aiItems[i].Description = htmlToMarkdown(aiItems[i].Description)
+		if len(aiItems[i].Description) > maxDescLen {
+			aiItems[i].Description = aiItems[i].Description[:maxDescLen] + "..."
 		}
 	}
 
