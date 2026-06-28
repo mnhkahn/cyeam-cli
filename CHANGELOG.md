@@ -1,4 +1,13 @@
 
+<a name="v0.1.38"></a>
+## [v0.1.38](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.37...v0.1.38) (2026-06-28)
+
+### Features
+
+
+- **news:** 优化图片提取与描述处理
+
+
 <a name="v0.1.37"></a>
 ## [v0.1.37](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.36...v0.1.37) (2026-06-28)
 
@@ -6,6 +15,11 @@
 
 
 - **news:** 改用 MCP 直接获取新闻并提取图片
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.36"></a>
