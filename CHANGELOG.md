@@ -1,4 +1,22 @@
 
+<a name="v0.1.36"></a>
+## [v0.1.36](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.35...v0.1.36) (2026-06-28)
+
+### Documentation
+
+
+- **news:** 增加表格展示建议
+
+- **skills:** 统一添加【重要】提示，要求必须读原文
+
+### Features
+
+
+- **news:** news get 支持 --pretty 输出表格格式
+
+- **news:** news get 输出结构化 JSON，不再转成 Markdown
+
+
 <a name="v0.1.35"></a>
 ## [v0.1.35](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.34...v0.1.35) (2026-06-27)
 
@@ -8,6 +26,11 @@
 - **news:** 修正数据源名称 ai-news-zh → ai_news
 
 - **news:** 明确两个独立数据源：tech_news(技术动向) + ai-news-zh(AI资讯)
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.34"></a>
@@ -548,7 +571,7 @@
 
 
 <a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
 
 ### Documentation
 
@@ -556,12 +579,12 @@
 - **skills:** add cyeam-cli installation steps for different platforms
 
 
-<a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
-
-
 <a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
+
+
+<a name="v0.1.2"></a>
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...v0.1.2) (2026-06-12)
 
 ### Documentation
 
