@@ -1,4 +1,13 @@
 
+<a name="v0.1.39"></a>
+## [v0.1.39](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.38...v0.1.39) (2026-06-28)
+
+### Features
+
+
+- **news:** 恢复 AI 新闻数据源，使用 MCP curl 从 RSS 源获取
+
+
 <a name="v0.1.38"></a>
 ## [v0.1.38](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.37...v0.1.38) (2026-06-28)
 
@@ -6,6 +15,11 @@
 
 
 - **news:** 优化图片提取与描述处理
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.37"></a>
