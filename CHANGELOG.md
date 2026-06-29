@@ -1,4 +1,23 @@
 
+<a name="v0.1.41"></a>
+## [v0.1.41](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.40...v0.1.41) (2026-06-29)
+
+### Code Refactoring
+
+
+- **pinyin:** 切换拼音转换为独立 go-pinyin 包
+
+### Features
+
+
+- **update:** 新增二进制更新时的 checksum 校验
+
+### Miscellaneous Tasks
+
+
+- **deps:** 切换 go-pinyin 为远程 v0.1.0 正式版
+
+
 <a name="v0.1.40"></a>
 ## [v0.1.40](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.39...v0.1.40) (2026-06-28)
 
@@ -6,6 +25,11 @@
 
 
 - **news:** 修复 pretty 表格列宽异常问题
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.39"></a>
