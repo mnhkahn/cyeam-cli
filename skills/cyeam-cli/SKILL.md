@@ -59,23 +59,3 @@ cyeam ai models [...]                  # AI免费模型 → 见 ai-models skill
 ```
 
 所有命令输出 JSON 信封 `{"ok":true,"data":"...","_notice":{...}}`。加 `--pretty` 去掉信封。
-
----
-
-## 架构咨询
-
-不走 CLI，直接 MCP:
-
-```
-mcp: https://www.cyeam.com/arch/mcp
-```
-
----
-
-## 不做的事
-
-- 直播流抓取、m3u8 解码、会员/地区绕过
-- 开发者转换工具（json2go、curl2go、XML、SQL 等）
-- 翻译、搜索建议、QR 码
-- Mo AI 存库 API
-- Admin/缓存/上传/推送管理
