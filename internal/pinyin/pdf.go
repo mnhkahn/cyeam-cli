@@ -8,7 +8,7 @@ import (
 	"unicode"
 
 	"github.com/mnhkahn/gofpdf"
-	"github.com/mozillazg/go-pinyin"
+	"github.com/mnhkahn/go-pinyin"
 )
 
 //go:embed font/pinyin-wenkai-light.ttf
@@ -29,9 +29,6 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 	yStart := float64(20)
 	const wMi = float64(11)
 	const hPy = float64(7)
-
-	argsPY := pinyin.NewArgs()
-	argsPY.Style = pinyin.Tone
 
 	for _, word := range strings.Split(text, " ") {
 		if word == "" {
@@ -75,7 +72,11 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 		// horizontal dashed midline across the block
 		pdf.Line(xStart, cy+wMi/2, xStart+blockWidth, cy+wMi/2)
 
+		// 使用独立的 go-pinyin 包转换拼音
+		pyList := pinyin.WithTone(word)
+
 		charIdx := 0
+		pyIdx := 0
 		for _, r := range chars {
 			if !unicode.Is(unicode.Han, r) {
 				continue
@@ -83,11 +84,10 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 			x := xStart + float64(charIdx)*wMi
 
 			// pinyin above cell
-			py := pinyin.Pinyin(string(r), argsPY)
-			if len(py) > 0 && len(py[0]) > 0 {
+			if pyIdx < len(pyList) {
 				pdf.SetFont("pyfont", "", 8)
 				pdf.SetXY(x, yStart)
-				pdf.CellFormat(wMi, hPy, py[0][0], "", 0, "C", false, 0, "")
+				pdf.CellFormat(wMi, hPy, pyList[pyIdx], "", 0, "C", false, 0, "")
 			}
 
 			// vertical dashed midline per cell
@@ -99,6 +99,7 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 			pdf.Line(x+wMi, cy, x, cy+wMi)
 
 			charIdx++
+			pyIdx++
 		}
 
 		pdf.SetDashPattern([]float64{}, 0)
