@@ -3,9 +3,12 @@ package update
 import (
 	"archive/tar"
 	"archive/zip"
+	"bufio"
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/sha256"
+	"crypto/subtle"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,6 +24,7 @@ import (
 type Asset struct {
 	Name               string `json:"name"`
 	BrowserDownloadURL string `json:"browser_download_url"`
+	ChecksumURL        string `json:"-"` // checksums.txt 下载地址，仅用于本地校验
 }
 
 type Result struct {
@@ -31,6 +35,213 @@ type Result struct {
 
 type Installer interface {
 	Install(ctx context.Context, asset Asset) error
+}
+
+// ChecksumVerifier 装饰器：在安装前校验下载文件的 checksum
+// 完全独立于 ArchiveInstaller 实现，通过组合方式增强功能
+type ChecksumVerifier struct {
+	Next         Installer // 被装饰的实际安装器
+	HTTPClient   *http.Client
+	ChecksumFunc func(assetName string, archiveBytes []byte, checksums []byte) error // 可注入用于测试
+}
+
+func (v ChecksumVerifier) Install(ctx context.Context, asset Asset) error {
+	if asset.ChecksumURL == "" {
+		return v.Next.Install(ctx, asset)
+	}
+
+	// 先做类型检查，避免下载后才发现不支持（浪费带宽 + 不兼容的安全风险）
+	switch v.Next.(type) {
+	case ArchiveInstaller, *ArchiveInstaller:
+		// OK
+	default:
+		return fmt.Errorf("ChecksumVerifier requires ArchiveInstaller or *ArchiveInstaller, got %T", v.Next)
+	}
+
+	// 优先使用 v.HTTPClient，如果没有则尝试从 Next installer 中提取
+	// 这样当 ChecksumVerifier 被直接使用时，能正确复用已配置的 custom client
+	httpClient := v.HTTPClient
+	if httpClient == nil {
+		switch ai := v.Next.(type) {
+		case ArchiveInstaller:
+			httpClient = ai.HTTPClient
+		case *ArchiveInstaller:
+			httpClient = ai.HTTPClient
+		}
+		// 如果都没有，使用默认 5 分钟超时 client
+		if httpClient == nil {
+			httpClient = &http.Client{Timeout: 5 * time.Minute} // 与 ArchiveInstaller 内部超时一致
+		}
+	}
+
+	// 从 Next installer 中提取 ProgressWriter
+	var pw io.Writer = io.Discard
+	switch ai := v.Next.(type) {
+	case ArchiveInstaller:
+		if ai.ProgressWriter != nil {
+			pw = ai.ProgressWriter
+		}
+	case *ArchiveInstaller:
+		if ai.ProgressWriter != nil {
+			pw = ai.ProgressWriter
+		}
+	}
+
+	// 下载 checksums.txt
+	checksums, err := v.downloadChecksums(ctx, httpClient, asset.ChecksumURL)
+	if err != nil {
+		return fmt.Errorf("download checksums: %w", err)
+	}
+
+	// 下载归档文件（带进度条，与 ArchiveInstaller 行为一致
+	fmt.Fprintf(pw, "==> Downloading %s\n", asset.Name)
+	archiveBytes, err := v.downloadAsset(ctx, httpClient, asset, pw)
+	if err != nil {
+		return err
+	}
+
+	// 执行校验
+	checksumFunc := v.ChecksumFunc
+	if checksumFunc == nil {
+		checksumFunc = VerifyChecksum
+	}
+	if err := checksumFunc(asset.Name, archiveBytes, checksums); err != nil {
+		return fmt.Errorf("checksum verification failed: %w", err)
+	}
+
+	// 校验通过，使用预加载的 bytes 安装（避免重复下载）
+	switch ai := v.Next.(type) {
+	case ArchiveInstaller:
+		// 输出下载进度，与 ArchiveInstaller.Install 行为一致
+		pw := ai.ProgressWriter
+		if pw == nil {
+			pw = io.Discard
+		}
+		fmt.Fprintln(pw, "==> Verifying checksum") // 新增：校验进度提示
+		return PreloadedInstaller{
+			ArchiveBytes:   archiveBytes,
+			ProgressWriter: pw,
+			ExecutablePath: ai.ExecutablePath,
+		}.Install(ctx, asset)
+	case *ArchiveInstaller:
+		pw := ai.ProgressWriter
+		if pw == nil {
+			pw = io.Discard
+		}
+		fmt.Fprintln(pw, "==> Verifying checksum")
+		return PreloadedInstaller{
+			ArchiveBytes:   archiveBytes,
+			ProgressWriter: pw,
+			ExecutablePath: ai.ExecutablePath,
+		}.Install(ctx, asset)
+	default:
+		// 理论上不会走到这里，前面已经做过类型检查
+		return fmt.Errorf("unexpected installer type: %T", v.Next)
+	}
+}
+
+// PreloadedInstaller 装饰器：使用预先加载的 bytes，避免重复下载
+// 保留与 ArchiveInstaller 一致的进度输出行为
+type PreloadedInstaller struct {
+	ArchiveBytes   []byte
+	ProgressWriter io.Writer
+	ExecutablePath func() (string, error)
+}
+
+func (pi PreloadedInstaller) Install(ctx context.Context, asset Asset) error {
+	pw := pi.ProgressWriter
+	if pw == nil {
+		pw = io.Discard
+	}
+
+	fmt.Fprintln(pw, "==> Extracting archive")
+	bin, err := extractBinary(asset.Name, pi.ArchiveBytes)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(pw, "==> Replacing binary")
+	execPath := pi.ExecutablePath
+	if execPath == nil {
+		execPath = os.Executable
+	}
+	exe, err := execPath()
+	if err != nil {
+		return err
+	}
+	tmp := exe + ".new"
+	if err := os.WriteFile(tmp, bin, 0755); err != nil {
+		return err
+	}
+	if err := os.Rename(tmp, exe); err != nil {
+		_ = os.Remove(tmp)
+		return err
+	}
+	return nil
+}
+
+func (v ChecksumVerifier) downloadChecksums(ctx context.Context, client *http.Client, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("HTTP %s", resp.Status)
+	}
+	return io.ReadAll(resp.Body)
+}
+
+func (v ChecksumVerifier) downloadAsset(ctx context.Context, client *http.Client, asset Asset, pw io.Writer) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, asset.BrowserDownloadURL, nil)
+	if err != nil {
+		return nil, err
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return nil, fmt.Errorf("download asset: %s", resp.Status)
+	}
+	body := newProgressReader(resp.Body, resp.ContentLength, pw)
+	return io.ReadAll(body)
+}
+
+// VerifyChecksum 校验归档文件的 checksum
+func VerifyChecksum(assetName string, archiveBytes []byte, checksumsContent []byte) error {
+	expected := parseChecksum(checksumsContent, assetName)
+	if expected == "" {
+		return fmt.Errorf("no checksum found for %s", assetName)
+	}
+
+	actual := fmt.Sprintf("%x", sha256.Sum256(archiveBytes))
+	if subtle.ConstantTimeCompare([]byte(actual), []byte(expected)) != 1 {
+		return fmt.Errorf("hash mismatch (expected %s, got %s)", expected, actual)
+	}
+	return nil
+}
+
+// parseChecksum 从 checksums.txt 中提取指定文件名的 hash
+func parseChecksum(checksumsContent []byte, filename string) string {
+	scanner := bufio.NewScanner(bytes.NewReader(checksumsContent))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		// 格式: "sha256-hash  filename"
+		parts := strings.Fields(line)
+		if len(parts) >= 2 && parts[1] == filename {
+			return parts[0]
+		}
+	}
+	return ""
 }
 
 type ArchiveInstaller struct {
@@ -128,12 +339,13 @@ func (i ArchiveInstaller) Install(ctx context.Context, asset Asset) error {
 }
 
 type GitHubUpdater struct {
-	Repo       string
-	BaseURL    string
-	HTTPClient *http.Client
-	GOOS       string
-	GOARCH     string
-	Installer  Installer
+	Repo             string
+	BaseURL          string
+	HTTPClient       *http.Client
+	GOOS             string
+	GOARCH           string
+	Installer        Installer
+	DisableChecksum  bool // 可选：禁用 checksum 校验（不推荐）
 }
 
 func extractBinary(assetName string, archiveBytes []byte) ([]byte, error) {
@@ -237,7 +449,36 @@ func (u GitHubUpdater) installAsset(ctx context.Context, result Result, asset As
 	if u.Installer == nil {
 		return Result{}, fmt.Errorf("installer is required")
 	}
-	if err := u.Installer.Install(ctx, asset); err != nil {
+
+	installer := u.Installer
+	// 只对 ArchiveInstaller 自动应用 checksum 校验
+	// 其他自定义 Installer 可能有自己的下载逻辑，无法保证校验的 bytes == 安装的 bytes
+	if !u.DisableChecksum {
+		switch ai := installer.(type) {
+		case ArchiveInstaller:
+			// 复用已配置的 HTTPClient，只有 nil 时才用默认的 5 分钟超时
+			downloadClient := ai.HTTPClient
+			if downloadClient == nil {
+				downloadClient = &http.Client{Timeout: 5 * time.Minute}
+			}
+			installer = ChecksumVerifier{
+				Next:       ai,
+				HTTPClient: downloadClient,
+			}
+		case *ArchiveInstaller:
+			downloadClient := ai.HTTPClient
+			if downloadClient == nil {
+				downloadClient = &http.Client{Timeout: 5 * time.Minute}
+			}
+			installer = ChecksumVerifier{
+				Next:       ai,
+				HTTPClient: downloadClient,
+			}
+		}
+		// 其他类型 installer：不应用校验，直接使用原 installer
+	}
+
+	if err := installer.Install(ctx, asset); err != nil {
 		return Result{}, err
 	}
 	result.Updated = true
@@ -315,7 +556,8 @@ func SelectAsset(repo, goos, goarch, tag string) (Asset, error) {
 		return Asset{}, err
 	}
 	url := fmt.Sprintf("https://github.com/%s/releases/download/%s/%s", repo, tag, name)
-	return Asset{Name: name, BrowserDownloadURL: url}, nil
+	checksumURL := fmt.Sprintf("https://github.com/%s/releases/download/%s/checksums.txt", repo, tag)
+	return Asset{Name: name, BrowserDownloadURL: url, ChecksumURL: checksumURL}, nil
 }
 
 func releaseOS(goos string) (string, error) {
