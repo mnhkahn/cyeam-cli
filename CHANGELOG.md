@@ -1,11 +1,22 @@
 
+<a name="v0.1.45"></a>
+## [v0.1.45](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.44...v0.1.45) (2026-07-01)
+
+
 <a name="v0.1.44"></a>
-## [v0.1.44](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.43...v0.1.44) (2026-07-01)
+## [v0.1.44](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.43...v0.1.44) (2026-06-30)
 
 ### Features
 
 
 - **pdf:** 新增TTC字体文件支持并优化字体加载逻辑
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.43"></a>
