@@ -1,4 +1,13 @@
 
+<a name="v0.1.44"></a>
+## [v0.1.44](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.43...v0.1.44) (2026-06-30)
+
+### Features
+
+
+- **pdf:** 新增TTC字体文件支持并优化字体加载逻辑
+
+
 <a name="v0.1.43"></a>
 ## [v0.1.43](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.42...v0.1.43) (2026-06-30)
 
@@ -6,6 +15,11 @@
 
 
 - **pdf:** 优化PDF中文字体检测与选择逻辑
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.42"></a>
@@ -678,7 +692,7 @@
 
 
 <a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
 
 ### Documentation
 
@@ -686,12 +700,12 @@
 - **skills:** add cyeam-cli installation steps for different platforms
 
 
-<a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
-
-
 <a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
+
+
+<a name="v0.1.2"></a>
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.2) (2026-06-12)
 
 ### Documentation
 
@@ -711,12 +725,12 @@
 - 更新gitignore并添加终端表格设计 brainstorm 笔记
 
 
-<a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.1) (2026-06-11)
-
-
 <a name="skill-4"></a>
-## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...skill-4) (2026-06-11)
+## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-4) (2026-06-11)
+
+
+<a name="v0.1.1"></a>
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...v0.1.1) (2026-06-11)
 
 ### Bug Fixes
 
