@@ -1,6 +1,6 @@
 
 <a name="v0.1.44"></a>
-## [v0.1.44](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.43...v0.1.44) (2026-06-30)
+## [v0.1.44](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.43...v0.1.44) (2026-07-01)
 
 ### Features
 
