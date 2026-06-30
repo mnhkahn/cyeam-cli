@@ -11,11 +11,48 @@ description: Markdown/HTML 转 PDF——输入 Markdown 或 HTML 文件，本地
 把 Markdown 或 HTML 文件转成 PDF 文档。全部本地生成，无需网络。
 
 ```bash
-cyeam pdf README.md                      # 生成 PDF（base64 JSON）
-cyeam pdf README.md -o out.pdf           # 保存 PDF 到文件
-cat index.html | cyeam pdf               # 从 stdin 读 HTML
-cat README.md | cyeam pdf -o out.pdf     # 从 stdin 读并保存
+cyeam pdf README.md                      # 从 Markdown 文件生成 PDF（base64 JSON）
+cyeam pdf README.md -o out.pdf           # 从 Markdown 文件生成并保存 PDF
+cat index.html | cyeam pdf               # 从 stdin 读 HTML，输出 base64 JSON
+cat README.md | cyeam pdf -o out.pdf     # 从 stdin 读 Markdown 并保存 PDF
 ```
+
+## 输入方式选择（重要）
+
+`cyeam pdf` 支持多种输入方式。根据当前执行环境选择最稳的方式，不要瞎猜命令格式。
+
+### 方式一：文件输入（推荐给 Agent）
+
+适合已经有 Markdown/HTML 文件，或 Agent 可以先把内容写入临时文件的场景。结构化 `argv` 工具、普通 shell、Xiaoli 的 `channel_send` 后续发送都适合这种方式。
+
+```bash
+# 1. 先准备真实源文件，例如 /tmp/openclaw-install-guide.md
+# 2. 再把源文件转成 PDF
+cyeam pdf /tmp/openclaw-install-guide.md -o /tmp/openclaw-install-guide.pdf --pretty
+```
+
+### 方式二：stdin 输入
+
+适合执行环境能向命令 stdin 写入正文的场景。正文可以是 Markdown 或 HTML。
+
+```bash
+cyeam pdf -o /tmp/openclaw-install-guide.pdf --pretty
+```
+
+注意：上面这种写法只有在 stdin 已经提供内容时才正确；如果没有 stdin 内容，会失败并提示 `no content provided (stdin is empty)`。
+
+### 方式三：shell 管道输入
+
+适合人类 shell，或明确支持 shell 管道的 Agent/bash 工具。
+
+```bash
+cat /tmp/openclaw-install-guide.md | cyeam pdf -o /tmp/openclaw-install-guide.pdf --pretty
+printf %s "# 标题\n\n正文" | cyeam pdf -o /tmp/out.pdf --pretty
+```
+
+如果当前工具只接受结构化 `argv`、不提供 stdin，也不支持 shell 管道，请使用方式一：先创建源文件，再执行 `cyeam pdf <source> -o <pdf> --pretty`。
+
+生成给用户的 PDF 后，继续调用当前渠道的发送工具（如 `channel_send`）发送生成的 `.pdf` 文件。
 
 ## 安装
 
