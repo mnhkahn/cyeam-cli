@@ -3,10 +3,12 @@ package pdf
 import (
 	"bytes"
 	_ "embed"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"unicode"
 
@@ -27,6 +29,9 @@ var pdfFont []byte
 
 var errNoChineseFont = errors.New("no Chinese-capable font available")
 
+var findFontPath = findfont.Find
+var listFontPaths = findfont.List
+
 var loadSystemFonts = func() [][]byte {
 	var fontsBytes [][]byte
 	seen := map[string]bool{}
@@ -46,18 +51,21 @@ var loadSystemFonts = func() [][]byte {
 	}
 	for _, font := range fonts {
 		if fontData, err := loadFont(font); err == nil {
-			fontsBytes = append(fontsBytes, fontData)
+			fontsBytes = append(fontsBytes, fontData...)
 		}
 	}
-	for _, path := range findfont.List() {
+	for _, path := range listFontPaths() {
 		lower := strings.ToLower(path)
 		if strings.Contains(lower, "cjk") || strings.Contains(lower, "chinese") {
 			if seen[path] {
 				continue
 			}
 			seen[path] = true
+			if !isSupportedTrueTypeFontPath(path) {
+				continue
+			}
 			if fontData, err := loadFontByPath(path); err == nil {
-				fontsBytes = append(fontsBytes, fontData)
+				fontsBytes = append(fontsBytes, fontData...)
 			}
 		}
 	}
@@ -120,15 +128,23 @@ func fontSupportsHanRunes(font *sfnt.Font, text string) bool {
 	return true
 }
 
-func loadFont(fontName string) ([]byte, error) {
-	path, err := findfont.Find(fontName)
+func loadFont(fontName string) ([][]byte, error) {
+	path, err := findFontPath(fontName)
 	if err != nil {
 		return nil, err
+	}
+	if !isSupportedTrueTypeFontPath(path) {
+		return nil, fmt.Errorf("unsupported font format: %s", path)
 	}
 	return loadFontByPath(path)
 }
 
-func loadFontByPath(path string) ([]byte, error) {
+func isSupportedTrueTypeFontPath(path string) bool {
+	ext := strings.ToLower(filepath.Ext(path))
+	return ext == ".ttf" || ext == ".ttc"
+}
+
+func loadFontByPath(path string) ([][]byte, error) {
 	// Ensure absolute path
 	if !filepath.IsAbs(path) {
 		path = "/" + path
@@ -138,8 +154,174 @@ func loadFontByPath(path string) ([]byte, error) {
 	if err == nil {
 		path = realPath
 	}
-	// Read font file bytes
-	return os.ReadFile(path)
+	fontBytes, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	switch strings.ToLower(filepath.Ext(path)) {
+	case ".ttf":
+		return [][]byte{fontBytes}, nil
+	case ".ttc":
+		return extractTTCFonts(fontBytes)
+	default:
+		return nil, fmt.Errorf("unsupported font format: %s", path)
+	}
+}
+
+type sfntTableRecord struct {
+	tag      [4]byte
+	checksum uint32
+	offset   uint32
+	length   uint32
+}
+
+func extractTTCFonts(ttc []byte) ([][]byte, error) {
+	if len(ttc) < 12 || string(ttc[:4]) != "ttcf" {
+		return nil, errors.New("not a TrueType collection")
+	}
+	numFonts := int(binary.BigEndian.Uint32(ttc[8:12]))
+	offsetsEnd := 12 + numFonts*4
+	if numFonts <= 0 || offsetsEnd > len(ttc) {
+		return nil, errors.New("invalid TrueType collection font offsets")
+	}
+
+	var fonts [][]byte
+	for i := 0; i < numFonts; i++ {
+		offset := int(binary.BigEndian.Uint32(ttc[12+i*4 : 16+i*4]))
+		fontBytes, err := extractTrueTypeFontAt(ttc, offset)
+		if err == nil {
+			fonts = append(fonts, fontBytes)
+		}
+	}
+	if len(fonts) == 0 {
+		return nil, errors.New("no TrueType fonts in collection")
+	}
+	return fonts, nil
+}
+
+func extractTrueTypeFontAt(src []byte, offset int) ([]byte, error) {
+	if offset < 0 || offset+12 > len(src) {
+		return nil, errors.New("invalid TrueType font offset")
+	}
+	scalerType := src[offset : offset+4]
+	if !isTrueTypeScaler(scalerType) {
+		return nil, fmt.Errorf("unsupported sfnt scaler type: %q", scalerType)
+	}
+	numTables := int(binary.BigEndian.Uint16(src[offset+4 : offset+6]))
+	tableDirEnd := offset + 12 + numTables*16
+	if numTables <= 0 || tableDirEnd > len(src) {
+		return nil, errors.New("invalid TrueType table directory")
+	}
+
+	records := make([]sfntTableRecord, 0, numTables)
+	for i := 0; i < numTables; i++ {
+		recordOffset := offset + 12 + i*16
+		var record sfntTableRecord
+		copy(record.tag[:], src[recordOffset:recordOffset+4])
+		record.checksum = binary.BigEndian.Uint32(src[recordOffset+4 : recordOffset+8])
+		record.offset = binary.BigEndian.Uint32(src[recordOffset+8 : recordOffset+12])
+		record.length = binary.BigEndian.Uint32(src[recordOffset+12 : recordOffset+16])
+		if !fontTableInRange(src, record.offset, record.length) {
+			return nil, fmt.Errorf("font table %q out of range", record.tag)
+		}
+		records = append(records, record)
+	}
+	sort.Slice(records, func(i, j int) bool {
+		return string(records[i].tag[:]) < string(records[j].tag[:])
+	})
+	return buildTrueTypeFont(scalerType, records, src), nil
+}
+
+func isTrueTypeScaler(scalerType []byte) bool {
+	return bytes.Equal(scalerType, []byte{0x00, 0x01, 0x00, 0x00}) || bytes.Equal(scalerType, []byte("true"))
+}
+
+func fontTableInRange(src []byte, offset, length uint32) bool {
+	if offset > uint32(len(src)) || length > uint32(len(src)) {
+		return false
+	}
+	return offset+length >= offset && offset+length <= uint32(len(src))
+}
+
+func buildTrueTypeFont(scalerType []byte, records []sfntTableRecord, src []byte) []byte {
+	numTables := len(records)
+	out := make([]byte, align4(12+numTables*16))
+	copy(out[0:4], scalerType)
+	binary.BigEndian.PutUint16(out[4:6], uint16(numTables))
+	searchRange, entrySelector, rangeShift := tableSearchParams(numTables)
+	binary.BigEndian.PutUint16(out[6:8], searchRange)
+	binary.BigEndian.PutUint16(out[8:10], entrySelector)
+	binary.BigEndian.PutUint16(out[10:12], rangeShift)
+
+	for i, record := range records {
+		for len(out)%4 != 0 {
+			out = append(out, 0)
+		}
+		newOffset := len(out)
+		tableStart := int(record.offset)
+		tableEnd := tableStart + int(record.length)
+		out = append(out, src[tableStart:tableEnd]...)
+		for len(out)%4 != 0 {
+			out = append(out, 0)
+		}
+
+		recordOffset := 12 + i*16
+		copy(out[recordOffset:recordOffset+4], record.tag[:])
+		binary.BigEndian.PutUint32(out[recordOffset+4:recordOffset+8], record.checksum)
+		binary.BigEndian.PutUint32(out[recordOffset+8:recordOffset+12], uint32(newOffset))
+		binary.BigEndian.PutUint32(out[recordOffset+12:recordOffset+16], record.length)
+	}
+	fixChecksumAdjustment(out, records)
+	return out
+}
+
+func fixChecksumAdjustment(font []byte, records []sfntTableRecord) {
+	for i, record := range records {
+		if string(record.tag[:]) != "head" {
+			continue
+		}
+		recordOffset := 12 + i*16
+		if recordOffset+12 > len(font) {
+			return
+		}
+		headOffset := int(binary.BigEndian.Uint32(font[recordOffset+8 : recordOffset+12]))
+		if headOffset+12 > len(font) {
+			return
+		}
+		binary.BigEndian.PutUint32(font[headOffset+8:headOffset+12], 0)
+		binary.BigEndian.PutUint32(font[headOffset+8:headOffset+12], 0xb1b0afba-checksum(font))
+		return
+	}
+}
+
+func checksum(data []byte) uint32 {
+	var sum uint32
+	for i := 0; i < len(data); i += 4 {
+		var word uint32
+		for j := 0; j < 4; j++ {
+			word <<= 8
+			if i+j < len(data) {
+				word |= uint32(data[i+j])
+			}
+		}
+		sum += word
+	}
+	return sum
+}
+
+func tableSearchParams(numTables int) (searchRange, entrySelector, rangeShift uint16) {
+	power := 1
+	for power*2 <= numTables {
+		power *= 2
+		entrySelector++
+	}
+	searchRange = uint16(power * 16)
+	rangeShift = uint16(numTables*16 - int(searchRange))
+	return searchRange, entrySelector, rangeShift
+}
+
+func align4(n int) int {
+	return (n + 3) &^ 3
 }
 
 const (
@@ -161,6 +343,10 @@ func newRenderer(src []byte) (*renderer, error) {
 	if err != nil {
 		return nil, err
 	}
+	return newRendererWithFont(fontBytes)
+}
+
+func newRendererWithFont(fontBytes []byte) (*renderer, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.AddPage()
