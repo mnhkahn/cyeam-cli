@@ -3,10 +3,12 @@ package pdf
 import (
 	"bytes"
 	_ "embed"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+	"unicode"
 
 	"github.com/flopp/go-findfont"
 	"github.com/mnhkahn/gofpdf"
@@ -15,6 +17,7 @@ import (
 	"github.com/yuin/goldmark/extension"
 	east "github.com/yuin/goldmark/extension/ast"
 	"github.com/yuin/goldmark/text"
+	"golang.org/x/image/font/sfnt"
 	"golang.org/x/net/html"
 	"golang.org/x/net/html/atom"
 )
@@ -22,8 +25,12 @@ import (
 //go:embed font/pinyin-wenkai-light.ttf
 var pdfFont []byte
 
-func findChineseFont() []byte {
-	// Try common Chinese fonts in order of preference
+var errNoChineseFont = errors.New("no Chinese-capable font available")
+
+var loadSystemFonts = func() [][]byte {
+	var fontsBytes [][]byte
+	seen := map[string]bool{}
+
 	fonts := []string{
 		"Arial Unicode",
 		"Hiragino Sans GB",
@@ -38,20 +45,79 @@ func findChineseFont() []byte {
 		"Noto Sans CJK TC",
 	}
 	for _, font := range fonts {
-		if fontBytes, err := loadFont(font); err == nil {
-			return fontBytes
+		if fontData, err := loadFont(font); err == nil {
+			fontsBytes = append(fontsBytes, fontData)
 		}
 	}
-	// Fallback: list all fonts and find any with CJK in name
 	for _, path := range findfont.List() {
-		if strings.Contains(strings.ToLower(path), "cjk") || strings.Contains(strings.ToLower(path), "chinese") {
-			if fontBytes, err := loadFontByPath(path); err == nil {
-				return fontBytes
+		lower := strings.ToLower(path)
+		if strings.Contains(lower, "cjk") || strings.Contains(lower, "chinese") {
+			if seen[path] {
+				continue
+			}
+			seen[path] = true
+			if fontData, err := loadFontByPath(path); err == nil {
+				fontsBytes = append(fontsBytes, fontData)
 			}
 		}
 	}
-	// Last resort: use embedded fallback font
-	return pdfFont
+	return fontsBytes
+}
+
+func selectPDFFont(src []byte) ([]byte, error) {
+	text := string(src)
+	if !containsHan(text) {
+		return pdfFont, nil
+	}
+	for _, fontBytes := range loadSystemFonts() {
+		if fontSupportsHan(fontBytes, text) {
+			return fontBytes, nil
+		}
+	}
+	if fontSupportsHan(pdfFont, text) {
+		return pdfFont, nil
+	}
+	return nil, fmt.Errorf("%w: install Noto Sans CJK or another Chinese font on the server", errNoChineseFont)
+}
+
+func containsHan(text string) bool {
+	for _, r := range text {
+		if unicode.Is(unicode.Han, r) {
+			return true
+		}
+	}
+	return false
+}
+
+func fontSupportsHan(fontBytes []byte, text string) bool {
+	collection, err := sfnt.ParseCollection(fontBytes)
+	if err != nil {
+		return false
+	}
+	for i := 0; i < collection.NumFonts(); i++ {
+		font, err := collection.Font(i)
+		if err != nil {
+			continue
+		}
+		if fontSupportsHanRunes(font, text) {
+			return true
+		}
+	}
+	return false
+}
+
+func fontSupportsHanRunes(font *sfnt.Font, text string) bool {
+	var buf sfnt.Buffer
+	for _, r := range text {
+		if !unicode.Is(unicode.Han, r) {
+			continue
+		}
+		idx, err := font.GlyphIndex(&buf, r)
+		if err != nil || idx == 0 {
+			return false
+		}
+	}
+	return true
 }
 
 func loadFont(fontName string) ([]byte, error) {
@@ -90,25 +156,20 @@ type renderer struct {
 	y   float64
 }
 
-func newRenderer() *renderer {
-	fontBytes := findChineseFont()
+func newRenderer(src []byte) (*renderer, error) {
+	fontBytes, err := selectPDFFont(src)
+	if err != nil {
+		return nil, err
+	}
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.SetAutoPageBreak(false, 0)
 	pdf.AddPage()
 	pdf.AddUTF8FontFromBytes("pdf", "", fontBytes)
-	if pdf.Ok() {
-		// Try setting the font to verify it works
-		pdf.SetFont("pdf", "", 12)
-		if !pdf.Ok() {
-			// System font failed, fall back to embedded font
-			pdf = gofpdf.New("P", "mm", "A4", "")
-			pdf.SetAutoPageBreak(false, 0)
-			pdf.AddPage()
-			pdf.AddUTF8FontFromBytes("pdf", "", pdfFont)
-			pdf.SetFont("pdf", "", 12)
-		}
+	pdf.SetFont("pdf", "", 12)
+	if !pdf.Ok() {
+		return nil, fmt.Errorf("load PDF font: %w", pdf.Error())
 	}
-	return &renderer{pdf: pdf, y: marginTop}
+	return &renderer{pdf: pdf, y: marginTop}, nil
 }
 
 func (r *renderer) ensurePage(h float64) {
@@ -127,7 +188,10 @@ func RenderMarkdown(src []byte) ([]byte, error) {
 		goldmark.WithExtensions(extension.TaskList),
 	)
 	doc := md.Parser().Parse(text.NewReader(src))
-	r := newRenderer()
+	r, err := newRenderer(src)
+	if err != nil {
+		return nil, err
+	}
 	walkMarkdown(r, doc, src)
 	var buf bytes.Buffer
 	if err := r.pdf.Output(&buf); err != nil {
