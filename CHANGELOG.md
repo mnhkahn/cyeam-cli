@@ -1,4 +1,13 @@
 
+<a name="v0.1.43"></a>
+## [v0.1.43](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.42...v0.1.43) (2026-06-30)
+
+### Features
+
+
+- **pdf:** 优化PDF中文字体检测与选择逻辑
+
+
 <a name="v0.1.42"></a>
 ## [v0.1.42](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.41...v0.1.42) (2026-06-30)
 
@@ -21,6 +30,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - **deps:** 切换 go-pinyin 为远程 v0.1.0 正式版
 
