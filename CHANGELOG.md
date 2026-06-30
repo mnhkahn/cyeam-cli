@@ -1,14 +1,21 @@
 
-<a name="v0.1.41"></a>
-## [v0.1.41](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.40...v0.1.41) (2026-06-29)
+<a name="v0.1.42"></a>
+## [v0.1.42](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.41...v0.1.42) (2026-06-30)
 
 ### Code Refactoring
 
 
 - **pinyin:** 切换拼音转换为独立 go-pinyin 包
 
+### Documentation
+
+
+- **pdf:** 更新PDF技能文档，补充多种输入方式说明
+
 ### Features
 
+
+- **skills:** 新增 git-cmsg 提交信息生成 skill
 
 - **update:** 新增二进制更新时的 checksum 校验
 
@@ -16,6 +23,15 @@
 
 
 - **deps:** 切换 go-pinyin 为远程 v0.1.0 正式版
+
+
+<a name="v0.1.41"></a>
+## [v0.1.41](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.40...v0.1.41) (2026-06-29)
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.40"></a>
