@@ -1,5 +1,6 @@
 ---
 name: git-cmsg
+version: 0.1.42
 description: Use when generating Git commit messages, writing commit messages, committing code, or when the user mentions commit、提交、commit message、提交信息. Automatically stages all changes by default, uses LLM to judge if new files should be committed, generates Conventional Commits format messages in Chinese.
 allowed-tools: AskUserQuestion, Bash
 ---

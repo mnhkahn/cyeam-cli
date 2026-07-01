@@ -61,6 +61,12 @@
       "description": "AI免费模型查询——各平台免费模型排行榜。不可直接作为工具名调用",
       "repo": "mnhkahn/cyeam-cli",
       "source": "skills/ai-models"
+    },
+    {
+      "name": "git-cmsg",
+      "description": "Git 提交信息生成——自动暂存安全变更并生成中文 Conventional Commits 提交信息",
+      "repo": "mnhkahn/cyeam-cli",
+      "source": "skills/git-cmsg"
     }
   ]
 }
