@@ -1,7 +1,9 @@
 package pdf
 
 import (
+	"bytes"
 	"encoding/binary"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -61,6 +63,48 @@ func TestRenderMarkdownReportsMissingChineseFont(t *testing.T) {
 	}
 }
 
+func TestSelectPDFFontSkipsChineseFontThatGofpdfCannotLoad(t *testing.T) {
+	badFont := []byte("bad")
+	goodFont := []byte("good")
+	restore := stubFontSelection(t, [][]byte{badFont, goodFont}, func(fontBytes []byte, text string) bool {
+		return true
+	}, func(fontBytes []byte) error {
+		if bytes.Equal(fontBytes, badFont) {
+			return errors.New("gofpdf rejected font")
+		}
+		return nil
+	})
+	defer restore()
+
+	got, err := selectPDFFont([]byte("中文"))
+	if err != nil {
+		t.Fatalf("expected usable fallback font, got error: %v", err)
+	}
+	if !bytes.Equal(got, goodFont) {
+		t.Fatalf("expected second candidate, got %q", got)
+	}
+}
+
+func TestSelectPDFFontReportsAllChineseFontsFailedToLoad(t *testing.T) {
+	restore := stubFontSelection(t, [][]byte{[]byte("bad-1"), []byte("bad-2")}, func(fontBytes []byte, text string) bool {
+		return true
+	}, func(fontBytes []byte) error {
+		return errors.New("gofpdf rejected font")
+	})
+	defer restore()
+
+	_, err := selectPDFFont([]byte("中文"))
+	if err == nil {
+		t.Fatal("expected all fonts failed error")
+	}
+	if !strings.Contains(err.Error(), "Chinese-capable fonts found but failed to load") {
+		t.Fatalf("expected load failure error, got %v", err)
+	}
+	if strings.Contains(err.Error(), "no Chinese-capable font") {
+		t.Fatalf("expected load failure to be distinguished from missing font, got %v", err)
+	}
+}
+
 func TestNewRendererWithFontReportsGofpdfFontLoadFailure(t *testing.T) {
 	_, err := newRendererWithFont([]byte("not a truetype font"))
 	if err == nil {
@@ -68,6 +112,21 @@ func TestNewRendererWithFontReportsGofpdfFontLoadFailure(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "load PDF font") {
 		t.Fatalf("expected font load error, got %v", err)
+	}
+}
+
+func stubFontSelection(t *testing.T, fonts [][]byte, supports func([]byte, string) bool, validate func([]byte) error) func() {
+	t.Helper()
+	originalLoadSystemFonts := loadSystemFonts
+	originalFontSupportsHan := fontSupportsHan
+	originalValidatePDFFont := validatePDFFont
+	loadSystemFonts = func() [][]byte { return fonts }
+	fontSupportsHan = supports
+	validatePDFFont = validate
+	return func() {
+		loadSystemFonts = originalLoadSystemFonts
+		fontSupportsHan = originalFontSupportsHan
+		validatePDFFont = originalValidatePDFFont
 	}
 }
 

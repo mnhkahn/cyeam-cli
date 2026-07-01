@@ -28,9 +28,14 @@ import (
 var pdfFont []byte
 
 var errNoChineseFont = errors.New("no Chinese-capable font available")
+var errChineseFontsFailedToLoad = errors.New("Chinese-capable fonts found but failed to load")
 
 var findFontPath = findfont.Find
 var listFontPaths = findfont.List
+var validatePDFFont = func(fontBytes []byte) error {
+	_, err := newRendererWithFont(fontBytes)
+	return err
+}
 
 var loadSystemFonts = func() [][]byte {
 	var fontsBytes [][]byte
@@ -77,13 +82,25 @@ func selectPDFFont(src []byte) ([]byte, error) {
 	if !containsHan(text) {
 		return pdfFont, nil
 	}
+	var fontLoadErrs []error
 	for _, fontBytes := range loadSystemFonts() {
 		if fontSupportsHan(fontBytes, text) {
+			if err := validatePDFFont(fontBytes); err != nil {
+				fontLoadErrs = append(fontLoadErrs, err)
+				continue
+			}
 			return fontBytes, nil
 		}
 	}
 	if fontSupportsHan(pdfFont, text) {
-		return pdfFont, nil
+		if err := validatePDFFont(pdfFont); err != nil {
+			fontLoadErrs = append(fontLoadErrs, err)
+		} else {
+			return pdfFont, nil
+		}
+	}
+	if len(fontLoadErrs) > 0 {
+		return nil, fmt.Errorf("%w: %v", errChineseFontsFailedToLoad, errors.Join(fontLoadErrs...))
 	}
 	return nil, fmt.Errorf("%w: install Noto Sans CJK or another Chinese font on the server", errNoChineseFont)
 }
@@ -97,7 +114,7 @@ func containsHan(text string) bool {
 	return false
 }
 
-func fontSupportsHan(fontBytes []byte, text string) bool {
+var fontSupportsHan = func(fontBytes []byte, text string) bool {
 	collection, err := sfnt.ParseCollection(fontBytes)
 	if err != nil {
 		return false
