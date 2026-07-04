@@ -1,4 +1,13 @@
 
+<a name="v0.1.48"></a>
+## [v0.1.48](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.47...v0.1.48) (2026-07-04)
+
+### Bug Fixes
+
+
+- **pdf:** 保留 Markdown 换行并跳过 HTML head/style/script
+
+
 <a name="v0.1.47"></a>
 ## [v0.1.47](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.46...v0.1.47) (2026-07-04)
 
@@ -6,6 +15,11 @@
 
 
 - **pdf:** 新增 Typst 排版支持与 Markdown 多列扩展
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.46"></a>
