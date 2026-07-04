@@ -1,4 +1,13 @@
 
+<a name="v0.1.47"></a>
+## [v0.1.47](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.46...v0.1.47) (2026-07-04)
+
+### Features
+
+
+- **pdf:** 新增 Typst 排版支持与 Markdown 多列扩展
+
+
 <a name="v0.1.46"></a>
 ## [v0.1.46](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.45...v0.1.46) (2026-07-01)
 
@@ -8,6 +17,11 @@
 - **pdf:** 跳过无法加载的中文字体候选
 
 - **skills:** 补充git-cmsg安装清单
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.45"></a>
