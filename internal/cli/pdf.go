@@ -14,14 +14,19 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var renderMarkdownPDF = pdf.RenderMarkdown
+var renderHTMLPDF = pdf.RenderHTML
+var renderTypstPDF = pdf.RenderTypst
+
 func newPDFCommand() *cobra.Command {
 	var outFile string
 	cmd := &cobra.Command{
 		Use:   "pdf [file]",
-		Short: "Convert markdown or HTML to PDF",
-		Long: `Convert markdown or HTML content to PDF.
+		Short: "Convert markdown, HTML, or Typst to PDF",
+		Long: `Convert markdown, HTML, or Typst content to PDF.
 
 Reads from a file or stdin. Format is auto-detected:
+- Files with .typ extension are treated as Typst
 - Files with .html/.htm extension or content starting with <!DOCTYPE/<html are treated as HTML
 - Everything else is treated as Markdown`,
 		Args: cobra.MaximumNArgs(1),
@@ -49,10 +54,12 @@ Reads from a file or stdin. Format is auto-detected:
 			if len(args) == 1 {
 				ext = strings.ToLower(filepath.Ext(args[0]))
 			}
-			if ext == ".html" || ext == ".htm" || pdf.IsHTML(src) {
-				pdfData, err = pdf.RenderHTML(src)
+			if ext == ".typ" {
+				pdfData, err = renderTypstPDF(src)
+			} else if ext == ".html" || ext == ".htm" || pdf.IsHTML(src) {
+				pdfData, err = renderHTMLPDF(src)
 			} else {
-				pdfData, err = pdf.RenderMarkdown(src)
+				pdfData, err = renderMarkdownPDF(src)
 			}
 			if err != nil {
 				return fmt.Errorf("render pdf: %w", err)

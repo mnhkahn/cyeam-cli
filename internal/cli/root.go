@@ -1067,6 +1067,7 @@ func newNewsListCommand(deps Dependencies) *cobra.Command {
 
 func newNewsGetCommand(deps Dependencies) *cobra.Command {
 	var date string
+	var brief bool
 	cmd := &cobra.Command{
 		Use:   "get",
 		Short: "Get full geek news content by date",
@@ -1089,11 +1090,19 @@ func newNewsGetCommand(deps Dependencies) *cobra.Command {
 			if pretty {
 				return renderNewsDetailTable(deps.Stdout, body)
 			}
+			if brief {
+				var err error
+				body, err = compactNewsBody(body)
+				if err != nil {
+					return err
+				}
+			}
 			_, err = deps.Stdout.Write(body)
 			return err
 		},
 	}
 	cmd.Flags().StringVar(&date, "date", "", "news date (YYYY-MM-DD)")
+	cmd.Flags().BoolVar(&brief, "brief", false, "trim news output for LLM processing")
 	_ = cmd.MarkFlagRequired("date")
 	return cmd
 }
@@ -1122,6 +1131,86 @@ type newsItem struct {
 	Description string `json:"description"`
 	Image       string `json:"image"`
 	CreateTime  int64  `json:"create_time"`
+}
+
+type compactNewsAPIResponse struct {
+	News   *compactNewsGeekNews `json:"news,omitempty"`
+	AINews *compactNewsAINews   `json:"ai_news,omitempty"`
+	Date   string               `json:"date"`
+	Error  string               `json:"error,omitempty"`
+}
+
+type compactNewsGeekNews struct {
+	CreateTime int64             `json:"create_time,omitempty"`
+	News       []compactNewsItem `json:"news"`
+	Summary    string            `json:"summary,omitempty"`
+}
+
+type compactNewsAINews struct {
+	CreateTime int64             `json:"create_time,omitempty"`
+	News       []compactNewsItem `json:"news"`
+}
+
+type compactNewsItem struct {
+	Title       string `json:"title"`
+	Link        string `json:"link,omitempty"`
+	Description string `json:"description,omitempty"`
+	CreateTime  int64  `json:"create_time,omitempty"`
+}
+
+func compactNewsBody(body []byte) ([]byte, error) {
+	var resp newsAPIResponse
+	if err := json.Unmarshal(body, &resp); err != nil {
+		return nil, err
+	}
+
+	out := compactNewsAPIResponse{
+		Date:  resp.Date,
+		Error: resp.Error,
+	}
+	if resp.News != nil {
+		out.News = &compactNewsGeekNews{
+			CreateTime: resp.News.CreateTime,
+			Summary:    compactNewsText(resp.News.Summary, 300),
+			News:       compactNewsItems(resp.News.News),
+		}
+	}
+	if resp.AINews != nil {
+		out.AINews = &compactNewsAINews{
+			CreateTime: resp.AINews.CreateTime,
+			News:       compactNewsItems(resp.AINews.News),
+		}
+	}
+
+	return json.Marshal(out)
+}
+
+func compactNewsItems(items []newsItem) []compactNewsItem {
+	out := make([]compactNewsItem, 0, len(items))
+	for _, item := range items {
+		out = append(out, compactNewsItem{
+			Title:       item.Title,
+			Link:        item.Link,
+			Description: compactNewsText(item.Description, 200),
+			CreateTime:  item.CreateTime,
+		})
+	}
+	return out
+}
+
+func compactNewsText(s string, maxRunes int) string {
+	s = regexp.MustCompile(`!\[[^\]]*\]\([^)]+\)`).ReplaceAllString(s, "")
+	s = regexp.MustCompile(`\[([^\]]+)\]\([^)]+\)`).ReplaceAllString(s, "$1")
+	s = regexp.MustCompile(`https?://\S+`).ReplaceAllString(s, "")
+	s = strings.Join(strings.Fields(s), " ")
+	runes := []rune(s)
+	if len(runes) <= maxRunes {
+		return s
+	}
+	if maxRunes <= 3 {
+		return string(runes[:maxRunes])
+	}
+	return string(runes[:maxRunes-3]) + "..."
 }
 
 func renderNewsList(out io.Writer, body []byte) error {

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -353,6 +354,8 @@ const (
 type renderer struct {
 	pdf *gofpdf.Fpdf
 	y   float64
+	x   float64
+	w   float64
 }
 
 func newRenderer(src []byte) (*renderer, error) {
@@ -372,7 +375,7 @@ func newRendererWithFont(fontBytes []byte) (*renderer, error) {
 	if !pdf.Ok() {
 		return nil, fmt.Errorf("load PDF font: %w", pdf.Error())
 	}
-	return &renderer{pdf: pdf, y: marginTop}, nil
+	return &renderer{pdf: pdf, y: marginTop, x: marginLeft, w: contentW}, nil
 }
 
 func (r *renderer) ensurePage(h float64) {
@@ -387,20 +390,33 @@ func (r *renderer) setFont(size float64) {
 }
 
 func RenderMarkdown(src []byte) ([]byte, error) {
-	md := goldmark.New(
-		goldmark.WithExtensions(extension.TaskList),
-	)
-	doc := md.Parser().Parse(text.NewReader(src))
 	r, err := newRenderer(src)
 	if err != nil {
 		return nil, err
 	}
-	walkMarkdown(r, doc, src)
+	for _, segment := range splitMarkdownLayout(src) {
+		if len(bytes.TrimSpace(segment.src)) == 0 && len(segment.columns) == 0 {
+			continue
+		}
+		if len(segment.columns) > 0 {
+			r.renderColumns(segment.columns)
+			continue
+		}
+		renderMarkdownContent(r, segment.src)
+	}
 	var buf bytes.Buffer
 	if err := r.pdf.Output(&buf); err != nil {
 		return nil, fmt.Errorf("output pdf: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func renderMarkdownContent(r *renderer, src []byte) {
+	md := goldmark.New(
+		goldmark.WithExtensions(extension.TaskList),
+	)
+	doc := md.Parser().Parse(text.NewReader(src))
+	walkMarkdown(r, doc, src)
 }
 
 func walkMarkdown(r *renderer, node ast.Node, src []byte) {
@@ -417,22 +433,22 @@ func walkMarkdown(r *renderer, node ast.Node, src []byte) {
 		}
 		r.ensurePage(size + 6)
 		r.setFont(size)
-		r.pdf.SetXY(marginLeft, r.y)
+		r.pdf.SetXY(r.x, r.y)
 		var line strings.Builder
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 			line.WriteString(collectText(child, src))
 		}
-		r.pdf.MultiCell(contentW, size*0.35, line.String(), "", "L", false)
+		r.pdf.MultiCell(r.w, size*0.35, line.String(), "", "L", false)
 		r.y = r.pdf.GetY() + 3
 	case *ast.Paragraph:
 		r.ensurePage(14)
 		r.setFont(11)
-		r.pdf.SetXY(marginLeft, r.y)
+		r.pdf.SetXY(r.x, r.y)
 		var line strings.Builder
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
 			line.WriteString(collectText(child, src))
 		}
-		r.pdf.MultiCell(contentW, 5, line.String(), "", "L", false)
+		r.pdf.MultiCell(r.w, 5, line.String(), "", "L", false)
 		r.y = r.pdf.GetY() + 2
 	case *ast.FencedCodeBlock:
 		r.renderCodeBlock(n, src)
@@ -452,7 +468,7 @@ func walkMarkdown(r *renderer, node ast.Node, src []byte) {
 		r.ensurePage(10)
 		r.y += 3
 		r.pdf.SetY(r.y)
-		r.pdf.Line(marginLeft, r.y, marginLeft+contentW, r.y)
+		r.pdf.Line(r.x, r.y, r.x+r.w, r.y)
 		r.y += 5
 	case *ast.Text, *ast.String, *ast.CodeSpan, *ast.Emphasis, *ast.Link:
 		// Leaf nodes or nodes whose text content is collected by parents
@@ -473,9 +489,9 @@ func walkList(r *renderer, node ast.Node, src []byte, ordered bool, start int, i
 			prefix = fmt.Sprintf("%d. ", *idx)
 			*idx++
 		}
-		r.pdf.SetXY(marginLeft+5, r.y)
+		r.pdf.SetXY(r.x+5, r.y)
 		r.pdf.Cell(8, 5, prefix)
-		r.pdf.SetXY(marginLeft+13, r.y)
+		r.pdf.SetXY(r.x+13, r.y)
 
 		var line strings.Builder
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
@@ -484,7 +500,7 @@ func walkList(r *renderer, node ast.Node, src []byte, ordered bool, start int, i
 			}
 			line.WriteString(collectText(child, src))
 		}
-		r.pdf.MultiCell(contentW-13, 5, line.String(), "", "L", false)
+		r.pdf.MultiCell(r.w-13, 5, line.String(), "", "L", false)
 		r.y = r.pdf.GetY() + 1
 
 		for child := n.FirstChild(); child != nil; child = child.NextSibling() {
@@ -528,18 +544,122 @@ func (r *renderer) renderCodeBlock(n ast.Node, src []byte) {
 
 	r.pdf.SetY(r.y)
 	r.pdf.SetFillColor(245, 245, 245)
-	r.pdf.Rect(marginLeft, r.y, contentW, h, "F")
+	r.pdf.Rect(r.x, r.y, r.w, h, "F")
 	r.pdf.SetFillColor(0, 0, 0)
 
 	r.setFont(9)
 	cy := r.y + 3
 	for _, l := range lines {
-		r.pdf.SetXY(marginLeft+4, cy)
-		r.pdf.Cell(contentW-8, lineH, strings.TrimRight(l, "\r\n"))
+		r.pdf.SetXY(r.x+4, cy)
+		r.pdf.Cell(r.w-8, lineH, strings.TrimRight(l, "\r\n"))
 		cy += lineH
 	}
 	r.y = cy + 4
 	r.pdf.SetY(r.y)
+}
+
+type markdownLayoutSegment struct {
+	src     []byte
+	columns [][]byte
+}
+
+func splitMarkdownLayout(src []byte) []markdownLayoutSegment {
+	lines := strings.SplitAfter(string(src), "\n")
+	var segments []markdownLayoutSegment
+	var normal strings.Builder
+
+	flushNormal := func() {
+		if normal.Len() == 0 {
+			return
+		}
+		segments = append(segments, markdownLayoutSegment{src: []byte(normal.String())})
+		normal.Reset()
+	}
+
+	for i := 0; i < len(lines); {
+		if _, ok := parseColumnsStart(lines[i]); !ok {
+			normal.WriteString(lines[i])
+			i++
+			continue
+		}
+
+		flushNormal()
+		i++
+		var columns [][]byte
+		for i < len(lines) {
+			trimmed := strings.TrimSpace(lines[i])
+			if trimmed == ":::" {
+				i++
+				break
+			}
+			if !isColumnStart(lines[i]) {
+				i++
+				continue
+			}
+			i++
+			var col strings.Builder
+			for i < len(lines) {
+				if strings.TrimSpace(lines[i]) == ":::" {
+					i++
+					break
+				}
+				col.WriteString(lines[i])
+				i++
+			}
+			columns = append(columns, []byte(col.String()))
+		}
+		if len(columns) > 0 {
+			segments = append(segments, markdownLayoutSegment{columns: columns})
+		}
+	}
+	flushNormal()
+	return segments
+}
+
+func parseColumnsStart(line string) (int, bool) {
+	fields := strings.Fields(strings.TrimSpace(line))
+	if len(fields) >= 2 && fields[0] == ":::" && fields[1] == "columns" {
+		if len(fields) >= 3 {
+			var count int
+			if _, err := fmt.Sscanf(fields[2], "%d", &count); err == nil && count > 0 {
+				return count, true
+			}
+		}
+		return 2, true
+	}
+	return 0, false
+}
+
+func isColumnStart(line string) bool {
+	trimmed := strings.TrimSpace(line)
+	return trimmed == "::: column" || strings.HasPrefix(trimmed, "::: column ")
+}
+
+func (r *renderer) renderColumns(columns [][]byte) {
+	count := len(columns)
+	if count == 0 {
+		return
+	}
+	r.ensurePage(12)
+	startY := r.y
+	originalX, originalW := r.x, r.w
+	gutter := 6.0
+	colW := (originalW - gutter*float64(count-1)) / float64(count)
+	maxY := startY
+
+	for i, col := range columns {
+		r.x = originalX + float64(i)*(colW+gutter)
+		r.w = colW
+		r.y = startY
+		renderMarkdownContent(r, col)
+		if r.y > maxY {
+			maxY = r.y
+		}
+	}
+
+	r.x = originalX
+	r.w = originalW
+	r.y = maxY + 2
 }
 
 func collectText(node ast.Node, src []byte) string {
@@ -584,6 +704,39 @@ func walkText(node ast.Node, src []byte, buf *strings.Builder) {
 			walkText(child, src, buf)
 		}
 	}
+}
+
+var compileTypst = func(src []byte) ([]byte, error) {
+	dir, err := os.MkdirTemp("", "cyeam-typst-*")
+	if err != nil {
+		return nil, fmt.Errorf("create typst temp dir: %w", err)
+	}
+	defer os.RemoveAll(dir)
+
+	inPath := filepath.Join(dir, "input.typ")
+	outPath := filepath.Join(dir, "output.pdf")
+	if err := os.WriteFile(inPath, src, 0o600); err != nil {
+		return nil, fmt.Errorf("write typst source: %w", err)
+	}
+
+	cmd := exec.Command("typst", "compile", inPath, outPath)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		msg := strings.TrimSpace(string(out))
+		if msg == "" {
+			msg = err.Error()
+		}
+		return nil, fmt.Errorf("compile typst: %s", msg)
+	}
+
+	pdfData, err := os.ReadFile(outPath)
+	if err != nil {
+		return nil, fmt.Errorf("read typst pdf: %w", err)
+	}
+	return pdfData, nil
+}
+
+func RenderTypst(src []byte) ([]byte, error) {
+	return compileTypst(src)
 }
 
 func RenderHTML(src []byte) ([]byte, error) {

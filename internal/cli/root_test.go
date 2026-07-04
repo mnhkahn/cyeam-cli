@@ -29,8 +29,7 @@ type fakeService struct {
 	moComposeChar     string
 	moOCRFilename     string
 	moOCRBody         string
-	newsListFrom      string
-	newsListTo        string
+	newsGetDate       string
 	newsListBody      string
 }
 
@@ -128,8 +127,7 @@ func (f *fakeService) MoOCR(ctx context.Context, filename string, body []byte) (
 }
 
 func (f *fakeService) NewsGet(ctx context.Context, date string) ([]byte, error) {
-	f.newsListFrom = from
-	f.newsListTo = to
+	f.newsGetDate = date
 	if f.newsListBody != "" {
 		return []byte(f.newsListBody), nil
 	}

@@ -10,6 +10,59 @@ import (
 	"testing"
 )
 
+func TestRenderMarkdownColumnsSyntaxRendersWithoutMarkers(t *testing.T) {
+	pdfData, err := RenderMarkdown([]byte("::: columns 2\n::: column\n左列\n:::\n::: column\n右列\n:::\n:::\n"))
+	if err != nil {
+		t.Fatalf("RenderMarkdown columns returned error: %v", err)
+	}
+	if bytes.Contains(pdfData, []byte("columns 2")) || bytes.Contains(pdfData, []byte(":::")) {
+		t.Fatalf("expected columns markers to be layout syntax, got raw markers in PDF bytes")
+	}
+}
+
+func TestSplitMarkdownLayoutExtractsColumns(t *testing.T) {
+	segments := splitMarkdownLayout([]byte("# 标题\n\n::: columns 2\n::: column\n左列\n:::\n::: column\n右列\n:::\n:::\n\n结尾"))
+	if len(segments) != 3 {
+		t.Fatalf("expected normal, columns, normal segments, got %d", len(segments))
+	}
+	if string(segments[0].src) != "# 标题\n\n" {
+		t.Fatalf("first segment = %q", segments[0].src)
+	}
+	if len(segments[1].columns) != 2 {
+		t.Fatalf("expected 2 columns, got %d", len(segments[1].columns))
+	}
+	if string(segments[1].columns[0]) != "左列\n" || string(segments[1].columns[1]) != "右列\n" {
+		t.Fatalf("columns = %#v", segments[1].columns)
+	}
+	if string(segments[2].src) != "\n结尾" {
+		t.Fatalf("last segment = %q", segments[2].src)
+	}
+}
+
+func TestRenderTypstUsesCompiler(t *testing.T) {
+	originalCompileTypst := compileTypst
+	t.Cleanup(func() {
+		compileTypst = originalCompileTypst
+	})
+
+	var gotSrc []byte
+	compileTypst = func(src []byte) ([]byte, error) {
+		gotSrc = append([]byte(nil), src...)
+		return []byte("%PDF typst"), nil
+	}
+
+	pdfData, err := RenderTypst([]byte("#columns(2)[A #colbreak() B]"))
+	if err != nil {
+		t.Fatalf("RenderTypst returned error: %v", err)
+	}
+	if string(pdfData) != "%PDF typst" {
+		t.Fatalf("RenderTypst returned %q", pdfData)
+	}
+	if string(gotSrc) != "#columns(2)[A #colbreak() B]" {
+		t.Fatalf("RenderTypst passed source %q", gotSrc)
+	}
+}
+
 func TestLoadSystemFontsReadsTTFAndTTCOnly(t *testing.T) {
 	dir := t.TempDir()
 	ttfPath := filepath.Join(dir, "NotoSansCJK.ttf")
