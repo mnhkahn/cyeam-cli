@@ -8,6 +8,10 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/text"
 )
 
 func TestRenderMarkdownColumnsSyntaxRendersWithoutMarkers(t *testing.T) {
@@ -60,6 +64,29 @@ func TestRenderTypstUsesCompiler(t *testing.T) {
 	}
 	if string(gotSrc) != "#columns(2)[A #colbreak() B]" {
 		t.Fatalf("RenderTypst passed source %q", gotSrc)
+	}
+}
+
+func TestHTMLToMarkdownSkipsHeadStyleAndScript(t *testing.T) {
+	got := string(htmlToMarkdown([]byte(`<html><head><style>.cols{column-count:2}</style><script>alert(1)</script></head><body><h1>标题</h1><p>正文</p></body></html>`)))
+	if strings.Contains(got, "column-count") || strings.Contains(got, "alert") {
+		t.Fatalf("expected head style and script to be skipped, got %q", got)
+	}
+	if !strings.Contains(got, "# 标题") || !strings.Contains(got, "正文") {
+		t.Fatalf("expected body content to be preserved, got %q", got)
+	}
+}
+
+func TestCollectTextPreservesMarkdownLineBreaks(t *testing.T) {
+	src := []byte("第一句\n第二句\n第三句")
+	doc := goldmark.New().Parser().Parse(text.NewReader(src))
+	paragraph := doc.FirstChild()
+	if _, ok := paragraph.(*ast.Paragraph); !ok {
+		t.Fatalf("expected paragraph, got %T", paragraph)
+	}
+	got := collectText(paragraph, src)
+	if got != "第一句\n第二句\n第三句" {
+		t.Fatalf("collectText = %q", got)
 	}
 }
 

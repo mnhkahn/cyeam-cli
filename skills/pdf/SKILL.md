@@ -28,6 +28,7 @@ cat README.md | cyeam pdf -o out.pdf     # 从 stdin 读 Markdown 并保存 PDF
 - 当用户明确要求紧凑、节省空间、排满页面、多列展示、自由排版、版面更好看时，不要只生成普通 Markdown 单栏内容。
 - 轻量多列仍可用 Markdown，但要使用 `cyeam pdf` 支持的 columns 扩展语法。
 - 需要更自由的布局（多列、网格、明确换列、页面级排版）时，优先生成 Typst 文件（`.typ`），再执行 `cyeam pdf <file.typ> -o <file.pdf>`。
+- 不要用 HTML/CSS 实现紧凑或多列排版；当前 HTML 输入只适合简单结构转换，CSS 不作为 PDF 布局引擎执行。
 
 ### Markdown 多列扩展
 

@@ -672,8 +672,8 @@ func walkText(node ast.Node, src []byte, buf *strings.Builder) {
 	switch n := node.(type) {
 	case *ast.Text:
 		buf.Write(n.Segment.Value(src))
-		if n.SoftLineBreak() {
-			buf.WriteString(" ")
+		if n.SoftLineBreak() || n.HardLineBreak() {
+			buf.WriteString("\n")
 		}
 	case *east.TaskCheckBox:
 		if n.IsChecked {
@@ -760,6 +760,8 @@ func walkHTML(n *html.Node, buf *bytes.Buffer) {
 		buf.WriteString(n.Data)
 	case html.ElementNode:
 		switch n.DataAtom {
+		case atom.Head, atom.Style, atom.Script:
+			return
 		case atom.H1, atom.H2, atom.H3, atom.H4, atom.H5, atom.H6:
 			level := int(n.DataAtom - atom.H1 + 1)
 			if level > 4 {
