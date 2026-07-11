@@ -1,15 +1,29 @@
 
-<a name="v0.2.0"></a>
-## [v0.2.0](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.1...v0.2.0) (2026-07-11)
+<a name="v0.2.2"></a>
+## [v0.2.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.1...v0.2.2) (2026-07-12)
+
+### Features
+
+
+- **trello:** 补齐 board/list/card 的 CRUD 命令与客户端方法
 
 
 <a name="v0.2.1"></a>
-## [v0.2.1](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.49...v0.2.1) (2026-07-11)
+## [v0.2.1](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.0...v0.2.1) (2026-07-11)
 
 ### Bug Fixes
 
 
 - **cli:** skills 同步默认全局安装
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
+
+
+<a name="v0.2.0"></a>
+## [v0.2.0](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.49...v0.2.0) (2026-07-11)
 
 ### Miscellaneous Tasks
 
@@ -793,7 +807,7 @@
 
 
 <a name="skill-6"></a>
-## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-6) (2026-06-12)
+## [skill-6](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...skill-6) (2026-06-12)
 
 ### Documentation
 
@@ -801,12 +815,12 @@
 - **skills:** add cyeam-cli installation steps for different platforms
 
 
-<a name="v0.1.2"></a>
-## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-5...v0.1.2) (2026-06-12)
-
-
 <a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...skill-5) (2026-06-12)
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.2...skill-5) (2026-06-12)
+
+
+<a name="v0.1.2"></a>
+## [v0.1.2](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.2) (2026-06-12)
 
 ### Documentation
 
