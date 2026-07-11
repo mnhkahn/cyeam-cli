@@ -90,8 +90,41 @@ func (c *Client) Boards(ctx context.Context) ([]byte, error) {
 	return c.get(ctx, "members/me/boards", url.Values{"fields": {"id,name,closed,url"}})
 }
 
+func (c *Client) Board(ctx context.Context, boardID string) ([]byte, error) {
+	return c.get(ctx, "boards/"+boardID, url.Values{"fields": {"id,name,desc,closed,url,idOrganization,dateLastActivity"}})
+}
+
+func (c *Client) CreateBoard(ctx context.Context, fields url.Values) ([]byte, error) {
+	return c.request(ctx, http.MethodPost, "boards/", fields, nil, "")
+}
+
+func (c *Client) UpdateBoard(ctx context.Context, boardID string, fields url.Values) ([]byte, error) {
+	return c.request(ctx, http.MethodPut, "boards/"+boardID, fields, nil, "")
+}
+
+func (c *Client) DeleteBoard(ctx context.Context, boardID string) ([]byte, error) {
+	return c.request(ctx, http.MethodDelete, "boards/"+boardID, nil, nil, "")
+}
+
 func (c *Client) Lists(ctx context.Context, boardID string) ([]byte, error) {
 	return c.get(ctx, "boards/"+boardID+"/lists", url.Values{"fields": {"id,name,closed,pos"}})
+}
+
+func (c *Client) List(ctx context.Context, listID string) ([]byte, error) {
+	return c.get(ctx, "lists/"+listID, url.Values{"fields": {"id,name,closed,pos,idBoard"}})
+}
+
+func (c *Client) CreateList(ctx context.Context, fields url.Values) ([]byte, error) {
+	return c.request(ctx, http.MethodPost, "lists", fields, nil, "")
+}
+
+func (c *Client) UpdateList(ctx context.Context, listID string, fields url.Values) ([]byte, error) {
+	return c.request(ctx, http.MethodPut, "lists/"+listID, fields, nil, "")
+}
+
+// ArchiveList 归档一个 List。Trello REST 不支持真删除 List，只能把 closed 置为 true。
+func (c *Client) ArchiveList(ctx context.Context, listID string) ([]byte, error) {
+	return c.request(ctx, http.MethodPut, "lists/"+listID+"/closed", url.Values{"value": {"true"}}, nil, "")
 }
 
 func (c *Client) ListCards(ctx context.Context, listID string) ([]byte, error) {
@@ -100,6 +133,14 @@ func (c *Client) ListCards(ctx context.Context, listID string) ([]byte, error) {
 
 func (c *Client) BoardCards(ctx context.Context, boardID string) ([]byte, error) {
 	return c.get(ctx, "boards/"+boardID+"/cards", cardFields())
+}
+
+func (c *Client) Card(ctx context.Context, cardID string) ([]byte, error) {
+	return c.get(ctx, "cards/"+cardID, cardFields())
+}
+
+func (c *Client) DeleteCard(ctx context.Context, cardID string) ([]byte, error) {
+	return c.request(ctx, http.MethodDelete, "cards/"+cardID, nil, nil, "")
 }
 
 func (c *Client) Attachments(ctx context.Context, cardID string) ([]byte, error) {

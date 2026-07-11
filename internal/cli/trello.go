@@ -19,8 +19,19 @@ import (
 )
 
 func newTrelloCommand() *cobra.Command {
-	cmd := &cobra.Command{Use: "trello", Short: "Manage Trello boards and task cards"}
-	cmd.AddCommand(newTrelloLoginCommand(), newTrelloStatusCommand(), newTrelloLogoutCommand(), newTrelloBoardsCommand(), newTrelloListsCommand(), newTrelloCardsCommand(), newTrelloCardCommand(), newTrelloWebhookCommand())
+	cmd := &cobra.Command{Use: "trello", Short: "Manage Trello boards, lists, and task cards"}
+	cmd.AddCommand(
+		newTrelloLoginCommand(),
+		newTrelloStatusCommand(),
+		newTrelloLogoutCommand(),
+		newTrelloBoardsCommand(),
+		newTrelloListsCommand(),
+		newTrelloCardsCommand(),
+		newTrelloBoardCommand(),
+		newTrelloListCommand(),
+		newTrelloCardCommand(),
+		newTrelloWebhookCommand(),
+	)
 	return cmd
 }
 
@@ -226,8 +237,45 @@ func filterTodayCards(data []byte, now time.Time) ([]byte, error) {
 
 func newTrelloCardCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "card", Short: "Create, update, move, and inspect cards"}
-	cmd.AddCommand(newTrelloCreateCardCommand(), newTrelloUpdateCardCommand(), newTrelloMoveCardCommand(), newTrelloAttachCardCommand(), newTrelloAttachmentsCommand(), newTrelloActionsCommand())
+	cmd.AddCommand(
+		newTrelloGetCardCommand(),
+		newTrelloCreateCardCommand(),
+		newTrelloUpdateCardCommand(),
+		newTrelloMoveCardCommand(),
+		newTrelloDeleteCardCommand(),
+		newTrelloAttachCardCommand(),
+		newTrelloAttachmentsCommand(),
+		newTrelloActionsCommand(),
+	)
 	return cmd
+}
+
+func newTrelloGetCardCommand() *cobra.Command {
+	return &cobra.Command{Use: "get <card-id>", Short: "Get a card's detail", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.Card(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+}
+
+func newTrelloDeleteCardCommand() *cobra.Command {
+	return &cobra.Command{Use: "delete <card-id>", Short: "Permanently delete a card", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.DeleteCard(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
 }
 
 func newTrelloCreateCardCommand() *cobra.Command {
@@ -405,4 +453,208 @@ func newTrelloWebhookCommand() *cobra.Command {
 	}}
 	cmd.AddCommand(create, deleteCmd)
 	return cmd
+}
+
+// ---------- Board CRUD ----------
+
+func newTrelloBoardCommand() *cobra.Command {
+	cmd := &cobra.Command{Use: "board", Short: "Get, create, update, and delete boards"}
+	cmd.AddCommand(newTrelloGetBoardCommand(), newTrelloCreateBoardCommand(), newTrelloUpdateBoardCommand(), newTrelloDeleteBoardCommand())
+	return cmd
+}
+
+func newTrelloGetBoardCommand() *cobra.Command {
+	return &cobra.Command{Use: "get <board-id>", Short: "Get a board's detail", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.Board(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+}
+
+func newTrelloCreateBoardCommand() *cobra.Command {
+	var name, desc, orgID string
+	var defaultLists bool
+	cmd := &cobra.Command{Use: "create", Short: "Create a new board", RunE: func(cmd *cobra.Command, _ []string) error {
+		if name == "" {
+			return fmt.Errorf("--name is required")
+		}
+		fields := url.Values{"name": {name}}
+		if desc != "" {
+			fields.Set("desc", desc)
+		}
+		if orgID != "" {
+			fields.Set("idOrganization", orgID)
+		}
+		// Trello 默认会创建 To Do / Doing / Done 三个 List；通过 defaultLists=false 可禁用。
+		if cmd.Flags().Changed("default-lists") {
+			fields.Set("defaultLists", strconv.FormatBool(defaultLists))
+		}
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.CreateBoard(cmd.Context(), fields)
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+	cmd.Flags().StringVar(&name, "name", "", "board name")
+	cmd.Flags().StringVar(&desc, "desc", "", "board description")
+	cmd.Flags().StringVar(&orgID, "org", "", "workspace (organization) ID")
+	cmd.Flags().BoolVar(&defaultLists, "default-lists", true, "create the default To Do/Doing/Done lists")
+	return cmd
+}
+
+func newTrelloUpdateBoardCommand() *cobra.Command {
+	var name, desc string
+	var closed bool
+	cmd := &cobra.Command{Use: "update <board-id>", Short: "Update a board", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		fields := url.Values{}
+		if cmd.Flags().Changed("name") {
+			fields.Set("name", name)
+		}
+		if cmd.Flags().Changed("desc") {
+			fields.Set("desc", desc)
+		}
+		if cmd.Flags().Changed("closed") {
+			fields.Set("closed", strconv.FormatBool(closed))
+		}
+		if len(fields) == 0 {
+			return fmt.Errorf("provide at least one field to update")
+		}
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.UpdateBoard(cmd.Context(), args[0], fields)
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+	cmd.Flags().StringVar(&name, "name", "", "new name")
+	cmd.Flags().StringVar(&desc, "desc", "", "new description")
+	cmd.Flags().BoolVar(&closed, "closed", false, "archive (true) or reopen (false) the board")
+	return cmd
+}
+
+func newTrelloDeleteBoardCommand() *cobra.Command {
+	return &cobra.Command{Use: "delete <board-id>", Short: "Permanently delete a board", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.DeleteBoard(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+}
+
+// ---------- List CRUD ----------
+
+func newTrelloListCommand() *cobra.Command {
+	cmd := &cobra.Command{Use: "list", Short: "Get, create, update, and archive lists"}
+	cmd.AddCommand(newTrelloGetListCommand(), newTrelloCreateListCommand(), newTrelloUpdateListCommand(), newTrelloArchiveListCommand())
+	return cmd
+}
+
+func newTrelloGetListCommand() *cobra.Command {
+	return &cobra.Command{Use: "get <list-id>", Short: "Get a list's detail", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.List(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+}
+
+func newTrelloCreateListCommand() *cobra.Command {
+	var boardID, name, pos string
+	cmd := &cobra.Command{Use: "create", Short: "Create a new list on a board", RunE: func(cmd *cobra.Command, _ []string) error {
+		if boardID == "" || name == "" {
+			return fmt.Errorf("--board and --name are required")
+		}
+		fields := url.Values{"idBoard": {boardID}, "name": {name}}
+		if pos != "" {
+			fields.Set("pos", pos)
+		}
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.CreateList(cmd.Context(), fields)
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+	cmd.Flags().StringVar(&boardID, "board", "", "target board ID")
+	cmd.Flags().StringVar(&name, "name", "", "list name")
+	cmd.Flags().StringVar(&pos, "pos", "", "position: top, bottom, or numeric")
+	return cmd
+}
+
+func newTrelloUpdateListCommand() *cobra.Command {
+	var name, pos, boardID string
+	var closed bool
+	cmd := &cobra.Command{Use: "update <list-id>", Short: "Update a list", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		fields := url.Values{}
+		if cmd.Flags().Changed("name") {
+			fields.Set("name", name)
+		}
+		if cmd.Flags().Changed("pos") {
+			fields.Set("pos", pos)
+		}
+		if cmd.Flags().Changed("board") {
+			fields.Set("idBoard", boardID)
+		}
+		if cmd.Flags().Changed("closed") {
+			fields.Set("closed", strconv.FormatBool(closed))
+		}
+		if len(fields) == 0 {
+			return fmt.Errorf("provide at least one field to update")
+		}
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.UpdateList(cmd.Context(), args[0], fields)
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
+	cmd.Flags().StringVar(&name, "name", "", "new name")
+	cmd.Flags().StringVar(&pos, "pos", "", "new position: top, bottom, or numeric")
+	cmd.Flags().StringVar(&boardID, "board", "", "move to a different board")
+	cmd.Flags().BoolVar(&closed, "closed", false, "archive (true) or reopen (false) the list")
+	return cmd
+}
+
+func newTrelloArchiveListCommand() *cobra.Command {
+	// Trello REST 不提供 List 的真删除，这里以归档代替；如需恢复，用 `list update --closed=false`。
+	return &cobra.Command{Use: "archive <list-id>", Short: "Archive a list (Trello has no hard delete for lists)", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		data, err := client.ArchiveList(cmd.Context(), args[0])
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, data)
+	}}
 }

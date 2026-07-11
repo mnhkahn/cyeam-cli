@@ -73,3 +73,140 @@ func TestRequestIncludesAPIError(t *testing.T) {
 		t.Fatalf("error = %v", err)
 	}
 }
+
+func TestBoardCRUDEndpoints(t *testing.T) {
+	cases := []struct {
+		name       string
+		wantMethod string
+		wantPath   string
+		wantQuery  map[string]string
+		call       func(c *Client) error
+	}{
+		{
+			name: "get", wantMethod: http.MethodGet, wantPath: "/boards/b1",
+			call: func(c *Client) error { _, err := c.Board(context.Background(), "b1"); return err },
+		},
+		{
+			name: "create", wantMethod: http.MethodPost, wantPath: "/boards/",
+			wantQuery: map[string]string{"name": "看板"},
+			call: func(c *Client) error {
+				_, err := c.CreateBoard(context.Background(), url.Values{"name": {"看板"}})
+				return err
+			},
+		},
+		{
+			name: "update", wantMethod: http.MethodPut, wantPath: "/boards/b1",
+			wantQuery: map[string]string{"name": "新名字"},
+			call: func(c *Client) error {
+				_, err := c.UpdateBoard(context.Background(), "b1", url.Values{"name": {"新名字"}})
+				return err
+			},
+		},
+		{
+			name: "delete", wantMethod: http.MethodDelete, wantPath: "/boards/b1",
+			call: func(c *Client) error { _, err := c.DeleteBoard(context.Background(), "b1"); return err },
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tc.wantMethod || r.URL.Path != tc.wantPath {
+					t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+				}
+				q := r.URL.Query()
+				if q.Get("key") != "key" || q.Get("token") != "token" {
+					t.Fatalf("missing auth: %v", q)
+				}
+				for k, v := range tc.wantQuery {
+					if q.Get(k) != v {
+						t.Fatalf("query %q = %q, want %q", k, q.Get(k), v)
+					}
+				}
+				_, _ = io.WriteString(w, `{}`)
+			})
+			if err := tc.call(client); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestListCRUDEndpoints(t *testing.T) {
+	cases := []struct {
+		name       string
+		wantMethod string
+		wantPath   string
+		wantQuery  map[string]string
+		call       func(c *Client) error
+	}{
+		{
+			name: "get", wantMethod: http.MethodGet, wantPath: "/lists/l1",
+			call: func(c *Client) error { _, err := c.List(context.Background(), "l1"); return err },
+		},
+		{
+			name: "create", wantMethod: http.MethodPost, wantPath: "/lists",
+			wantQuery: map[string]string{"idBoard": "b1", "name": "待执行"},
+			call: func(c *Client) error {
+				_, err := c.CreateList(context.Background(), url.Values{"idBoard": {"b1"}, "name": {"待执行"}})
+				return err
+			},
+		},
+		{
+			name: "update", wantMethod: http.MethodPut, wantPath: "/lists/l1",
+			wantQuery: map[string]string{"name": "已提交"},
+			call: func(c *Client) error {
+				_, err := c.UpdateList(context.Background(), "l1", url.Values{"name": {"已提交"}})
+				return err
+			},
+		},
+		{
+			name: "archive", wantMethod: http.MethodPut, wantPath: "/lists/l1/closed",
+			wantQuery: map[string]string{"value": "true"},
+			call: func(c *Client) error { _, err := c.ArchiveList(context.Background(), "l1"); return err },
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+				if r.Method != tc.wantMethod || r.URL.Path != tc.wantPath {
+					t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+				}
+				q := r.URL.Query()
+				for k, v := range tc.wantQuery {
+					if q.Get(k) != v {
+						t.Fatalf("query %q = %q, want %q", k, q.Get(k), v)
+					}
+				}
+				_, _ = io.WriteString(w, `{}`)
+			})
+			if err := tc.call(client); err != nil {
+				t.Fatal(err)
+			}
+		})
+	}
+}
+
+func TestCardGetAndDelete(t *testing.T) {
+	t.Run("get", func(t *testing.T) {
+		client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodGet || r.URL.Path != "/cards/c1" {
+				t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+			}
+			_, _ = io.WriteString(w, `{"id":"c1"}`)
+		})
+		if _, err := client.Card(context.Background(), "c1"); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("delete", func(t *testing.T) {
+		client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.Method != http.MethodDelete || r.URL.Path != "/cards/c1" {
+				t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+			}
+			_, _ = io.WriteString(w, `{}`)
+		})
+		if _, err := client.DeleteCard(context.Background(), "c1"); err != nil {
+			t.Fatal(err)
+		}
+	})
+}
