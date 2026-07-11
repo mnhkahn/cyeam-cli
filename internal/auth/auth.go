@@ -19,7 +19,8 @@ const (
 	scopes    = "Files.ReadWrite User.Read offline_access"
 )
 
-func openBrowser(url string) error {
+// OpenBrowser opens a URL using the platform's default browser.
+func OpenBrowser(url string) error {
 	var cmd string
 	var args []string
 	switch runtime.GOOS {
@@ -53,7 +54,7 @@ func Login(ctx context.Context, stdout, stderr io.Writer) error {
 
 	// Best-effort: open a browser on machines that have one. On headless
 	// servers this fails silently and the user follows the link above manually.
-	_ = openBrowser(dcResp.VerificationURI)
+	_ = OpenBrowser(dcResp.VerificationURI)
 
 	fmt.Fprintf(stderr, "[3] waiting for authentication...\n")
 

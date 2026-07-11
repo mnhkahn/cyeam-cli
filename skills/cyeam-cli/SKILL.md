@@ -56,6 +56,7 @@ cyeam cnote ...                        # 云笔记 → 见 cnote skill
 cyeam mail ...                         # 多邮箱收发 → 见 mail skill
 cyeam image ...                        # 图片转换 → 见 image skill
 cyeam ai models [...]                  # AI免费模型 → 见 ai-models skill
+cyeam trello ...                       # Trello任务看板 → 见 trello skill
 ```
 
 所有命令输出 JSON 信封 `{"ok":true,"data":"...","_notice":{...}}`。加 `--pretty` 去掉信封。

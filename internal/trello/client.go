@@ -23,12 +23,20 @@ type Client struct {
 	Token      string
 }
 
-func NewFromEnv() (*Client, error) {
-	key, token := os.Getenv("TRELLO_API_KEY"), os.Getenv("TRELLO_TOKEN")
-	if key == "" || token == "" {
-		return nil, fmt.Errorf("set TRELLO_API_KEY and TRELLO_TOKEN before using Trello")
+func NewDefault() (*Client, error) {
+	credentials, _, err := ResolveCredentials()
+	if err != nil {
+		return nil, err
 	}
-	return &Client{BaseURL: defaultBaseURL, HTTPClient: http.DefaultClient, APIKey: key, Token: token}, nil
+	return New(credentials), nil
+}
+
+func New(credentials Credentials) *Client {
+	return &Client{BaseURL: defaultBaseURL, HTTPClient: http.DefaultClient, APIKey: credentials.APIKey, Token: credentials.Token}
+}
+
+func (c *Client) Member(ctx context.Context) ([]byte, error) {
+	return c.get(ctx, "members/me", url.Values{"fields": {"id,fullName,username"}})
 }
 
 func (c *Client) request(ctx context.Context, method, endpoint string, form url.Values, body io.Reader, contentType string) ([]byte, error) {

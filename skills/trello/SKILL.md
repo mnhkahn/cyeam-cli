@@ -5,7 +5,7 @@ description: Trello 学习任务看板——通过 cyeam CLI 查询看板、状�
 
 # Trello 任务看板
 
-使用 `cyeam trello`，不要自行拼装 Trello HTTP 请求。认证只从 `TRELLO_API_KEY` 和 `TRELLO_TOKEN` 环境变量读取，绝不输出其值。
+使用 `cyeam trello`，不要自行拼装 Trello HTTP 请求。首次使用先运行 `cyeam trello login --key <api-key>`，在浏览器授权后把页面显示的 Token 粘贴回 CLI；CLI 验证并存入系统钥匙串，钥匙串不可用时回退到权限为 `0600` 的 `~/.cyeam/trello.json`。绝不输出凭据。
 
 ## 规则
 
@@ -13,10 +13,15 @@ description: Trello 学习任务看板——通过 cyeam CLI 查询看板、状�
 - 查询当天任务使用 `cards --board <board-id> --today`；按本机时区和 `due` 筛选。
 - 创建、修改、移动、上传附件及 Webhook 增删会改变外部状态，必须先获得用户明确确认。
 - Webhook 命令只管理订阅；公网 HTTPS 接收端、验签、去重和安卓同步由独立服务实现。
+- 环境变量 `TRELLO_API_KEY` 和 `TRELLO_TOKEN` 仅用于 CI 或临时覆盖；设置其中一个时必须同时设置另一个。
 
 ## 命令
 
 ```text
+cyeam trello login --key <api-key>
+cyeam trello status
+cyeam trello logout
+
 cyeam trello boards
 cyeam trello lists <board-id>
 cyeam trello cards --list <list-id> [--today]

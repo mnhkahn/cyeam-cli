@@ -1,26 +1,138 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/url"
+	"os"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
 	"github.com/mnhkahn/cyeam-cli/internal/trello"
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 )
 
 func newTrelloCommand() *cobra.Command {
 	cmd := &cobra.Command{Use: "trello", Short: "Manage Trello boards and task cards"}
-	cmd.AddCommand(newTrelloBoardsCommand(), newTrelloListsCommand(), newTrelloCardsCommand(), newTrelloCardCommand(), newTrelloWebhookCommand())
+	cmd.AddCommand(newTrelloLoginCommand(), newTrelloStatusCommand(), newTrelloLogoutCommand(), newTrelloBoardsCommand(), newTrelloListsCommand(), newTrelloCardsCommand(), newTrelloCardCommand(), newTrelloWebhookCommand())
 	return cmd
 }
 
-func getTrelloClient() (*trello.Client, error) { return trello.NewFromEnv() }
+func getTrelloClient() (*trello.Client, error) { return trello.NewDefault() }
 func writeTrelloJSON(cmd *cobra.Command, data []byte) error {
 	return output.WriteJSON(cmd.OutOrStdout(), data)
+}
+
+func newTrelloLoginCommand() *cobra.Command {
+	var apiKey string
+	cmd := &cobra.Command{Use: "login", Short: "Authorize Trello and store credentials securely", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		apiKey = strings.TrimSpace(apiKey)
+		if apiKey == "" {
+			apiKey = strings.TrimSpace(os.Getenv("TRELLO_API_KEY"))
+		}
+		if apiKey == "" {
+			if stored, err := trello.LoadCredentials(); err == nil {
+				apiKey = stored.APIKey
+			}
+		}
+		if apiKey == "" {
+			return fmt.Errorf("API key is required: cyeam trello login --key <api-key>")
+		}
+
+		authorizationURL := trello.AuthorizationURL(apiKey)
+		fmt.Fprintf(os.Stdout, "Authorize cyeam in Trello:\n%s\n\n", authorizationURL)
+		if err := auth.OpenBrowser(authorizationURL); err != nil {
+			fmt.Fprintf(os.Stderr, "Could not open a browser automatically: %v\n", err)
+		}
+		token, err := readSecretLine(os.Stdin, os.Stdout, "Paste the token shown after authorization: ")
+		if err != nil {
+			return err
+		}
+		credentials := trello.Credentials{APIKey: apiKey, Token: strings.TrimSpace(token)}
+		if credentials.Token == "" {
+			return fmt.Errorf("token is required")
+		}
+		client := trello.New(credentials)
+		member, err := client.Member(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("validate Trello credentials: %w", err)
+		}
+		if err := trello.StoreCredentials(credentials); err != nil {
+			return fmt.Errorf("store Trello credentials: %w", err)
+		}
+		var identity struct {
+			FullName string `json:"fullName"`
+			Username string `json:"username"`
+		}
+		_ = json.Unmarshal(member, &identity)
+		if identity.Username != "" {
+			fmt.Fprintf(os.Stdout, "Trello login successful: %s (@%s)\n", identity.FullName, identity.Username)
+		} else {
+			fmt.Fprintln(os.Stdout, "Trello login successful.")
+		}
+		if os.Getenv("TRELLO_API_KEY") != "" || os.Getenv("TRELLO_TOKEN") != "" {
+			fmt.Fprintln(os.Stdout, "Note: unset TRELLO_API_KEY and TRELLO_TOKEN to use the newly stored credentials.")
+		}
+		return nil
+	}}
+	cmd.Flags().StringVar(&apiKey, "key", "", "Trello Power-Up API key")
+	return cmd
+}
+
+func newTrelloStatusCommand() *cobra.Command {
+	return &cobra.Command{Use: "status", Short: "Show Trello login status", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		credentials, source, err := trello.ResolveCredentials()
+		if err != nil {
+			data, _ := json.Marshal(map[string]any{"logged_in": false, "message": err.Error()})
+			return writeTrelloJSON(cmd, data)
+		}
+		member, err := trello.New(credentials).Member(cmd.Context())
+		if err != nil {
+			return fmt.Errorf("validate stored Trello credentials: %w", err)
+		}
+		var identity any
+		if err := json.Unmarshal(member, &identity); err != nil {
+			return err
+		}
+		data, _ := json.Marshal(map[string]any{"logged_in": true, "source": source, "member": identity})
+		return writeTrelloJSON(cmd, data)
+	}}
+}
+
+func newTrelloLogoutCommand() *cobra.Command {
+	return &cobra.Command{Use: "logout", Short: "Delete stored Trello credentials", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		if err := trello.DeleteCredentials(); err != nil {
+			return err
+		}
+		message := "Stored Trello credentials deleted."
+		if os.Getenv("TRELLO_API_KEY") != "" || os.Getenv("TRELLO_TOKEN") != "" {
+			message += " Environment variables are still set and continue to override stored credentials."
+		}
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), message)
+		return err
+	}}
+}
+
+func readSecretLine(in *os.File, out io.Writer, prompt string) (string, error) {
+	if _, err := fmt.Fprint(out, prompt); err != nil {
+		return "", err
+	}
+	if term.IsTerminal(int(in.Fd())) {
+		data, err := term.ReadPassword(int(in.Fd()))
+		_, _ = fmt.Fprintln(out)
+		return string(data), err
+	}
+	line, err := bufio.NewReader(in).ReadString('\n')
+	if err != nil && len(line) == 0 {
+		return "", err
+	}
+	return strings.TrimSpace(line), nil
 }
 
 func newTrelloBoardsCommand() *cobra.Command {
