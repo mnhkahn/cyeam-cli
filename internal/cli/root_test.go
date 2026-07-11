@@ -828,3 +828,11 @@ func TestMoOCRUploadsImageFile(t *testing.T) {
 		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
+
+func TestSkillsAddArgsInstallGlobally(t *testing.T) {
+	got := strings.Join(skillsAddArgs(), " ")
+	want := "skills add mnhkahn/cyeam-cli -g -y"
+	if got != want {
+		t.Fatalf("skills add args = %q, want %q", got, want)
+	}
+}

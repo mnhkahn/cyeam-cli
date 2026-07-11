@@ -129,7 +129,7 @@ func syncSkills(ctx context.Context, out io.Writer) bool {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "npx", "skills", "add", "mnhkahn/cyeam-cli", "-y")
+	cmd := exec.CommandContext(ctx, "npx", skillsAddArgs()...)
 	var output bytes.Buffer
 	cmd.Stdout = &output
 	cmd.Stderr = &output
@@ -143,6 +143,10 @@ func syncSkills(ctx context.Context, out io.Writer) bool {
 	}
 	fmt.Fprintf(out, "skills synced\n")
 	return true
+}
+
+func skillsAddArgs() []string {
+	return []string{"skills", "add", "mnhkahn/cyeam-cli", "-g", "-y"}
 }
 
 func setSkillsSynced(version string) {
