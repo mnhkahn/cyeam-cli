@@ -1,4 +1,15 @@
 
+<a name="v0.1.49"></a>
+## [v0.1.49](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.48...v0.1.49) (2026-07-11)
+
+### Features
+
+
+- **skills:** 新增 print-file 本地打印 skill
+
+- **trello:** 新增 Trello 任务看板 CLI 与 skill
+
+
 <a name="v0.1.48"></a>
 ## [v0.1.48](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.47...v0.1.48) (2026-07-04)
 
@@ -6,6 +17,11 @@
 
 
 - **pdf:** 保留 Markdown 换行并跳过 HTML head/style/script
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.47"></a>
