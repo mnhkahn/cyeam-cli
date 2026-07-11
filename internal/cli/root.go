@@ -252,6 +252,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newPDFCommand())
 	root.AddCommand(newImageCommand())
 	root.AddCommand(newMailCommand())
+	root.AddCommand(newTrelloCommand())
 	return root
 }
 
