@@ -1,11 +1,20 @@
 
 <a name="v0.2.0"></a>
-## [v0.2.0](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.49...v0.2.0) (2026-07-11)
+## [v0.2.0](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.1...v0.2.0) (2026-07-11)
+
+
+<a name="v0.2.1"></a>
+## [v0.2.1](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.49...v0.2.1) (2026-07-11)
 
 ### Bug Fixes
 
 
 - **cli:** skills 同步默认全局安装
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.1.49"></a>
