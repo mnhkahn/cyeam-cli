@@ -1,4 +1,13 @@
 
+<a name="v0.2.0"></a>
+## [v0.2.0](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.49...v0.2.0) (2026-07-11)
+
+### Bug Fixes
+
+
+- **cli:** skills 同步默认全局安装
+
+
 <a name="v0.1.49"></a>
 ## [v0.1.49](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.48...v0.1.49) (2026-07-11)
 
@@ -16,6 +25,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - update changelog [skip ci]
 
@@ -786,7 +797,7 @@
 
 
 <a name="skill-5"></a>
-## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-5) (2026-06-12)
+## [skill-5](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...skill-5) (2026-06-12)
 
 ### Documentation
 
@@ -806,12 +817,12 @@
 - 更新gitignore并添加终端表格设计 brainstorm 笔记
 
 
-<a name="v0.1.1"></a>
-## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-4...v0.1.1) (2026-06-11)
-
-
 <a name="skill-4"></a>
-## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...skill-4) (2026-06-11)
+## [skill-4](https://github.com/mnhkahn/cyeam-cli/compare/v0.1.1...skill-4) (2026-06-11)
+
+
+<a name="v0.1.1"></a>
+## [v0.1.1](https://github.com/mnhkahn/cyeam-cli/compare/skill-3...v0.1.1) (2026-06-11)
 
 ### Bug Fixes
 
