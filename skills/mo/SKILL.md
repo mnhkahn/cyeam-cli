@@ -1,6 +1,6 @@
 ---
 name: mo
-version: 0.1.17
+version: 0.1.18
 description: 书法与 OCR——行书书法查询（古文/单字详情/偏旁部首/单字合成）以及书法图片文字识别。需要书法素材或识别碑帖图片时使用。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
@@ -28,6 +28,18 @@ cyeam mo ocr image.png                 # 文字识别
 3. 只有在原字候选为空、文本中有缺字，或用户明确要求“拆字合成 / 合成字 / 拼字”时，才使用合成能力：文本用 `guwen --ai-compose`，单字用 `char compose`。
 
 `char compose` 是**强制拆字合成**命令：即使字库已有完整原字，它也会合成，不能把它当作“获取字图”的默认命令。例如“无”有原帖字形，应先用 `char detail "无"`；仅在明确想看拆字效果时才用 `char compose "无"`。
+
+## 图片交付（必须遵守）
+
+当用户需要查看字形、书法图片或“把字给我看”时，不能只回复候选的图片 URL。选定原字候选后，使用其 `image` 字段以 Markdown 图片直接展示，并同时写出 `source`；例如：
+
+```md
+「无」— 王羲之《临锺繇千字文》
+
+![无](https://res.cloudinary.com/.../word.webp)
+```
+
+`char detail` 的 URL 是原帖图片，可直接嵌入 Markdown；**不要为了获得可展示图片而改用 `char compose`**。只有当前客户端不能渲染 Markdown 图片时，才附上图片链接作为回退。
 
 ## 安装
 
@@ -59,6 +71,7 @@ cyeam mo ocr <image>                  书法图片 OCR（JSON）
 
 - `guwen`、`char detail`、`char composition`、`ocr` 输出 JSON 到 stdout
 - `char detail` 返回的每个候选包含原帖字形与出处；用户要单字时优先使用它
+- 需要展示字形时，调用方应将原字候选的 `image` URL 嵌为 Markdown 图片，并展示其 `source`，而不是只输出 URL
 - `char compose` 输出 PNG 文件（需 `--out` 指定路径），且始终是拆字合成，不代表原帖原字
 
 ## 注意事项
