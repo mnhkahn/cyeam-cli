@@ -128,6 +128,16 @@ cyeam cnote new "日记" < note.html
 cyeam cnote append "日记" < more.html
 ```
 
+### 英语音标
+
+```bash
+# 查询英语单词的英式/美式音标和简明释义
+cyeam phonetic hello
+
+# 人类可读输出
+cyeam --pretty phonetic hello
+```
+
 ### 其他
 
 ```bash

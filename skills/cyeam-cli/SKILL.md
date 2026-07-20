@@ -50,6 +50,7 @@ cyeam date holiday [YYYY-MM-DD]        # 节假日
 cyeam tv ...                           # 直播 → 见 live-broadcast skill
 cyeam news ...                         # 新闻 → 见 news skill
 cyeam pinyin ...                       # 拼音 → 见 pinyin skill
+cyeam phonetic <word>                  # 英语音标 → 见 phonetic skill
 cyeam mo ...                           # 书法 → 见 mo skill
 cyeam roadbook ...                     # 路书 → 见 roadbook skill
 cyeam cnote ...                        # 云笔记 → 见 cnote skill

@@ -19,6 +19,7 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
+	"github.com/mnhkahn/cyeam-cli/internal/phonetic"
 	"github.com/mnhkahn/cyeam-cli/internal/update"
 	"github.com/mnhkahn/cyeam-cli/internal/version"
 	"github.com/spf13/cobra"
@@ -43,6 +44,7 @@ type Dependencies struct {
 	VersionInfo func() version.Info
 	Updater     Updater
 	OneDrive    func() OneDriveClient
+	Phonetic    phonetic.Fetcher
 }
 
 type Updater interface {
@@ -195,6 +197,9 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	if deps.VersionInfo == nil {
 		deps.VersionInfo = version.Current
 	}
+	if deps.Phonetic == nil {
+		deps.Phonetic = phonetic.NewClient()
+	}
 
 	originalStdout := deps.Stdout
 	var buf bytes.Buffer
@@ -252,6 +257,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newNewsCommand(deps))
 	root.AddCommand(newSkillsCommand(deps))
 	root.AddCommand(newPinyinCommand())
+	root.AddCommand(newPhoneticCommand(deps.Phonetic))
 	root.AddCommand(newAICommand())
 	root.AddCommand(newPDFCommand())
 	root.AddCommand(newImageCommand())
