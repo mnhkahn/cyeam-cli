@@ -224,16 +224,16 @@ func TestServiceMapsMoEndpointsWithXingshuFont(t *testing.T) {
 	defer server.Close()
 
 	svc := NewService(client.New(server.URL, server.Client()), server.URL)
-	if _, err := svc.MoGuwen(context.Background(), "兰亭序", true); err != nil {
+	if _, err := svc.MoGuwen(context.Background(), "兰亭序", true, "行书"); err != nil {
 		t.Fatalf("MoGuwen: %v", err)
 	}
-	if _, err := svc.MoCharDetail(context.Background(), "之"); err != nil {
+	if _, err := svc.MoCharDetail(context.Background(), "之", "行书"); err != nil {
 		t.Fatalf("MoCharDetail: %v", err)
 	}
-	if _, err := svc.MoCharComposition(context.Background(), "曦"); err != nil {
+	if _, err := svc.MoCharComposition(context.Background(), "曦", "行书"); err != nil {
 		t.Fatalf("MoCharComposition: %v", err)
 	}
-	if _, err := svc.MoCharCompose(context.Background(), "曦"); err != nil {
+	if _, err := svc.MoCharCompose(context.Background(), "曦", "行书"); err != nil {
 		t.Fatalf("MoCharCompose: %v", err)
 	}
 	if _, err := svc.MoOCR(context.Background(), "image.png", []byte("png-data")); err != nil {

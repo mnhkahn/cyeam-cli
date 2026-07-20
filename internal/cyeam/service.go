@@ -72,10 +72,13 @@ func (s *Service) RoadbookGet(ctx context.Context, id string) ([]byte, error) {
 	return s.client.GetJSON(ctx, "/api/roadbook/get", map[string]string{"id": id})
 }
 
-func (s *Service) MoGuwen(ctx context.Context, text string, aiCompose bool) ([]byte, error) {
+func (s *Service) MoGuwen(ctx context.Context, text string, aiCompose bool, font string) ([]byte, error) {
+	if font == "" {
+		font = "行书"
+	}
 	params := map[string]string{
 		"text": text,
-		"font": "行书",
+		"font": font,
 	}
 	if aiCompose {
 		params["compose"] = "1"
@@ -83,24 +86,33 @@ func (s *Service) MoGuwen(ctx context.Context, text string, aiCompose bool) ([]b
 	return s.client.GetJSON(ctx, "/mo/api/guwen", params)
 }
 
-func (s *Service) MoCharDetail(ctx context.Context, char string) ([]byte, error) {
+func (s *Service) MoCharDetail(ctx context.Context, char string, font string) ([]byte, error) {
+	if font == "" {
+		font = "行书"
+	}
 	return s.client.GetJSON(ctx, "/mo/api/char/detail", map[string]string{
 		"char": char,
-		"font": "行书",
+		"font": font,
 	})
 }
 
-func (s *Service) MoCharComposition(ctx context.Context, char string) ([]byte, error) {
+func (s *Service) MoCharComposition(ctx context.Context, char string, font string) ([]byte, error) {
+	if font == "" {
+		font = "行书"
+	}
 	return s.client.GetJSON(ctx, "/mo/api/char/composition", map[string]string{
 		"char": char,
-		"font": "行书",
+		"font": font,
 	})
 }
 
-func (s *Service) MoCharCompose(ctx context.Context, char string) ([]byte, error) {
+func (s *Service) MoCharCompose(ctx context.Context, char string, font string) ([]byte, error) {
+	if font == "" {
+		font = "行书"
+	}
 	return s.client.DownloadBinary(ctx, "/mo/api/char/compose", map[string]string{
 		"char": char,
-		"font": "行书",
+		"font": font,
 	})
 }
 

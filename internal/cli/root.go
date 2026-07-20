@@ -28,10 +28,10 @@ type Service interface {
 	DateHoliday(ctx context.Context, date string) ([]byte, error)
 	RoadbookShare(ctx context.Context, body []byte) ([]byte, error)
 	RoadbookGet(ctx context.Context, id string) ([]byte, error)
-	MoGuwen(ctx context.Context, text string, aiCompose bool) ([]byte, error)
-	MoCharDetail(ctx context.Context, char string) ([]byte, error)
-	MoCharComposition(ctx context.Context, char string) ([]byte, error)
-	MoCharCompose(ctx context.Context, char string) ([]byte, error)
+	MoGuwen(ctx context.Context, text string, aiCompose bool, font string) ([]byte, error)
+	MoCharDetail(ctx context.Context, char string, font string) ([]byte, error)
+	MoCharComposition(ctx context.Context, char string, font string) ([]byte, error)
+	MoCharCompose(ctx context.Context, char string, font string) ([]byte, error)
 	MoOCR(ctx context.Context, filename string, body []byte) ([]byte, error)
 	NewsGet(ctx context.Context, date string) ([]byte, error)
 }
@@ -705,15 +705,16 @@ func newMoCommand(deps Dependencies) *cobra.Command {
 
 func newMoGuwenCommand(deps Dependencies) *cobra.Command {
 	var aiCompose bool
+	var font string
 	cmd := &cobra.Command{
 		Use:   "guwen <text>",
-		Short: "Generate xingshu guwen glyph data",
+		Short: "Generate guwen glyph data",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if deps.Service == nil {
 				return fmt.Errorf("service is required")
 			}
-			body, err := deps.Service.MoGuwen(cmd.Context(), args[0], aiCompose)
+			body, err := deps.Service.MoGuwen(cmd.Context(), args[0], aiCompose, font)
 			if err != nil {
 				return err
 			}
@@ -721,6 +722,7 @@ func newMoGuwenCommand(deps Dependencies) *cobra.Command {
 		},
 	}
 	cmd.Flags().BoolVar(&aiCompose, "ai-compose", false, "enable AI composition for missing glyphs")
+	cmd.Flags().StringVar(&font, "font", "行书", "font type: 行书, 楷书, 隶书 etc.")
 	return cmd
 }
 
@@ -729,45 +731,56 @@ func newMoCharCommand(deps Dependencies) *cobra.Command {
 		Use:   "char",
 		Short: "Mo character utilities",
 	}
-	cmd.AddCommand(&cobra.Command{
-		Use:   "detail <char>",
-		Short: "Get xingshu glyph candidates",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if deps.Service == nil {
-				return fmt.Errorf("service is required")
-			}
-			body, err := deps.Service.MoCharDetail(cmd.Context(), args[0])
-			if err != nil {
-				return err
-			}
-			return output.WriteJSON(deps.Stdout, body)
-		},
-	})
-	cmd.AddCommand(&cobra.Command{
-		Use:   "composition <char>",
-		Short: "Get character composition",
-		Args:  cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if deps.Service == nil {
-				return fmt.Errorf("service is required")
-			}
-			body, err := deps.Service.MoCharComposition(cmd.Context(), args[0])
-			if err != nil {
-				return err
-			}
-			return output.WriteJSON(deps.Stdout, body)
-		},
-	})
+	{
+		var font string
+		subCmd := &cobra.Command{
+			Use:   "detail <char>",
+			Short: "Get glyph candidates",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if deps.Service == nil {
+					return fmt.Errorf("service is required")
+				}
+				body, err := deps.Service.MoCharDetail(cmd.Context(), args[0], font)
+				if err != nil {
+					return err
+				}
+				return output.WriteJSON(deps.Stdout, body)
+			},
+		}
+		subCmd.Flags().StringVar(&font, "font", "行书", "font type: 行书, 楷书, 隶书 etc.")
+		cmd.AddCommand(subCmd)
+	}
+	{
+		var font string
+		subCmd := &cobra.Command{
+			Use:   "composition <char>",
+			Short: "Get character composition",
+			Args:  cobra.ExactArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if deps.Service == nil {
+					return fmt.Errorf("service is required")
+				}
+				body, err := deps.Service.MoCharComposition(cmd.Context(), args[0], font)
+				if err != nil {
+					return err
+				}
+				return output.WriteJSON(deps.Stdout, body)
+			},
+		}
+		subCmd.Flags().StringVar(&font, "font", "行书", "font type: 行书, 楷书, 隶书 etc.")
+		cmd.AddCommand(subCmd)
+	}
 	cmd.AddCommand(newMoCharComposeCommand(deps))
 	return cmd
 }
 
 func newMoCharComposeCommand(deps Dependencies) *cobra.Command {
 	var out string
+	var font string
 	cmd := &cobra.Command{
 		Use:   "compose <char>",
-		Short: "Compose a xingshu character image",
+		Short: "Compose a character image",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if deps.Service == nil {
@@ -776,7 +789,7 @@ func newMoCharComposeCommand(deps Dependencies) *cobra.Command {
 			if out == "" {
 				return fmt.Errorf("--out is required")
 			}
-			body, err := deps.Service.MoCharCompose(cmd.Context(), args[0])
+			body, err := deps.Service.MoCharCompose(cmd.Context(), args[0], font)
 			if err != nil {
 				return err
 			}
@@ -784,6 +797,7 @@ func newMoCharComposeCommand(deps Dependencies) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&out, "out", "", "output PNG path")
+	cmd.Flags().StringVar(&font, "font", "行书", "font type: 行书, 楷书, 隶书 etc.")
 	return cmd
 }
 

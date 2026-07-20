@@ -27,6 +27,7 @@ type fakeService struct {
 	moDetailChar      string
 	moCompositionChar string
 	moComposeChar     string
+	moFont            string
 	moOCRFilename     string
 	moOCRBody         string
 	newsGetDate       string
@@ -99,24 +100,28 @@ func (f *fakeService) RoadbookGet(ctx context.Context, id string) ([]byte, error
 	return []byte(`{"data":"[]"}`), nil
 }
 
-func (f *fakeService) MoGuwen(ctx context.Context, text string, aiCompose bool) ([]byte, error) {
+func (f *fakeService) MoGuwen(ctx context.Context, text string, aiCompose bool, font string) ([]byte, error) {
 	f.moGuwenText = text
 	f.moGuwenCompose = aiCompose
+	f.moFont = font
 	return []byte(`{"text":"` + text + `"}`), nil
 }
 
-func (f *fakeService) MoCharDetail(ctx context.Context, char string) ([]byte, error) {
+func (f *fakeService) MoCharDetail(ctx context.Context, char string, font string) ([]byte, error) {
 	f.moDetailChar = char
+	f.moFont = font
 	return []byte(`{"char":"` + char + `"}`), nil
 }
 
-func (f *fakeService) MoCharComposition(ctx context.Context, char string) ([]byte, error) {
+func (f *fakeService) MoCharComposition(ctx context.Context, char string, font string) ([]byte, error) {
 	f.moCompositionChar = char
+	f.moFont = font
 	return []byte(`{"char":"` + char + `","found":true}`), nil
 }
 
-func (f *fakeService) MoCharCompose(ctx context.Context, char string) ([]byte, error) {
+func (f *fakeService) MoCharCompose(ctx context.Context, char string, font string) ([]byte, error) {
 	f.moComposeChar = char
+	f.moFont = font
 	return []byte{1, 2, 3}, nil
 }
 
