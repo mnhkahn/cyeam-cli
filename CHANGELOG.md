@@ -1,11 +1,32 @@
 
+<a name="v0.2.3"></a>
+## [v0.2.3](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.2...v0.2.3) (2026-07-20)
+
+### Documentation
+
+
+- **mo:** 补充图片交付规范并升版本
+
+- **mo:** 强调取字优先使用原帖字形
+
+### Features
+
+
+- **mo:** 支持多种字体选择
+
+
 <a name="v0.2.2"></a>
-## [v0.2.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.1...v0.2.2) (2026-07-12)
+## [v0.2.2](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.1...v0.2.2) (2026-07-11)
 
 ### Features
 
 
 - **trello:** 补齐 board/list/card 的 CRUD 命令与客户端方法
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.1"></a>
