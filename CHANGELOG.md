@@ -1,4 +1,13 @@
 
+<a name="v0.2.4"></a>
+## [v0.2.4](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.3...v0.2.4) (2026-07-20)
+
+### Features
+
+
+- **phonetic:** 添加英语音标查询功能
+
+
 <a name="v0.2.3"></a>
 ## [v0.2.3](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.2...v0.2.3) (2026-07-20)
 
@@ -13,6 +22,11 @@
 
 
 - **mo:** 支持多种字体选择
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.2"></a>
