@@ -26,6 +26,8 @@ cyeam trello boards
 cyeam trello lists <board-id>
 cyeam trello cards --list <list-id> [--today]
 cyeam trello cards --board <board-id> [--today]
+cyeam trello status-changes --board <board-id>
+    [--date <YYYY-MM-DD>] [--to-list <list-id>] [--limit 1000]
 
 cyeam trello card create --list <list-id> --name <title>
     [--desc <text>] [--due <RFC3339>] [--labels <label-id,...>]
@@ -34,6 +36,7 @@ cyeam trello card update <card-id>
 cyeam trello card move <card-id> --list <target-list-id>
 cyeam trello card attach <card-id> --file <local-path> [--name <display-name>]
 cyeam trello card attachments <card-id>
+cyeam trello card attachment get <card-id> <attachment-id> [--max-bytes <bytes>]
 cyeam trello card actions <card-id> [--limit 50]
 
 cyeam trello webhook create --callback-url <https-url> --model-id <id>
@@ -42,3 +45,7 @@ cyeam trello webhook delete <webhook-id>
 ```
 
 `card update --due ""` 清除截止时间；未传 `--complete` 时不改变任务完成标记。默认输出是 JSON 信封，`--pretty` 输出响应 JSON。
+
+`card attachment get` 使用已保存的 Trello 凭据下载受保护的附件，直接返回 `id`、`name`、`mime_type`、`size_bytes` 和 `base64`。它只读取数据，默认上限为 25 MiB；当需要在飞书展示图片时，Agent 应将 Base64 解码后上传为飞书图片，不要把 Trello 的受保护 URL 直接发给飞书。
+
+`status-changes` 按本机时区查询某一天的卡片列表流转记录，默认查询今天，返回卡片、流转前后列表、操作者和 `changed_at`。整理每日完成任务时，必须先用 `lists <board-id>` 找到完成列表 ID，再传 `--to-list <list-id>`；不要按列表名称猜测。

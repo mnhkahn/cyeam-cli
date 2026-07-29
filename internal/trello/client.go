@@ -4,6 +4,7 @@ package trello
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -21,6 +22,22 @@ type Client struct {
 	HTTPClient *http.Client
 	APIKey     string
 	Token      string
+}
+
+// AttachmentDownload contains a card attachment and the metadata needed to
+// interpret its bytes.
+type AttachmentDownload struct {
+	ID          string
+	Name        string
+	MIMEType    string
+	ContentType string
+	Data        []byte
+}
+
+type attachment struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	MIMEType string `json:"mimeType"`
 }
 
 func NewDefault() (*Client, error) {
@@ -86,6 +103,43 @@ func (c *Client) get(ctx context.Context, endpoint string, query url.Values) ([]
 	return c.request(ctx, http.MethodGet, endpoint, query, nil, "")
 }
 
+func (c *Client) download(ctx context.Context, endpoint string, maxBytes int64) ([]byte, string, error) {
+	baseURL := strings.TrimRight(c.BaseURL, "/")
+	u, err := url.Parse(baseURL + "/" + strings.TrimLeft(endpoint, "/"))
+	if err != nil {
+		return nil, "", err
+	}
+	q := u.Query()
+	q.Set("key", c.APIKey)
+	q.Set("token", c.Token)
+	u.RawQuery = q.Encode()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+	if err != nil {
+		return nil, "", err
+	}
+	client := c.HTTPClient
+	if client == nil {
+		client = http.DefaultClient
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return nil, "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		message, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
+		return nil, "", fmt.Errorf("Trello attachment download %s: %s", resp.Status, strings.TrimSpace(string(message)))
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxBytes+1))
+	if err != nil {
+		return nil, "", err
+	}
+	if int64(len(body)) > maxBytes {
+		return nil, "", fmt.Errorf("Trello attachment exceeds %d byte limit", maxBytes)
+	}
+	return body, resp.Header.Get("Content-Type"), nil
+}
+
 func (c *Client) Boards(ctx context.Context) ([]byte, error) {
 	return c.get(ctx, "members/me/boards", url.Values{"fields": {"id,name,closed,url"}})
 }
@@ -135,6 +189,17 @@ func (c *Client) BoardCards(ctx context.Context, boardID string) ([]byte, error)
 	return c.get(ctx, "boards/"+boardID+"/cards", cardFields())
 }
 
+func (c *Client) BoardStatusChanges(ctx context.Context, boardID, since, before string, limit int) ([]byte, error) {
+	return c.get(ctx, "boards/"+boardID+"/actions", url.Values{
+		"filter":               {"updateCard:idList"},
+		"since":                {since},
+		"before":               {before},
+		"limit":                {fmt.Sprint(limit)},
+		"memberCreator":        {"true"},
+		"memberCreator_fields": {"fullName,username"},
+	})
+}
+
 func (c *Client) Card(ctx context.Context, cardID string) ([]byte, error) {
 	return c.get(ctx, "cards/"+cardID, cardFields())
 }
@@ -145,6 +210,34 @@ func (c *Client) DeleteCard(ctx context.Context, cardID string) ([]byte, error) 
 
 func (c *Client) Attachments(ctx context.Context, cardID string) ([]byte, error) {
 	return c.get(ctx, "cards/"+cardID+"/attachments", nil)
+}
+
+// DownloadAttachment fetches an uploaded attachment through Trello's
+// authenticated download endpoint. maxBytes must be positive.
+func (c *Client) DownloadAttachment(ctx context.Context, cardID, attachmentID string, maxBytes int64) (AttachmentDownload, error) {
+	if maxBytes <= 0 {
+		return AttachmentDownload{}, fmt.Errorf("max attachment size must be positive")
+	}
+	metadata, err := c.get(ctx, "cards/"+cardID+"/attachments/"+attachmentID, nil)
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	var item attachment
+	if err := json.Unmarshal(metadata, &item); err != nil {
+		return AttachmentDownload{}, fmt.Errorf("decode attachment metadata: %w", err)
+	}
+	if item.ID == "" || item.Name == "" {
+		return AttachmentDownload{}, fmt.Errorf("Trello attachment metadata is incomplete")
+	}
+	endpoint := "cards/" + cardID + "/attachments/" + attachmentID + "/download/" + url.PathEscape(item.Name)
+	body, contentType, err := c.download(ctx, endpoint, maxBytes)
+	if err != nil {
+		return AttachmentDownload{}, err
+	}
+	if item.MIMEType == "" {
+		item.MIMEType = contentType
+	}
+	return AttachmentDownload{ID: item.ID, Name: item.Name, MIMEType: item.MIMEType, ContentType: contentType, Data: body}, nil
 }
 
 func (c *Client) Actions(ctx context.Context, cardID string, limit int) ([]byte, error) {

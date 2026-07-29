@@ -35,6 +35,31 @@ func TestCreateCardEncodesAuthAndFields(t *testing.T) {
 	}
 }
 
+func TestBoardStatusChangesRequestsListMoveActions(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/boards/board-1/actions" {
+			t.Fatalf("request = %s %s", r.Method, r.URL.Path)
+		}
+		q := r.URL.Query()
+		for key, want := range map[string]string{
+			"filter":               "updateCard:idList",
+			"since":                "2026-07-28T16:00:00Z",
+			"before":               "2026-07-29T16:00:00Z",
+			"limit":                "1000",
+			"memberCreator":        "true",
+			"memberCreator_fields": "fullName,username",
+		} {
+			if q.Get(key) != want {
+				t.Fatalf("%s = %q, want %q", key, q.Get(key), want)
+			}
+		}
+		_, _ = io.WriteString(w, `[]`)
+	})
+	if _, err := client.BoardStatusChanges(context.Background(), "board-1", "2026-07-28T16:00:00Z", "2026-07-29T16:00:00Z", 1000); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestAttachFileUsesMultipart(t *testing.T) {
 	file := filepath.Join(t.TempDir(), "proof.jpg")
 	if err := os.WriteFile(file, []byte("photo"), 0600); err != nil {
@@ -63,6 +88,47 @@ func TestAttachFileUsesMultipart(t *testing.T) {
 	})
 	if _, err := client.AttachFile(context.Background(), "card-1", file, ""); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDownloadAttachmentUsesAuthenticatedDownloadEndpoint(t *testing.T) {
+	requests := 0
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		requests++
+		if r.URL.Query().Get("key") != "key" || r.URL.Query().Get("token") != "token" {
+			t.Fatalf("missing credentials: %s", r.URL.RawQuery)
+		}
+		switch r.URL.Path {
+		case "/cards/card-1/attachments/attachment-1":
+			_, _ = io.WriteString(w, `{"id":"attachment-1","name":"result photo.jpg","mimeType":"image/jpeg"}`)
+		case "/cards/card-1/attachments/attachment-1/download/result photo.jpg":
+			w.Header().Set("Content-Type", "image/jpeg")
+			_, _ = w.Write([]byte("jpeg-bytes"))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	})
+
+	download, err := client.DownloadAttachment(context.Background(), "card-1", "attachment-1", 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if requests != 2 || download.Name != "result photo.jpg" || download.MIMEType != "image/jpeg" || string(download.Data) != "jpeg-bytes" {
+		t.Fatalf("download = %#v, requests = %d", download, requests)
+	}
+}
+
+func TestDownloadAttachmentRejectsOversizedContent(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/cards/card-1/attachments/attachment-1":
+			_, _ = io.WriteString(w, `{"id":"attachment-1","name":"photo.jpg","mimeType":"image/jpeg"}`)
+		default:
+			_, _ = w.Write([]byte("too large"))
+		}
+	})
+	if _, err := client.DownloadAttachment(context.Background(), "card-1", "attachment-1", 3); err == nil || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("error = %v, want size limit error", err)
 	}
 }
 
@@ -162,7 +228,7 @@ func TestListCRUDEndpoints(t *testing.T) {
 		{
 			name: "archive", wantMethod: http.MethodPut, wantPath: "/lists/l1/closed",
 			wantQuery: map[string]string{"value": "true"},
-			call: func(c *Client) error { _, err := c.ArchiveList(context.Background(), "l1"); return err },
+			call:      func(c *Client) error { _, err := c.ArchiveList(context.Background(), "l1"); return err },
 		},
 	}
 	for _, tc := range cases {
