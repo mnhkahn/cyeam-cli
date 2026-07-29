@@ -1,11 +1,25 @@
 
+<a name="v0.2.5"></a>
+## [v0.2.5](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.4...v0.2.5) (2026-07-29)
+
+### Features
+
+
+- **trello:** 添加卡片状态变更查询和附件下载功能
+
+
 <a name="v0.2.4"></a>
-## [v0.2.4](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.3...v0.2.4) (2026-07-20)
+## [v0.2.4](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.3...v0.2.4) (2026-07-21)
 
 ### Features
 
 
 - **phonetic:** 添加英语音标查询功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.3"></a>
