@@ -109,14 +109,15 @@ func (c *Client) download(ctx context.Context, endpoint string, maxBytes int64) 
 	if err != nil {
 		return nil, "", err
 	}
-	q := u.Query()
-	q.Set("key", c.APIKey)
-	q.Set("token", c.Token)
-	u.RawQuery = q.Encode()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
 	if err != nil {
 		return nil, "", err
 	}
+	req.Header.Set("Authorization", fmt.Sprintf(
+		`OAuth oauth_consumer_key="%s", oauth_token="%s"`,
+		escapeOAuthHeaderValue(c.APIKey),
+		escapeOAuthHeaderValue(c.Token),
+	))
 	client := c.HTTPClient
 	if client == nil {
 		client = http.DefaultClient
@@ -138,6 +139,10 @@ func (c *Client) download(ctx context.Context, endpoint string, maxBytes int64) 
 		return nil, "", fmt.Errorf("Trello attachment exceeds %d byte limit", maxBytes)
 	}
 	return body, resp.Header.Get("Content-Type"), nil
+}
+
+func escapeOAuthHeaderValue(value string) string {
+	return strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(value)
 }
 
 func (c *Client) Boards(ctx context.Context) ([]byte, error) {

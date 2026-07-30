@@ -95,13 +95,20 @@ func TestDownloadAttachmentUsesAuthenticatedDownloadEndpoint(t *testing.T) {
 	requests := 0
 	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		requests++
-		if r.URL.Query().Get("key") != "key" || r.URL.Query().Get("token") != "token" {
-			t.Fatalf("missing credentials: %s", r.URL.RawQuery)
-		}
 		switch r.URL.Path {
 		case "/cards/card-1/attachments/attachment-1":
+			if r.URL.Query().Get("key") != "key" || r.URL.Query().Get("token") != "token" {
+				t.Fatalf("missing metadata credentials: %s", r.URL.RawQuery)
+			}
 			_, _ = io.WriteString(w, `{"id":"attachment-1","name":"result photo.jpg","mimeType":"image/jpeg"}`)
 		case "/cards/card-1/attachments/attachment-1/download/result photo.jpg":
+			wantAuthorization := `OAuth oauth_consumer_key="key", oauth_token="token"`
+			if got := r.Header.Get("Authorization"); got != wantAuthorization {
+				t.Fatalf("Authorization = %q, want %q", got, wantAuthorization)
+			}
+			if r.URL.Query().Get("key") != "" || r.URL.Query().Get("token") != "" {
+				t.Fatalf("download credentials leaked in query: %s", r.URL.RawQuery)
+			}
 			w.Header().Set("Content-Type", "image/jpeg")
 			_, _ = w.Write([]byte("jpeg-bytes"))
 		default:
