@@ -2,8 +2,12 @@ package cli
 
 import (
 	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
+
+	"github.com/mnhkahn/cyeam-cli/internal/trello"
 )
 
 func TestFilterTodayCardsUsesLocalDeadlineDate(t *testing.T) {
@@ -77,5 +81,51 @@ func TestParseTrelloStatusChangesFiltersCompletionList(t *testing.T) {
 	change := changes[0]
 	if change.CardID != "card-1" || change.ToListName != "已完成" || change.ChangedAt != "2026-07-29T02:30:00.000Z" || change.ChangedAtLocal != "2026-07-29T10:30:00+08:00" || change.MemberName != "张三" {
 		t.Fatalf("change = %#v", change)
+	}
+}
+
+func TestFormatTrelloAttachmentWritesOriginalBytes(t *testing.T) {
+	outFile := filepath.Join(t.TempDir(), "homework.jpg")
+	body, err := formatTrelloAttachment(trello.AttachmentDownload{
+		ID:          "attachment-1",
+		Name:        "homework.jpg",
+		MIMEType:    "image/jpeg",
+		ContentType: "image/jpeg",
+		Data:        []byte("jpeg-bytes"),
+	}, outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	saved, err := os.ReadFile(outFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(saved) != "jpeg-bytes" {
+		t.Fatalf("saved = %q", saved)
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result["saved_to"] != outFile || result["base64"] != nil {
+		t.Fatalf("result = %#v", result)
+	}
+}
+
+func TestFormatTrelloAttachmentDefaultsToBase64(t *testing.T) {
+	body, err := formatTrelloAttachment(trello.AttachmentDownload{
+		ID:   "attachment-1",
+		Name: "homework.jpg",
+		Data: []byte("jpeg-bytes"),
+	}, "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var result map[string]interface{}
+	if err := json.Unmarshal(body, &result); err != nil {
+		t.Fatal(err)
+	}
+	if result["base64"] != "anBlZy1ieXRlcw==" || result["saved_to"] != nil {
+		t.Fatalf("result = %#v", result)
 	}
 }

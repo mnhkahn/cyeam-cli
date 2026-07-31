@@ -534,7 +534,8 @@ func newTrelloAttachmentCommand() *cobra.Command {
 
 func newTrelloGetAttachmentContentCommand() *cobra.Command {
 	var maxBytes int64
-	cmd := &cobra.Command{Use: "get <card-id> <attachment-id>", Short: "Get an attachment as base64", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
+	var outFile string
+	cmd := &cobra.Command{Use: "get <card-id> <attachment-id>", Short: "Download an attachment", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := getTrelloClient()
 		if err != nil {
 			return err
@@ -543,21 +544,34 @@ func newTrelloGetAttachmentContentCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		body, err := json.Marshal(map[string]interface{}{
-			"id":           item.ID,
-			"name":         item.Name,
-			"mime_type":    item.MIMEType,
-			"content_type": item.ContentType,
-			"size_bytes":   len(item.Data),
-			"base64":       base64.StdEncoding.EncodeToString(item.Data),
-		})
+		body, err := formatTrelloAttachment(item, outFile)
 		if err != nil {
 			return err
 		}
 		return writeTrelloJSON(cmd, body)
 	}}
 	cmd.Flags().Int64Var(&maxBytes, "max-bytes", 25<<20, "maximum attachment size to return")
+	cmd.Flags().StringVarP(&outFile, "out", "o", "", "save attachment bytes directly to this file")
 	return cmd
+}
+
+func formatTrelloAttachment(item trello.AttachmentDownload, outFile string) ([]byte, error) {
+	result := map[string]interface{}{
+		"id":           item.ID,
+		"name":         item.Name,
+		"mime_type":    item.MIMEType,
+		"content_type": item.ContentType,
+		"size_bytes":   len(item.Data),
+	}
+	if outFile != "" {
+		if err := output.WriteFile(outFile, item.Data); err != nil {
+			return nil, err
+		}
+		result["saved_to"] = outFile
+	} else {
+		result["base64"] = base64.StdEncoding.EncodeToString(item.Data)
+	}
+	return json.Marshal(result)
 }
 
 func newTrelloActionsCommand() *cobra.Command {
