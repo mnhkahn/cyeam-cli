@@ -1,4 +1,13 @@
 
+<a name="v0.2.6"></a>
+## [v0.2.6](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.5...v0.2.6) (2026-07-30)
+
+### Features
+
+
+- **trello:** 使用 OAuth Header 认证替代 URL 参数下载附件
+
+
 <a name="v0.2.5"></a>
 ## [v0.2.5](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.4...v0.2.5) (2026-07-29)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 添加卡片状态变更查询和附件下载功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.4"></a>
