@@ -1,4 +1,13 @@
 
+<a name="v0.2.7"></a>
+## [v0.2.7](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.6...v0.2.7) (2026-07-31)
+
+### Features
+
+
+- **trello:** 附件下载支持直接保存到本地文件
+
+
 <a name="v0.2.6"></a>
 ## [v0.2.6](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.5...v0.2.6) (2026-07-30)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 使用 OAuth Header 认证替代 URL 参数下载附件
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.5"></a>
