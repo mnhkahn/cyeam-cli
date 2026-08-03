@@ -1,4 +1,13 @@
 
+<a name="v0.2.8"></a>
+## [v0.2.8](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.7...v0.2.8) (2026-08-03)
+
+### Features
+
+
+- **go-version-manager:** 新增 Go 版本管理器技能
+
+
 <a name="v0.2.7"></a>
 ## [v0.2.7](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.6...v0.2.7) (2026-07-31)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 附件下载支持直接保存到本地文件
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.6"></a>
