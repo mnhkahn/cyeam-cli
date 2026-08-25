@@ -152,8 +152,15 @@ func envelopeData(t *testing.T, buf *bytes.Buffer) string {
 	if !env.OK {
 		t.Fatalf("envelope ok false, data: %s", buf.String())
 	}
-	s, _ := env.Data.(string)
-	return s
+	if s, ok := env.Data.(string); ok {
+		return s
+	}
+	// 命令输出是合法 JSON 时信封原样嵌套，这里重新编码成紧凑 JSON 便于断言。
+	data, err := json.Marshal(env.Data)
+	if err != nil {
+		t.Fatalf("marshal envelope data: %v", err)
+	}
+	return string(data)
 }
 
 func TestVersionPrintsVersionInfo(t *testing.T) {
@@ -337,7 +344,7 @@ func TestRoadbookShareReadsFileAndPrintsURL(t *testing.T) {
 	if service.roadbookShareBody != `[{"name":"A"}]` {
 		t.Fatalf("body = %q", service.roadbookShareBody)
 	}
-	if envelopeData(t, stdout) != "{\"id\":\"abc123\",\"url\":\"https://www.cyeam.com/tool/roadbook?id=abc123\"}\n" {
+	if envelopeData(t, stdout) != `{"id":"abc123","url":"https://www.cyeam.com/tool/roadbook?id=abc123"}` {
 		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
@@ -355,7 +362,7 @@ func TestRoadbookGetUsesID(t *testing.T) {
 	if service.roadbookGetID != "abc123" {
 		t.Fatalf("id = %q", service.roadbookGetID)
 	}
-	if envelopeData(t, stdout) != "{\"data\":\"[]\"}\n" {
+	if envelopeData(t, stdout) != `{"data":"[]"}` {
 		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
@@ -747,7 +754,7 @@ func TestMoGuwenUsesTextAndAIComposeFlag(t *testing.T) {
 	if !service.moGuwenCompose {
 		t.Fatal("ai compose flag not passed")
 	}
-	if envelopeData(t, stdout) != "{\"text\":\"兰亭序\"}\n" {
+	if envelopeData(t, stdout) != `{"text":"兰亭序"}` {
 		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }
@@ -829,7 +836,7 @@ func TestMoOCRUploadsImageFile(t *testing.T) {
 	if service.moOCRBody != "png-data" {
 		t.Fatalf("body = %q", service.moOCRBody)
 	}
-	if envelopeData(t, stdout) != "{\"code\":0}\n" {
+	if envelopeData(t, stdout) != `{"code":0}` {
 		t.Fatalf("stdout = %q", envelopeData(t, stdout))
 	}
 }

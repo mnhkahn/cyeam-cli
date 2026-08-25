@@ -60,4 +60,4 @@ cyeam ai models [...]                  # AI免费模型 → 见 ai-models skill
 cyeam trello ...                       # Trello任务看板 → 见 trello skill
 ```
 
-所有命令输出 JSON 信封 `{"ok":true,"data":"...","_notice":{...}}`。加 `--pretty` 去掉信封。
+所有命令输出 JSON 信封 `{"ok":true,"data":...,"_notice":{...}}`：命令输出是合法 JSON 时 `data` 为嵌套的 JSON 对象/数组，否则为字符串。加 `--pretty` 去掉信封。

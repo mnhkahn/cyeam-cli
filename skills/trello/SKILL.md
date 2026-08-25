@@ -28,6 +28,8 @@ cyeam trello cards --list <list-id> [--today]
 cyeam trello cards --board <board-id> [--today]
 cyeam trello status-changes --board <board-id>
     [--date <YYYY-MM-DD>] [--to-list <list-id>] [--limit 1000]
+cyeam trello homework --board <board-id>
+    [--date <YYYY-MM-DD>] [--dir <目录>] [--max-width 1200] [--max-bytes <bytes>]
 
 cyeam trello card create --list <list-id> --name <title>
     [--desc <text>] [--due <RFC3339>] [--labels <label-id,...>]
@@ -37,7 +39,7 @@ cyeam trello card move <card-id> --list <target-list-id>
 cyeam trello card attach <card-id> --file <local-path> [--name <display-name>]
 cyeam trello card attachments <card-id>
 cyeam trello card attachment get <card-id> <attachment-id>
-    [--out <local-path>] [--max-bytes <bytes>]
+    [--out <local-path>] [--max-width <px>] [--max-bytes <bytes>]
 cyeam trello card actions <card-id> [--limit 50]
 
 cyeam trello webhook create --callback-url <https-url> --model-id <id>
@@ -47,6 +49,10 @@ cyeam trello webhook delete <webhook-id>
 
 `card update --due ""` 清除截止时间；未传 `--complete` 时不改变任务完成标记。默认输出是 JSON 信封，`--pretty` 输出响应 JSON。
 
-获取图片时先用 `card attachments <card-id>` 找到 `attachment-id`、文件名和 MIME 类型，再调用 `card attachment get`。需要在飞书展示时优先传 `--out <local-path>`：CLI 会使用已保存的 Trello 凭据下载受保护附件，并把原始图片字节直接写入文件，返回 `saved_to`、`name`、`mime_type` 和 `size_bytes`；Agent 随后上传该本地文件。不要自行解析 JSON、解码 Base64，也不要把受保护 URL 直接发给飞书。仅在调用方明确需要内联数据时省略 `--out`，此时响应才包含 `base64`。附件默认上限为 25 MiB。
+获取图片时先用 `card attachments <card-id>` 找到 `attachment-id`、文件名和 MIME 类型，再调用 `card attachment get`。需要在飞书展示时优先传 `--out <local-path>`：CLI 会使用已保存的 Trello 凭据下载受保护附件，并把图片字节直接写入文件，返回 `saved_to`、`name`、`mime_type` 和 `size_bytes`；Agent 随后上传该本地文件。默认下载原图，图太大时加 `--max-width <px>` 下载服务端预览图（WebP，体积小得多，内容为 WebP 时 `mime_type` 为 `image/webp`）。不要自行解析 JSON、解码 Base64，也不要把受保护 URL 直接发给飞书。仅在调用方明确需要内联数据时省略 `--out`，此时响应才包含 `base64`。附件默认上限为 25 MiB。
 
 `status-changes` 按本机时区查询某一天的卡片列表流转记录，默认查询今天，返回卡片、流转前后列表、操作者和 `changed_at`。整理每日完成任务时，必须先用 `lists <board-id>` 找到完成列表 ID，再传 `--to-list <list-id>`；不要按列表名称猜测。
+
+查某一天的作业进度和提交图片，优先用 `homework` 一条命令搞定：筛出 due 当天的卡片，返回每张卡片所在列表并下载全部附件到本地目录（默认 `homework-<date>/`）。默认下载不超过 `--max-width`（1200）宽的最大预览图（WebP，约 100KB，比原图快一个数量级），传 `--max-width 0` 下载原图。JSON 报告里每个附件带 `saved_to` 路径和 `homework_photo_url` 链接（形如 `https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>`，浏览器登录 Trello 后可直接打开）；加 `--pretty` 输出人可读的文本报告。内置超时重试，单卡片失败不中断。
+
+提取图片的硬性规则：**查看或转发图片一律用 `saved_to` 本地文件**，用读图工具打开确认内容后再展示；`homework_photo_url` 链接仅作展示，禁止对它 curl/wget 或发给飞书（无浏览器会话会 401/403）。逐个附件检查报告：`error` 非空或 `size_bytes` 为 0 表示下载失败，用 `card attachment get <card-id> <attachment-id> --out <path>` 单独补下（默认下载原图，加 `--max-width 1200` 下载小体积预览图）。

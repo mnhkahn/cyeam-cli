@@ -2,12 +2,15 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
+	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +32,7 @@ func newTrelloCommand() *cobra.Command {
 		newTrelloListsCommand(),
 		newTrelloCardsCommand(),
 		newTrelloStatusChangesCommand(),
+		newTrelloHomeworkCommand(),
 		newTrelloBoardCommand(),
 		newTrelloListCommand(),
 		newTrelloCardCommand(),
@@ -211,12 +215,17 @@ func newTrelloCardsCommand() *cobra.Command {
 }
 
 func filterTodayCards(data []byte, now time.Time) ([]byte, error) {
+	return filterCardsDueOn(data, now.In(now.Location()))
+}
+
+// filterCardsDueOn keeps open cards whose due date falls on day's local date.
+func filterCardsDueOn(data []byte, day time.Time) ([]byte, error) {
 	var rawCards []json.RawMessage
 	if err := json.Unmarshal(data, &rawCards); err != nil {
 		return nil, err
 	}
-	location := now.Location()
-	day := now.In(location).Format("2006-01-02")
+	location := day.Location()
+	day = day.In(location)
 	result := make([]json.RawMessage, 0)
 	for _, raw := range rawCards {
 		var card struct {
@@ -230,7 +239,7 @@ func filterTodayCards(data []byte, now time.Time) ([]byte, error) {
 		if err != nil {
 			continue
 		}
-		if !card.Closed && due.In(location).Format("2006-01-02") == day {
+		if !card.Closed && due.In(location).Format("2006-01-02") == day.Format("2006-01-02") {
 			result = append(result, raw)
 		}
 	}
@@ -358,6 +367,251 @@ func newTrelloStatusChangesCommand() *cobra.Command {
 	cmd.Flags().StringVar(&toListID, "to-list", "", "only changes moved into this list ID")
 	cmd.Flags().IntVar(&limit, "limit", 1000, "maximum status changes (1-1000)")
 	return cmd
+}
+
+// trelloWithRetry reruns fn on failure, which keeps one flaky request from
+// aborting the whole homework report.
+func trelloWithRetry[T any](ctx context.Context, fn func(context.Context) (T, error)) (T, error) {
+	var zero T
+	var err error
+	for attempt := 0; attempt < 3; attempt++ {
+		var result T
+		result, err = fn(ctx)
+		if err == nil || ctx.Err() != nil {
+			return result, err
+		}
+		if attempt+1 < 3 {
+			select {
+			case <-ctx.Done():
+				return zero, ctx.Err()
+			case <-time.After(time.Duration(attempt+1) * 2 * time.Second):
+			}
+		}
+	}
+	return zero, err
+}
+
+func sanitizeTrelloFilename(name string) string {
+	name = strings.Map(func(r rune) rune {
+		switch r {
+		case '/', '\\', ':':
+			return '_'
+		}
+		return r
+	}, strings.TrimSpace(name))
+	if name == "" || name == "." || name == ".." {
+		return "_"
+	}
+	return name
+}
+
+type trelloHomeworkAttachment struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	MIMEType         string `json:"mime_type,omitempty"`
+	HomeworkPhotoURL string `json:"homework_photo_url,omitempty"`
+	SavedTo          string `json:"saved_to,omitempty"`
+	SizeBytes        int    `json:"size_bytes,omitempty"`
+	Error            string `json:"error,omitempty"`
+}
+
+type trelloHomeworkCard struct {
+	ID          string                     `json:"id"`
+	Name        string                     `json:"name"`
+	ListID      string                     `json:"list_id"`
+	ListName    string                     `json:"list_name"`
+	Due         string                     `json:"due,omitempty"`
+	DueComplete bool                       `json:"due_complete"`
+	URL         string                     `json:"url,omitempty"`
+	Attachments []trelloHomeworkAttachment `json:"attachments"`
+	Error       string                     `json:"error,omitempty"`
+}
+
+type trelloHomeworkReport struct {
+	Date    string               `json:"date"`
+	BoardID string               `json:"board_id"`
+	Dir     string               `json:"dir"`
+	Cards   []trelloHomeworkCard `json:"cards"`
+}
+
+func newTrelloHomeworkCommand() *cobra.Command {
+	var boardID, day, dir string
+	var maxBytes int64
+	var maxWidth int
+	cmd := &cobra.Command{Use: "homework", Short: "One-shot report of one day's homework cards with attachments downloaded", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		if boardID == "" {
+			return fmt.Errorf("--board is required")
+		}
+		start, _, err := localDayRange(day, time.Now())
+		if err != nil {
+			return err
+		}
+		date := start.Format(time.DateOnly)
+		if dir == "" {
+			dir = "homework-" + date
+		}
+		client, err := getTrelloClient()
+		if err != nil {
+			return err
+		}
+		// 单个请求设超时，避免不稳定链路把整个命令挂死；失败由 trelloWithRetry 重试。
+		client.HTTPClient = &http.Client{Timeout: 60 * time.Second}
+		ctx := cmd.Context()
+
+		listsData, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+			return client.Lists(ctx, boardID)
+		})
+		if err != nil {
+			return err
+		}
+		var lists []struct {
+			ID   string `json:"id"`
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal(listsData, &lists); err != nil {
+			return err
+		}
+		listNames := make(map[string]string, len(lists))
+		for _, list := range lists {
+			listNames[list.ID] = list.Name
+		}
+
+		cardsData, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+			return client.BoardCards(ctx, boardID)
+		})
+		if err != nil {
+			return err
+		}
+		cardsData, err = filterCardsDueOn(cardsData, start)
+		if err != nil {
+			return err
+		}
+		var cards []struct {
+			ID          string `json:"id"`
+			Name        string `json:"name"`
+			Due         string `json:"due"`
+			DueComplete bool   `json:"dueComplete"`
+			IDList      string `json:"idList"`
+			URL         string `json:"url"`
+		}
+		if err := json.Unmarshal(cardsData, &cards); err != nil {
+			return err
+		}
+
+		report := trelloHomeworkReport{Date: date, BoardID: boardID, Dir: dir, Cards: make([]trelloHomeworkCard, 0, len(cards))}
+		for _, card := range cards {
+			entry := trelloHomeworkCard{
+				ID:          card.ID,
+				Name:        card.Name,
+				ListID:      card.IDList,
+				ListName:    listNames[card.IDList],
+				Due:         card.Due,
+				DueComplete: card.DueComplete,
+				URL:         card.URL,
+				Attachments: make([]trelloHomeworkAttachment, 0),
+			}
+			if entry.ListName == "" {
+				entry.ListName = card.IDList
+			}
+			attachmentsData, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+				return client.Attachments(ctx, card.ID)
+			})
+			if err != nil {
+				entry.Error = fmt.Sprintf("list attachments: %v", err)
+				report.Cards = append(report.Cards, entry)
+				continue
+			}
+			var attachments []struct {
+				ID       string `json:"id"`
+				Name     string `json:"name"`
+				MIMEType string `json:"mimeType"`
+				URL      string `json:"url"`
+			}
+			if err := json.Unmarshal(attachmentsData, &attachments); err != nil {
+				entry.Error = fmt.Sprintf("parse attachments: %v", err)
+				report.Cards = append(report.Cards, entry)
+				continue
+			}
+			for _, attachment := range attachments {
+				item := trelloHomeworkAttachment{ID: attachment.ID, Name: attachment.Name, MIMEType: attachment.MIMEType, HomeworkPhotoURL: attachment.URL}
+				download, err := trelloWithRetry(ctx, func(ctx context.Context) (trello.AttachmentDownload, error) {
+					return client.DownloadAttachmentSized(ctx, card.ID, attachment.ID, maxWidth, maxBytes)
+				})
+				if err != nil {
+					item.Error = err.Error()
+					entry.Attachments = append(entry.Attachments, item)
+					continue
+				}
+				if download.MIMEType != "" {
+					item.MIMEType = download.MIMEType
+				}
+				cardDir := filepath.Join(dir, sanitizeTrelloFilename(card.Name))
+				if err := os.MkdirAll(cardDir, 0755); err != nil {
+					item.Error = err.Error()
+					entry.Attachments = append(entry.Attachments, item)
+					continue
+				}
+				filename := sanitizeTrelloFilename(download.Name)
+				savedTo := filepath.Join(cardDir, filename)
+				if _, err := os.Stat(savedTo); err == nil {
+					savedTo = filepath.Join(cardDir, sanitizeTrelloFilename(download.ID+"-"+download.Name))
+				}
+				if err := output.WriteFile(savedTo, download.Data); err != nil {
+					item.Error = err.Error()
+				} else {
+					item.SavedTo = savedTo
+					item.SizeBytes = len(download.Data)
+				}
+				entry.Attachments = append(entry.Attachments, item)
+			}
+			report.Cards = append(report.Cards, entry)
+		}
+		if pretty, _ := cmd.Flags().GetBool("pretty"); pretty {
+			_, err := fmt.Fprint(cmd.OutOrStdout(), formatTrelloHomeworkReport(report))
+			return err
+		}
+		body, err := json.Marshal(report)
+		if err != nil {
+			return err
+		}
+		return writeTrelloJSON(cmd, body)
+	}}
+	cmd.Flags().StringVar(&boardID, "board", "", "board ID")
+	cmd.Flags().StringVar(&day, "date", "", "local date in YYYY-MM-DD; defaults to today")
+	cmd.Flags().StringVar(&dir, "dir", "", "directory to save attachments; defaults to homework-<date>")
+	cmd.Flags().IntVar(&maxWidth, "max-width", 1200, "download the largest image preview up to this width; 0 downloads the original")
+	cmd.Flags().Int64Var(&maxBytes, "max-bytes", 25<<20, "maximum attachment size to download")
+	return cmd
+}
+
+// formatTrelloHomeworkReport 按 --pretty 约定把作业报告渲染成人可读文本。
+func formatTrelloHomeworkReport(report trelloHomeworkReport) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "日期: %s\n目录: %s\n卡片数: %d\n", report.Date, report.Dir, len(report.Cards))
+	for _, card := range report.Cards {
+		fmt.Fprintf(&b, "\n[%s] %s\n", card.ListName, card.Name)
+		if card.Error != "" {
+			fmt.Fprintf(&b, "  错误: %s\n", card.Error)
+			continue
+		}
+		if len(card.Attachments) == 0 {
+			b.WriteString("  (无附件)\n")
+		}
+		for _, att := range card.Attachments {
+			if att.Error != "" {
+				fmt.Fprintf(&b, "  作业照片: %s (下载失败: %s)\n", att.Name, att.Error)
+				continue
+			}
+			fmt.Fprintf(&b, "  作业照片: %s (%d bytes)\n", att.Name, att.SizeBytes)
+			if att.SavedTo != "" {
+				fmt.Fprintf(&b, "    本地: %s\n", att.SavedTo)
+			}
+			if att.HomeworkPhotoURL != "" {
+				fmt.Fprintf(&b, "    链接: %s\n", att.HomeworkPhotoURL)
+			}
+		}
+	}
+	return b.String()
 }
 
 func newTrelloCardCommand() *cobra.Command {
@@ -534,13 +788,14 @@ func newTrelloAttachmentCommand() *cobra.Command {
 
 func newTrelloGetAttachmentContentCommand() *cobra.Command {
 	var maxBytes int64
+	var maxWidth int
 	var outFile string
 	cmd := &cobra.Command{Use: "get <card-id> <attachment-id>", Short: "Download an attachment", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
 		client, err := getTrelloClient()
 		if err != nil {
 			return err
 		}
-		item, err := client.DownloadAttachment(cmd.Context(), args[0], args[1], maxBytes)
+		item, err := client.DownloadAttachmentSized(cmd.Context(), args[0], args[1], maxWidth, maxBytes)
 		if err != nil {
 			return err
 		}
@@ -550,6 +805,7 @@ func newTrelloGetAttachmentContentCommand() *cobra.Command {
 		}
 		return writeTrelloJSON(cmd, body)
 	}}
+	cmd.Flags().IntVar(&maxWidth, "max-width", 0, "download the largest image preview up to this width (WebP, much smaller); 0 downloads the original")
 	cmd.Flags().Int64Var(&maxBytes, "max-bytes", 25<<20, "maximum attachment size to return")
 	cmd.Flags().StringVarP(&outFile, "out", "o", "", "save attachment bytes directly to this file")
 	return cmd

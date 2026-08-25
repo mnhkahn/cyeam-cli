@@ -139,6 +139,106 @@ func TestDownloadAttachmentRejectsOversizedContent(t *testing.T) {
 	}
 }
 
+func TestProcessCardBuildsDownloadLinks(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/cards/abc12345":
+			_, _ = io.WriteString(w, `{"id":"card-1","name":"数学作业"}`)
+		case "/cards/card-1/attachments":
+			_, _ = io.WriteString(w, `[
+  {"id":"attachment-1","name":"photo 1.jpg","mimeType":"image/jpeg","url":"https://trello.com/1/cards/card-1/attachments/attachment-1/download/photo%201.jpg"},
+  {"id":"attachment-2","name":"photo2.png","mimeType":"image/png"}
+]`)
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	})
+
+	results, err := client.ProcessCard(context.Background(), "https://trello.com/c/abc12345/1-card")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("results = %#v", results)
+	}
+	first := results[0]
+	if first.FileName != "photo 1.jpg" || first.MimeType != "image/jpeg" {
+		t.Fatalf("first = %#v", first)
+	}
+	if first.DownloadURL != "https://trello.com/1/cards/card-1/attachments/attachment-1/download/photo%201.jpg" {
+		t.Fatalf("DownloadURL = %q", first.DownloadURL)
+	}
+	// url 字段缺失时按固定格式拼接
+	second := results[1]
+	if second.DownloadURL != "https://trello.com/1/cards/card-1/attachments/attachment-2/download/photo2.png" {
+		t.Fatalf("DownloadURL = %q", second.DownloadURL)
+	}
+}
+
+func TestExtractShortID(t *testing.T) {
+	for _, rawURL := range []string{"https://trello.com/c/abc12345", "https://trello.com/c/abc12345/some-name"} {
+		shortID, err := ExtractShortID(rawURL)
+		if err != nil || shortID != "abc12345" {
+			t.Fatalf("ExtractShortID(%q) = %q, %v", rawURL, shortID, err)
+		}
+	}
+	for _, rawURL := range []string{"https://trello.com/b/boards", "https://trello.com/c/short", "not a url"} {
+		if _, err := ExtractShortID(rawURL); err == nil {
+			t.Fatalf("ExtractShortID(%q) should fail", rawURL)
+		}
+	}
+}
+
+func TestDownloadAttachmentSizedPicksPreviewWithinMaxWidth(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/cards/card-1/attachments/attachment-1":
+			_, _ = io.WriteString(w, `{"id":"attachment-1","name":"photo.jpg","mimeType":"image/jpeg","previews":[
+  {"id":"prev-70","width":70,"height":50,"url":"https://trello.com/1/cards/card-1/attachments/attachment-1/previews/prev-70/download/photo.webp"},
+  {"id":"prev-600","width":600,"height":450,"url":"https://trello.com/1/cards/card-1/attachments/attachment-1/previews/prev-600/download/photo.webp"},
+  {"id":"prev-1200","width":1200,"height":900,"url":"https://trello.com/1/cards/card-1/attachments/attachment-1/previews/prev-1200/download/photo.webp"}
+]}`)
+		case "/cards/card-1/attachments/attachment-1/previews/prev-600/download/photo.webp":
+			if got := r.Header.Get("Authorization"); got == "" {
+				t.Fatal("preview download missing OAuth header")
+			}
+			w.Header().Set("Content-Type", "image/webp")
+			_, _ = w.Write([]byte("webp-bytes"))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	})
+
+	download, err := client.DownloadAttachmentSized(context.Background(), "card-1", "attachment-1", 1000, 1024)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if download.Name != "photo.webp" || download.MIMEType != "image/webp" || string(download.Data) != "webp-bytes" {
+		t.Fatalf("download = %#v", download)
+	}
+}
+
+func TestDownloadAttachmentSizedFallsBackToSmallestPreview(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/cards/card-1/attachments/attachment-1":
+			_, _ = io.WriteString(w, `{"id":"attachment-1","name":"photo.jpg","mimeType":"image/jpeg","previews":[
+  {"id":"prev-600","width":600,"height":450,"url":"https://trello.com/1/cards/card-1/attachments/attachment-1/previews/prev-600/download/photo.webp"},
+  {"id":"prev-1200","width":1200,"height":900,"url":"https://trello.com/1/cards/card-1/attachments/attachment-1/previews/prev-1200/download/photo.webp"}
+]}`)
+		case "/cards/card-1/attachments/attachment-1/previews/prev-600/download/photo.webp":
+			w.Header().Set("Content-Type", "image/webp")
+			_, _ = w.Write([]byte("webp-bytes"))
+		default:
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+	})
+
+	if _, err := client.DownloadAttachmentSized(context.Background(), "card-1", "attachment-1", 100, 1024); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestRequestIncludesAPIError(t *testing.T) {
 	client := testClient(t, func(w http.ResponseWriter, _ *http.Request) { http.Error(w, "invalid token", http.StatusUnauthorized) })
 	_, err := client.Boards(context.Background())

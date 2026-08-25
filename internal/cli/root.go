@@ -223,9 +223,10 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 				_, err := originalStdout.Write(buf.Bytes())
 				return err
 			}
+			// 命令输出本身是合法 JSON 时原样嵌套，避免 data 变成二次编码的字符串。
 			var env output.Envelope
-			if cmd.Name() == "news" || (cmd.Parent() != nil && cmd.Parent().Name() == "news") {
-				env = output.Envelope{OK: true, Data: json.RawMessage(buf.Bytes()), Notice: notice}
+			if data := bytes.TrimSpace(buf.Bytes()); json.Valid(data) {
+				env = output.Envelope{OK: true, Data: json.RawMessage(data), Notice: notice}
 			} else {
 				env = output.Envelope{OK: true, Data: string(buf.Bytes()), Notice: notice}
 			}

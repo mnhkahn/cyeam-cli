@@ -35,9 +35,21 @@ type AttachmentDownload struct {
 }
 
 type attachment struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	MIMEType string `json:"mimeType"`
+	ID       string              `json:"id"`
+	Name     string              `json:"name"`
+	MIMEType string              `json:"mimeType"`
+	URL      string              `json:"url"`
+	Previews []attachmentPreview `json:"previews"`
+}
+
+// attachmentPreview 是 Trello 为上传图片生成的缩放版本，通常是 WebP，
+// 体积比原图小一到两个数量级。
+type attachmentPreview struct {
+	ID     string `json:"id"`
+	URL    string `json:"url"`
+	Width  int    `json:"width"`
+	Height int    `json:"height"`
+	Bytes  int    `json:"bytes"`
 }
 
 func NewDefault() (*Client, error) {
@@ -103,6 +115,9 @@ func (c *Client) get(ctx context.Context, endpoint string, query url.Values) ([]
 	return c.request(ctx, http.MethodGet, endpoint, query, nil, "")
 }
 
+// download fetches bytes from a Trello download endpoint. Trello's attachment
+// download endpoint rejects key/token query parameters (401), so it requires
+// an OAuth authorization header instead.
 func (c *Client) download(ctx context.Context, endpoint string, maxBytes int64) ([]byte, string, error) {
 	baseURL := strings.TrimRight(c.BaseURL, "/")
 	u, err := url.Parse(baseURL + "/" + strings.TrimLeft(endpoint, "/"))
@@ -220,6 +235,13 @@ func (c *Client) Attachments(ctx context.Context, cardID string) ([]byte, error)
 // DownloadAttachment fetches an uploaded attachment through Trello's
 // authenticated download endpoint. maxBytes must be positive.
 func (c *Client) DownloadAttachment(ctx context.Context, cardID, attachmentID string, maxBytes int64) (AttachmentDownload, error) {
+	return c.DownloadAttachmentSized(ctx, cardID, attachmentID, 0, maxBytes)
+}
+
+// DownloadAttachmentSized 下载附件：maxWidth > 0 且有预览图时，下载不超过
+// maxWidth 宽的最大预览图（WebP，体积小下载快）；maxWidth <= 0 时下载原图。
+// maxBytes must be positive.
+func (c *Client) DownloadAttachmentSized(ctx context.Context, cardID, attachmentID string, maxWidth int, maxBytes int64) (AttachmentDownload, error) {
 	if maxBytes <= 0 {
 		return AttachmentDownload{}, fmt.Errorf("max attachment size must be positive")
 	}
@@ -234,7 +256,15 @@ func (c *Client) DownloadAttachment(ctx context.Context, cardID, attachmentID st
 	if item.ID == "" || item.Name == "" {
 		return AttachmentDownload{}, fmt.Errorf("Trello attachment metadata is incomplete")
 	}
+	name := item.Name
 	endpoint := "cards/" + cardID + "/attachments/" + attachmentID + "/download/" + url.PathEscape(item.Name)
+	if maxWidth > 0 {
+		if preview, ok := pickAttachmentPreview(item.Previews, maxWidth); ok {
+			name = previewFileName(preview, item.Name)
+			endpoint = "cards/" + cardID + "/attachments/" + attachmentID + "/previews/" + preview.ID + "/download/" + url.PathEscape(name)
+			item.MIMEType = ""
+		}
+	}
 	body, contentType, err := c.download(ctx, endpoint, maxBytes)
 	if err != nil {
 		return AttachmentDownload{}, err
@@ -242,7 +272,38 @@ func (c *Client) DownloadAttachment(ctx context.Context, cardID, attachmentID st
 	if item.MIMEType == "" {
 		item.MIMEType = contentType
 	}
-	return AttachmentDownload{ID: item.ID, Name: item.Name, MIMEType: item.MIMEType, ContentType: contentType, Data: body}, nil
+	return AttachmentDownload{ID: item.ID, Name: name, MIMEType: item.MIMEType, ContentType: contentType, Data: body}, nil
+}
+
+// pickAttachmentPreview 选宽度不超过 maxWidth 的最大预览图；都超过时选最小的一张。
+func pickAttachmentPreview(previews []attachmentPreview, maxWidth int) (attachmentPreview, bool) {
+	var best, smallest attachmentPreview
+	for _, p := range previews {
+		if p.ID == "" || p.Width <= 0 {
+			continue
+		}
+		if smallest.ID == "" || p.Width < smallest.Width {
+			smallest = p
+		}
+		if p.Width <= maxWidth && p.Width > best.Width {
+			best = p
+		}
+	}
+	if best.ID != "" {
+		return best, true
+	}
+	return smallest, smallest.ID != ""
+}
+
+// previewFileName 从预览图 URL 里取文件名（一般是原图名换 .webp 后缀）。
+func previewFileName(preview attachmentPreview, fallback string) string {
+	if u, err := url.Parse(preview.URL); err == nil {
+		parts := strings.Split(strings.TrimRight(u.Path, "/"), "/")
+		if name, err := url.PathUnescape(parts[len(parts)-1]); err == nil && name != "" {
+			return name
+		}
+	}
+	return fallback
 }
 
 func (c *Client) Actions(ctx context.Context, cardID string, limit int) ([]byte, error) {
@@ -267,6 +328,87 @@ func (c *Client) CreateWebhook(ctx context.Context, fields url.Values) ([]byte, 
 
 func (c *Client) DeleteWebhook(ctx context.Context, webhookID string) ([]byte, error) {
 	return c.request(ctx, http.MethodDelete, "webhooks/"+webhookID, nil, nil, "")
+}
+
+// ProcessCardResult 表示卡片附件的下载信息
+type ProcessCardResult struct {
+	FileName    string `json:"file_name"`
+	DownloadURL string `json:"download_url"`
+	MimeType    string `json:"mime_type"`
+}
+
+// ProcessCard 通过卡片短链接获取所有附件的下载链接，形如
+// https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>
+// 链接在已登录 Trello 的浏览器里可直接下载；脚本下载请用 DownloadAttachment。
+func (c *Client) ProcessCard(ctx context.Context, shortURL string) ([]ProcessCardResult, error) {
+	shortID, err := ExtractShortID(shortURL)
+	if err != nil {
+		return nil, err
+	}
+
+	// 直接用 shortID 请求卡片详情（Trello API 支持 shortID）
+	cardData, err := c.get(ctx, "cards/"+shortID, url.Values{"fields": {"id,name"}})
+	if err != nil {
+		return nil, fmt.Errorf("get card: %w", err)
+	}
+	var card struct {
+		ID   string `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(cardData, &card); err != nil {
+		return nil, fmt.Errorf("decode card: %w", err)
+	}
+	if card.ID == "" {
+		return nil, fmt.Errorf("card not found")
+	}
+
+	// 列出附件
+	attachmentsData, err := c.get(ctx, "cards/"+card.ID+"/attachments", nil)
+	if err != nil {
+		return nil, fmt.Errorf("list attachments: %w", err)
+	}
+	var attachments []attachment
+	if err := json.Unmarshal(attachmentsData, &attachments); err != nil {
+		return nil, fmt.Errorf("decode attachments: %w", err)
+	}
+
+	// 优先使用附件自带的 url 字段；缺失时按固定格式拼接
+	results := make([]ProcessCardResult, 0, len(attachments))
+	for _, att := range attachments {
+		downloadURL := att.URL
+		if downloadURL == "" {
+			downloadURL = fmt.Sprintf(
+				"https://trello.com/1/cards/%s/attachments/%s/download/%s",
+				card.ID,
+				att.ID,
+				url.PathEscape(att.Name),
+			)
+		}
+		results = append(results, ProcessCardResult{
+			FileName:    att.Name,
+			DownloadURL: downloadURL,
+			MimeType:    att.MIMEType,
+		})
+	}
+	return results, nil
+}
+
+// ExtractShortID 从 Trello 短链接中提取 8 位 short ID
+// 支持格式：https://trello.com/c/abc12345, https://trello.com/c/abc12345/name
+func ExtractShortID(shortURL string) (string, error) {
+	u, err := url.Parse(shortURL)
+	if err != nil {
+		return "", fmt.Errorf("invalid URL: %w", err)
+	}
+	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
+	if len(parts) < 2 || parts[0] != "c" {
+		return "", fmt.Errorf("not a Trello card short URL: %s", shortURL)
+	}
+	shortID := parts[1]
+	if len(shortID) != 8 {
+		return "", fmt.Errorf("invalid short ID length: %s", shortID)
+	}
+	return shortID, nil
 }
 
 func (c *Client) AttachFile(ctx context.Context, cardID, filename, displayName string) ([]byte, error) {

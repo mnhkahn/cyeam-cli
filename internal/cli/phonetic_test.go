@@ -35,8 +35,12 @@ func TestPhoneticCommandWritesJSONEnvelope(t *testing.T) {
 	if err := json.Unmarshal(stdout.Bytes(), &env); err != nil {
 		t.Fatalf("unmarshal envelope: %v", err)
 	}
-	data, ok := env.Data.(string)
-	if !ok || !bytes.Contains([]byte(data), []byte(`"word":"C++"`)) {
+	// 命令输出是合法 JSON 时信封原样嵌套，data 是对象而不是二次编码的字符串。
+	data, err := json.Marshal(env.Data)
+	if err != nil {
+		t.Fatalf("marshal envelope data: %v", err)
+	}
+	if !bytes.Contains(data, []byte(`"word":"C++"`)) {
 		t.Fatalf("envelope data = %#v", env.Data)
 	}
 }
