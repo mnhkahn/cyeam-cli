@@ -1,4 +1,13 @@
 
+<a name="v0.2.9"></a>
+## [v0.2.9](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.8...v0.2.9) (2026-08-25)
+
+### Features
+
+
+- **cli:** add trello homework command and improve JSON handling
+
+
 <a name="v0.2.8"></a>
 ## [v0.2.8](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.7...v0.2.8) (2026-08-03)
 
@@ -6,6 +15,11 @@
 
 
 - **go-version-manager:** 新增 Go 版本管理器技能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.7"></a>
