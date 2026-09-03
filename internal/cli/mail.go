@@ -25,6 +25,7 @@ named by its "password_env" field.`,
 	cmd.AddCommand(newMailReadCommand())
 	cmd.AddCommand(newMailSendCommand())
 	cmd.AddCommand(newMailMarkReadCommand())
+	cmd.AddCommand(newMailMarkAllReadCommand())
 	cmd.AddCommand(newMailMarkUnreadCommand())
 	return cmd
 }
@@ -205,6 +206,39 @@ func newMailMarkReadCommand() *cobra.Command {
 	}
 	cmd.Flags().StringVar(&uids, "uids", "", "comma-separated list of UIDs (e.g. 4150,4149,4148)")
 	return cmd
+}
+
+func newMailMarkAllReadCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:   "mark-all-read <account>",
+		Short: "Mark all unread INBOX messages as read",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			acc, err := loadAccount(args[0])
+			if err != nil {
+				return err
+			}
+
+			cl, err := mail.Dial(acc)
+			if err != nil {
+				return err
+			}
+			defer cl.Close()
+
+			updatedUIDs, err := cl.MarkAllRead()
+			if err != nil {
+				return err
+			}
+
+			body, _ := json.Marshal(map[string]any{
+				"account": acc.Name,
+				"read":    true,
+				"updated": len(updatedUIDs),
+				"uids":    updatedUIDs,
+			})
+			return output.WriteJSON(cmd.OutOrStdout(), body)
+		},
+	}
 }
 
 func newMailMarkUnreadCommand() *cobra.Command {

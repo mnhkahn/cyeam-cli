@@ -128,6 +128,13 @@ cyeam cnote new "日记" < note.html
 cyeam cnote append "日记" < more.html
 ```
 
+### 邮件
+
+```bash
+# 将指定邮箱 INBOX 中的全部未读邮件一键标为已读
+cyeam mail mark-all-read <account>
+```
+
 ### 英语音标
 
 ```bash

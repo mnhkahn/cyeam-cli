@@ -150,6 +150,27 @@ func (cl *Client) MarkRead(uids []uint32) ([]uint32, error) {
 	return result, nil
 }
 
+// MarkAllRead marks every unread message in INBOX as read.
+// Returns the UIDs that were successfully updated.
+func (cl *Client) MarkAllRead() ([]uint32, error) {
+	criteria := &imap.SearchCriteria{NotFlag: []imap.Flag{imap.FlagSeen}}
+	data, err := cl.c.UIDSearch(criteria, nil).Wait()
+	if err != nil {
+		return nil, fmt.Errorf("find unread messages: %w", err)
+	}
+
+	uids := data.AllUIDs()
+	if len(uids) == 0 {
+		return nil, nil
+	}
+
+	uidList := make([]uint32, len(uids))
+	for i, uid := range uids {
+		uidList[i] = uint32(uid)
+	}
+	return cl.MarkRead(uidList)
+}
+
 // MarkUnread removes the \Seen flag from messages by UID.
 // Returns the list of successfully updated UIDs.
 func (cl *Client) MarkUnread(uids []uint32) ([]uint32, error) {

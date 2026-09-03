@@ -22,6 +22,7 @@ description: 多邮箱收发——通过 IMAP/SMTP 读取和发送邮件，支�
 用户: "读一下 UID 123 并标记已读"           →  cyeam mail read cyeam 123 --mark-read
 用户: "把 UID 123 标记为已读"              →  cyeam mail mark-read cyeam 123
 用户: "把 UID 123,456,789 都标记为已读"    →  cyeam mail mark-read cyeam --uids 123,456,789
+用户: "把 cyeam 邮箱所有邮件一键已读"       →  cyeam mail mark-all-read cyeam
 用户: "把 UID 123 标记为未读"              →  cyeam mail mark-unread cyeam 123
 用户: "给 x@y.com 发封邮件"                →  cyeam mail send cyeam --to x@y.com --subject "..." --body "..."
 ```
@@ -36,6 +37,7 @@ cyeam mail list <账户> [--limit 20]               列指定邮箱的最近邮�
 cyeam mail read <账户> <uid> [--mark-read]        读单封：发件人/收件人/主题/日期/正文，可选标记已读
 cyeam mail mark-read <账户> <uid>                 标记单封为已读
 cyeam mail mark-read <账户> --uids <uid1,uid2>    批量标记已读，逗号分隔
+cyeam mail mark-all-read <账户>                   一键标记 INBOX 全部未读邮件为已读
 cyeam mail mark-unread <账户> <uid>               标记单封为未读
 cyeam mail mark-unread <账户> --uids <uid1,uid2>  批量标记未读
 cyeam mail send <账户> --to <地址> --subject <主题> --body <正文>
