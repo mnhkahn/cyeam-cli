@@ -1,4 +1,13 @@
 
+<a name="v0.2.11"></a>
+## [v0.2.11](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.10...v0.2.11) (2026-09-07)
+
+### Miscellaneous Tasks
+
+
+- **repo:** 新增家庭作业批量排期技能并放行 skills/homework
+
+
 <a name="v0.2.10"></a>
 ## [v0.2.10](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.9...v0.2.10) (2026-09-03)
 
@@ -6,6 +15,11 @@
 
 
 - **mail:** 新增一键标记 INBOX 全部未读邮件为已读功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.9"></a>
