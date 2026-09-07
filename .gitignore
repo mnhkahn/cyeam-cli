@@ -21,6 +21,7 @@ out/
 *.swo
 *~
 homework*
+!skills/homework/
 
 # OS
 .DS_Store
