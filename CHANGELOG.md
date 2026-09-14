@@ -1,11 +1,25 @@
 
+<a name="v0.2.12"></a>
+## [v0.2.12](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.11...v0.2.12) (2026-09-14)
+
+### Features
+
+
+- **skills:** 新增 arithmetic 口算技能并完善 homework 与 trello 文档
+
+### Miscellaneous Tasks
+
+
+- **repo:** 新增家庭作业批量排期技能并放行 skills/homework
+
+
 <a name="v0.2.11"></a>
 ## [v0.2.11](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.10...v0.2.11) (2026-09-07)
 
 ### Miscellaneous Tasks
 
 
-- **repo:** 新增家庭作业批量排期技能并放行 skills/homework
+- update changelog [skip ci]
 
 
 <a name="v0.2.10"></a>
