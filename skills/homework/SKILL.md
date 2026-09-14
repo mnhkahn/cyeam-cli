@@ -8,6 +8,12 @@ description: 家庭作业批量排期——用户提供作业内容和完成时�
 
 用户提供**作业内容清单**和**完成周期**（起止日期），为周期内**每一天 × 每项作业**各创建一张 Trello 卡片。
 
+## 重要：这是流程 Skill，不是 CLI 命令
+
+- **禁止执行 `cyeam homework`**：这个命令不存在。不要将 Skill 名 `homework` 当成 CLI 子命令或可执行文件。
+- 本 Skill 只负责解析、排期、去重和确认的工作流；所有实际查询和创建都必须加载并遵循 `trello` Skill，且命令必须以 **`cyeam trello`** 开头。
+- `cyeam trello homework --board <board-id>` 是查看当天已有作业和下载附件的只读报告命令，**不能**用于新增作业。新增作业只能使用 `cyeam trello card create`。
+
 ## 前置
 
 - Trello 操作全部走 trello skill（`.agents/skills/trello/SKILL.md`），命令格式以它为准，禁止瞎猜。

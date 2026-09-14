@@ -53,6 +53,6 @@ cyeam trello webhook delete <webhook-id>
 
 `status-changes` 按本机时区查询某一天的卡片列表流转记录，默认查询今天，返回卡片、流转前后列表、操作者和 `changed_at`。整理每日完成任务时，必须先用 `lists <board-id>` 找到完成列表 ID，再传 `--to-list <list-id>`；不要按列表名称猜测。
 
-查某一天的作业进度和提交图片，优先用 `homework` 一条命令搞定：筛出 due 当天的卡片，返回每张卡片所在列表并下载全部附件到本地目录（默认 `homework-<date>/`）。默认下载不超过 `--max-width`（1200）宽的最大预览图（WebP，约 100KB，比原图快一个数量级），传 `--max-width 0` 下载原图。JSON 报告里每个附件带 `saved_to` 路径和 `homework_photo_url` 链接（形如 `https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>`，浏览器登录 Trello 后可直接打开）；加 `--pretty` 输出人可读的文本报告。内置超时重试，单卡片失败不中断。
+查某一天的作业进度和提交图片，使用完整命令 `cyeam trello homework --board <board-id>`：筛出 due 当天的卡片，返回每张卡片所在列表并下载全部附件到本地目录（默认 `homework-<date>/`）。这是**只读报告命令**，不创建或追加作业；不要写成不存在的 `cyeam homework`，新增作业请使用 `cyeam trello card create`。默认下载不超过 `--max-width`（1200）宽的最大预览图（WebP，约 100KB，比原图快一个数量级），传 `--max-width 0` 下载原图。JSON 报告里每个附件带 `saved_to` 路径和 `homework_photo_url` 链接（形如 `https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>`，浏览器登录 Trello 后可直接打开）；加 `--pretty` 输出人可读的文本报告。内置超时重试，单卡片失败不中断。
 
 提取图片的硬性规则：**查看或转发图片一律用 `saved_to` 本地文件**，用读图工具打开确认内容后再展示；`homework_photo_url` 链接仅作展示，禁止对它 curl/wget 或发给飞书（无浏览器会话会 401/403）。逐个附件检查报告：`error` 非空或 `size_bytes` 为 0 表示下载失败，用 `card attachment get <card-id> <attachment-id> --out <path>` 单独补下（默认下载原图，加 `--max-width 1200` 下载小体积预览图）。
