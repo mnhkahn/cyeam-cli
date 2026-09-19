@@ -1,4 +1,13 @@
 
+<a name="v0.2.13"></a>
+## [v0.2.13](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.12...v0.2.13) (2026-09-19)
+
+### Features
+
+
+- **cli:** 新增 Trello 创建卡片的作业类型支持
+
+
 <a name="v0.2.12"></a>
 ## [v0.2.12](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.11...v0.2.12) (2026-09-14)
 
@@ -9,6 +18,8 @@
 
 ### Miscellaneous Tasks
 
+
+- update changelog [skip ci]
 
 - **repo:** 新增家庭作业批量排期技能并放行 skills/homework
 
