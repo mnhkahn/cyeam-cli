@@ -33,6 +33,7 @@ cyeam trello homework --board <board-id>
 
 cyeam trello card create --list <list-id> --name <title>
     [--desc <text>] [--due <RFC3339>] [--labels <label-id,...>]
+    [--type normal|word_memorization|english_reading] [--task <text>]
 cyeam trello card update <card-id>
     [--name <title>] [--desc <text>] [--due <RFC3339>] [--complete=true|false]
 cyeam trello card move <card-id> --list <target-list-id>
@@ -48,6 +49,8 @@ cyeam trello webhook delete <webhook-id>
 ```
 
 `card update --due ""` 清除截止时间；未传 `--complete` 时不改变任务完成标记。默认输出是 JSON 信封，`--pretty` 输出响应 JSON。
+
+创建家庭作业卡片时，`--type` 默认 `normal`，与原先直接传 `--desc` 的行为一致。`--type word_memorization --task "bedroom, armchair"` 会将单词和自动生成的翻译链接写入描述；`--type english_reading --task "/ai/translate?textbook=0&article=4"` 会将用户提供的链接原样写入描述。每个任务只创建一张卡片。
 
 获取图片时先用 `card attachments <card-id>` 找到 `attachment-id`、文件名和 MIME 类型，再调用 `card attachment get`。需要在飞书展示时优先传 `--out <local-path>`：CLI 会使用已保存的 Trello 凭据下载受保护附件，并把图片字节直接写入文件，返回 `saved_to`、`name`、`mime_type` 和 `size_bytes`；Agent 随后上传该本地文件。默认下载原图，图太大时加 `--max-width <px>` 下载服务端预览图（WebP，体积小得多，内容为 WebP 时 `mime_type` 为 `image/webp`）。不要自行解析 JSON、解码 Base64，也不要把受保护 URL 直接发给飞书。仅在调用方明确需要内联数据时省略 `--out`，此时响应才包含 `base64`。附件默认上限为 25 MiB。
 

@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
@@ -659,14 +660,18 @@ func newTrelloDeleteCardCommand() *cobra.Command {
 }
 
 func newTrelloCreateCardCommand() *cobra.Command {
-	var listID, name, desc, due, labels string
+	var listID, name, desc, due, labels, taskType, task string
 	cmd := &cobra.Command{Use: "create", Short: "Create a task card", RunE: func(cmd *cobra.Command, _ []string) error {
 		if listID == "" || name == "" {
 			return fmt.Errorf("--list and --name are required")
 		}
+		cardDesc, err := homeworkCardDescription(taskType, task, desc)
+		if err != nil {
+			return err
+		}
 		fields := url.Values{"idList": {listID}, "name": {name}}
-		if desc != "" {
-			fields.Set("desc", desc)
+		if cardDesc != "" {
+			fields.Set("desc", cardDesc)
 		}
 		if due != "" {
 			fields.Set("due", due)
@@ -689,7 +694,48 @@ func newTrelloCreateCardCommand() *cobra.Command {
 	cmd.Flags().StringVar(&desc, "desc", "", "card description")
 	cmd.Flags().StringVar(&due, "due", "", "RFC3339 deadline")
 	cmd.Flags().StringVar(&labels, "labels", "", "comma-separated label IDs")
+	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, or english_reading")
+	cmd.Flags().StringVar(&task, "task", "", "type-specific task: words or an English-reading link")
 	return cmd
+}
+
+// homeworkCardDescription translates the two structured homework types into
+// plain Trello card text. Normal cards intentionally preserve the historical
+// --desc behavior unchanged.
+func homeworkCardDescription(taskType, task, desc string) (string, error) {
+	switch strings.ToLower(strings.TrimSpace(taskType)) {
+	case "", "normal", "普通作业":
+		return desc, nil
+	case "word_memorization", "word-memorization", "背单词":
+		words := normalizeHomeworkWords(task)
+		if words == "" {
+			return "", fmt.Errorf("--task must contain at least one word when --type is word_memorization")
+		}
+		generated := fmt.Sprintf("作业类型：背单词\n背单词：%s\n翻译链接：https://www.cyeam.com/ai/translate?words=%s", strings.ReplaceAll(words, ",", ", "), words)
+		return appendHomeworkDescription(desc, generated), nil
+	case "english_reading", "english-reading", "阅读英语":
+		link := strings.TrimSpace(task)
+		if link == "" {
+			return "", fmt.Errorf("--task must contain the reading link when --type is english_reading")
+		}
+		return appendHomeworkDescription(desc, "作业类型：阅读英语\n阅读英语链接："+link), nil
+	default:
+		return "", fmt.Errorf("unsupported homework type %q; use normal, word_memorization, or english_reading", taskType)
+	}
+}
+
+func normalizeHomeworkWords(task string) string {
+	words := strings.FieldsFunc(strings.TrimSpace(task), func(r rune) bool {
+		return r == ',' || r == '，' || unicode.IsSpace(r)
+	})
+	return strings.Join(words, ",")
+}
+
+func appendHomeworkDescription(desc, generated string) string {
+	if strings.TrimSpace(desc) == "" {
+		return generated
+	}
+	return desc + "\n\n" + generated
 }
 
 func newTrelloUpdateCardCommand() *cobra.Command {

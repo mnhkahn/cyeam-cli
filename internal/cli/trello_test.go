@@ -133,6 +133,70 @@ func TestFormatTrelloAttachmentDefaultsToBase64(t *testing.T) {
 	}
 }
 
+func TestHomeworkCardDescription(t *testing.T) {
+	tests := []struct {
+		name     string
+		taskType string
+		task     string
+		desc     string
+		want     string
+	}{
+		{
+			name:     "normal preserves description",
+			taskType: "normal",
+			desc:     "口算 100 题",
+			want:     "口算 100 题",
+		},
+		{
+			name:     "word memorization normalizes separators and creates link",
+			taskType: "word_memorization",
+			task:     "bedroom， armchair cushions",
+			want: "作业类型：背单词\n背单词：bedroom, armchair, cushions\n" +
+				"翻译链接：https://www.cyeam.com/ai/translate?words=bedroom,armchair,cushions",
+		},
+		{
+			name:     "english reading preserves supplied link",
+			taskType: "english_reading",
+			task:     "/ai/translate?textbook=0&article=4",
+			want:     "作业类型：阅读英语\n阅读英语链接：/ai/translate?textbook=0&article=4",
+		},
+		{
+			name:     "typed task appends existing description",
+			taskType: "背单词",
+			task:     "bedroom",
+			desc:     "周五前完成",
+			want: "周五前完成\n\n作业类型：背单词\n背单词：bedroom\n" +
+				"翻译链接：https://www.cyeam.com/ai/translate?words=bedroom",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := homeworkCardDescription(tt.taskType, tt.task, tt.desc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got != tt.want {
+				t.Errorf("description = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHomeworkCardDescriptionRejectsInvalidTypedTasks(t *testing.T) {
+	for _, tt := range []struct {
+		taskType string
+		task     string
+	}{
+		{taskType: "word_memorization"},
+		{taskType: "english_reading"},
+		{taskType: "unknown", task: "anything"},
+	} {
+		if _, err := homeworkCardDescription(tt.taskType, tt.task, ""); err == nil {
+			t.Errorf("homeworkCardDescription(%q, %q) succeeded", tt.taskType, tt.task)
+		}
+	}
+}
+
 func TestFilterCardsDueOnMatchesExplicitDate(t *testing.T) {
 	loc := time.FixedZone("UTC+8", 8*60*60)
 	day := time.Date(2026, 7, 10, 0, 0, 0, 0, loc)
@@ -205,10 +269,10 @@ func TestFormatTrelloHomeworkReport(t *testing.T) {
 				ListName: "已完成",
 				Attachments: []trelloHomeworkAttachment{
 					{
-						Name:      "photo.jpg",
+						Name:             "photo.jpg",
 						HomeworkPhotoURL: "https://trello.com/1/cards/card-1/attachments/att-1/download/photo.jpg",
-						SavedTo:   "homework-2026-08-24/口算（第37天）/photo.webp",
-						SizeBytes: 48538,
+						SavedTo:          "homework-2026-08-24/口算（第37天）/photo.webp",
+						SizeBytes:        48538,
 					},
 				},
 			},
