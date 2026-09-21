@@ -1,4 +1,13 @@
 
+<a name="v0.2.14"></a>
+## [v0.2.14](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.13...v0.2.14) (2026-09-21)
+
+### Features
+
+
+- **homework:** 新增作业排序与错开截止时间排期逻辑
+
+
 <a name="v0.2.13"></a>
 ## [v0.2.13](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.12...v0.2.13) (2026-09-19)
 
@@ -6,6 +15,11 @@
 
 
 - **cli:** 新增 Trello 创建卡片的作业类型支持
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.12"></a>
