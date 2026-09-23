@@ -13,8 +13,17 @@ description: 家庭作业批量排期——支持普通作业、背单词和阅�
 - 支持的类型：`普通作业`、`背单词`、`阅读英语`。
 - 一项作业只对应一个具体任务和一张 Trello 卡片；不要为了单词或阅读链接额外创建卡片。
 - `背单词`的具体任务必须给出待背单词。接受英文逗号、中文逗号或空白分隔；去除首尾空白后按原顺序以英文逗号连接。
-- `背单词`卡片的描述必须记录单词和翻译链接。链接格式固定为 `https://www.cyeam.com/ai/translate?words=<英文逗号分隔的单词>`，例如单词 `bedroom, armchair, cushions` 对应 `https://www.cyeam.com/ai/translate?words=bedroom,armchair,cushions`。不要将逗号替换为 `%2C`，以保持链接可读。
+- `背单词`必须通过 `cyeam trello card create --type word_memorization --task "<词表>"` 创建，不能只手写 `--desc`。CLI 会把类型、单词和翻译链接写入同一张卡的 `desc`；`--type` 是 CLI 创建参数，不是 Trello 原生字段。生成的 `desc` 固定包含：
+
+  ```text
+  作业类型：背单词
+  背单词：bedroom, armchair, cushions
+  翻译链接：https://www.cyeam.com/ai/translate?words=bedroom,armchair,cushions
+  ```
+
+  链接中的单词使用英文逗号分隔；不要将逗号替换为 `%2C`，以保持链接可读。
 - `阅读英语`的具体任务必须由用户提供阅读链接，例如 `/ai/translate?textbook=0&article=4`。将该链接原样写进卡片描述；不要改写、补全、解析或生成链接。
+- `阅读英语`必须通过 `cyeam trello card create --type english_reading --task "<用户提供的链接>"` 创建。CLI 会在 `desc` 写入 `作业类型：阅读英语` 和 `阅读英语链接：<链接>`。
 
 ## 重要：这是流程 Skill，不是 CLI 命令
 
@@ -40,22 +49,23 @@ description: 家庭作业批量排期——支持普通作业、背单词和阅�
    - 标题：`<作业名>（第N天）`，N 逐天递增。用户给了起始序号就用它；没给则先 `cyeam trello cards --board <board-id>` 看已有卡片的编号规律，从最大序号 +1 继续；完全没有规律可遵循时用 `<作业名>（YYYY-MM-DD）`。
    - `--due`：上一步倒推出的当天、本机时区 RFC3339 截止时间（如 `2026-09-08T19:25:00+08:00`）。
    - 普通作业有具体要求（如“口算 100 题”）时写进 `--desc`；所有卡片的描述同时写入预计时长和在当日列表中的顺序，例如“预计 15 分钟；当日第 2 项”。
-   - 背单词作业把单词和翻译链接写进 `--desc`，例如：
-
-     ```text
-     背单词：bedroom, armchair, cushions
-     翻译链接：https://www.cyeam.com/ai/translate?words=bedroom,armchair,cushions
-     ```
-   - 阅读英语作业把用户提供的链接原样写进 `--desc`，例如：
-
-     ```text
-     阅读英语链接：/ai/translate?textbook=0&article=4
-     ```
+   - `背单词`：把预计时长、当日顺序等通用说明写入 `--desc`，并将规范化词表传给 `--type word_memorization --task`。CLI 会在同一个 `desc` 后追加上述三行固定数据；平板据 `作业类型：背单词` 进入单词交互，读取 `背单词：` 作为词表、读取 `翻译链接：` 作为跳转地址。
+   - `阅读英语`：把预计时长、当日顺序等通用说明写入 `--desc`，并把用户提供的链接原样传给 `--type english_reading --task`。CLI 会在同一个 `desc` 后追加类型和链接；平板据 `作业类型：阅读英语` 进入阅读交互。
 4. 去重：`cyeam trello cards --list <list-id>` 检查，同名且同 due 的卡片已存在则跳过。
-5. 把完整计划清单按每天的执行顺序列给用户确认一次。每行至少含：日期、学科/大类、序号、作业、难易依据、预计时长、开始—截止时间、标题；确认后逐条执行：
+5. 把完整计划清单按每天的执行顺序列给用户确认一次。每行至少含：日期、学科/大类、类型、序号、作业、难易依据、预计时长、开始—截止时间、标题；确认后按类型逐条创建：
 
    ```bash
-   cyeam trello card create --list <list-id> --name "<作业名>（第N天）" --due <RFC3339>
+   # 普通作业
+   cyeam trello card create --list <list-id> --name "<作业名>（第N天）" --due <RFC3339> \
+     --type normal --desc "<通用说明和具体要求>"
+
+   # 背单词：--task 为规范化后的英文逗号词表
+   cyeam trello card create --list <list-id> --name "<作业名>（第N天）" --due <RFC3339> \
+     --type word_memorization --task "bedroom,armchair,cushions" --desc "<通用说明>"
+
+   # 阅读英语：--task 为用户提供的原始链接
+   cyeam trello card create --list <list-id> --name "<作业名>（第N天）" --due <RFC3339> \
+     --type english_reading --task "/ai/translate?textbook=0&article=4" --desc "<通用说明>"
    ```
 
 6. 汇报结果：创建成功 / 跳过（已存在）/ 失败各多少张，失败的附原因。
@@ -63,7 +73,7 @@ description: 家庭作业批量排期——支持普通作业、背单词和阅�
 ## 规则
 
 - 每天每项作业一张卡片，不要把多天或多项作业合并成一张。
-- 背单词和阅读英语链接写入同一张作业卡的描述；不要作为 Trello 附件或评论，也不要另建卡片。
+- 背单词和阅读英语必须使用对应的 `--type` 与 `--task`，使 CLI 写入机器可读的 `desc` 数据；不要把类型、词表或链接只写在卡片标题、附件或评论里，也不要另建卡片。
 - 截止时间是执行计划的一部分：不得再将当天所有卡片设为同一固定时间，也不得在未估算时长或排序的情况下创建卡片。
 - 批量创建是对外部状态的批量变更，必须先列出计划清单获得用户一次确认再执行。
 - 周期跨月/跨年时逐日展开，不要漏掉首尾日期。
