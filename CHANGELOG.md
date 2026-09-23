@@ -1,4 +1,8 @@
 
+<a name="v0.2.15"></a>
+## [v0.2.15](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.14...v0.2.15) (2026-09-23)
+
+
 <a name="v0.2.14"></a>
 ## [v0.2.14](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.13...v0.2.14) (2026-09-21)
 
@@ -6,6 +10,11 @@
 
 
 - **homework:** 新增作业排序与错开截止时间排期逻辑
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.13"></a>
