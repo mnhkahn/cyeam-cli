@@ -1,6 +1,6 @@
 ---
 name: git-cmsg
-version: 0.1.42
+version: 0.1.43
 description: Use when generating Git commit messages, writing commit messages, committing code, or when the user mentions commit、提交、commit message、提交信息. Automatically stages all changes by default, uses LLM to judge if new files should be committed, generates Conventional Commits format messages in Chinese.
 allowed-tools: AskUserQuestion, Bash
 ---
@@ -14,6 +14,14 @@ Automatically stage all changes, let LLM judge if new files are safe to commit, 
 - User wants to commit code changes
 - User asks to generate a commit message
 - User mentions "提交", "commit", "commit message"
+
+## Git Tag 入口
+
+- 用户只要求打 tag、升级版本标签，或显式调用 `/git-tag` / `$git-tag` 时，使用相邻的 [git-tag skill](../git-tag/SKILL.md)，直接调用 `cyeam tag`。
+- `/git-tag` 默认小版本升级；`/git-tag major` 大版本升级；`/git-tag minor --dry-run` 只预览。
+- 只打 tag 时不进入下面的暂存、提交信息生成或提交确认流程。
+- 用户同时要求提交和打 tag 时，先完成用户授权的提交，再使用 `git-tag`；普通提交不会自动打 tag。
+- 修改 skill 文件本身不代表要求提交代码或创建标签。
 
 ## Conventional Commits Specification
 

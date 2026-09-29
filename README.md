@@ -145,7 +145,27 @@ cyeam phonetic hello
 cyeam --pretty phonetic hello
 ```
 
-### 其他
+### Git 版本标签
+
+在目标 Git 仓库内执行：
+
+```bash
+cyeam tag minor --dry-run  # 预览小版本升级
+cyeam tag minor            # 小版本升级：v0.2.15 -> v0.3.0
+cyeam tag major            # 大版本升级：v0.2.15 -> v1.0.0
+```
+
+安装项目 skills 后，可显式调用 `git-tag` 技能：`/git-tag` 默认小版本升级，
+`/git-tag major` 大版本升级，`/git-tag minor --dry-run` 预览；使用 `$` 调用技能的客户端可写 `$git-tag`。
+显式调用会直接执行，仍保留工作区和标签检查。`git-cmsg` 会将仅打标签的请求交给该技能。
+
+以本地最大的稳定版本标签 `vMAJOR.MINOR.PATCH` 为基准，忽略预发布及其他格式标签；
+没有匹配标签时从 `v0.0.0` 开始。小版本增加次版本号，大版本增加主版本号，并清零后续位。
+工作区必须干净（包括暂存和未跟踪文件），标签指向当前 HEAD。
+命令只创建本地标签，不自动拉取或推送；如需同步远端标签，请先运行 `git fetch --tags`。
+确认后使用 `git push origin <新标签>` 发布，在本项目中会触发 GitHub Release 工作流。
+
+### 版本和更新
 
 ```bash
 # 查看版本

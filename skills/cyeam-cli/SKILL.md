@@ -45,6 +45,7 @@ cyeam whoami                          # 查看当前登录状态
 ```bash
 cyeam version                          # 版本
 cyeam update                           # 更新
+cyeam tag minor|major [--dry-run]       # Git 版本标签 → 见 git-tag skill
 cyeam login / logout / whoami          # Microsoft 登录
 cyeam date holiday [YYYY-MM-DD]        # 节假日
 cyeam tv ...                           # 直播 → 见 live-broadcast skill

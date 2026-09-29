@@ -246,6 +246,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	})
 
 	root.AddCommand(newVersionCommand(deps))
+	root.AddCommand(newTagCommand())
 	root.AddCommand(newUpdateCommand(deps))
 	root.AddCommand(newDateCommand(deps))
 	root.AddCommand(newMoCommand(deps))
