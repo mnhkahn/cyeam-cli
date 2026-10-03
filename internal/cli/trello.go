@@ -694,12 +694,12 @@ func newTrelloCreateCardCommand() *cobra.Command {
 	cmd.Flags().StringVar(&desc, "desc", "", "card description")
 	cmd.Flags().StringVar(&due, "due", "", "RFC3339 deadline")
 	cmd.Flags().StringVar(&labels, "labels", "", "comma-separated label IDs")
-	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, or english_reading")
-	cmd.Flags().StringVar(&task, "task", "", "type-specific task: words or an English-reading link")
+	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, english_reading, or arithmetic")
+	cmd.Flags().StringVar(&task, "task", "", "type-specific task: words, an English-reading link, or multiline arithmetic questions")
 	return cmd
 }
 
-// homeworkCardDescription translates the two structured homework types into
+// homeworkCardDescription translates structured homework types into
 // plain Trello card text. Normal cards intentionally preserve the historical
 // --desc behavior unchanged.
 func homeworkCardDescription(taskType, task, desc string) (string, error) {
@@ -713,6 +713,12 @@ func homeworkCardDescription(taskType, task, desc string) (string, error) {
 		}
 		generated := fmt.Sprintf("作业类型：背单词\n背单词：%s\n翻译链接：https://www.cyeam.com/ai/translate?words=%s", strings.ReplaceAll(words, ",", ", "), words)
 		return appendHomeworkDescription(desc, generated), nil
+	case "arithmetic", "口算":
+		questions := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(task, "\r\n", "\n"), "\r", "\n"))
+		if questions == "" {
+			return "", fmt.Errorf("--task must contain arithmetic questions, one per line, when --type is arithmetic")
+		}
+		return appendHomeworkDescription(desc, "作业类型：口算\n作业内容：\n"+questions), nil
 	case "english_reading", "english-reading", "阅读英语":
 		link := strings.TrimSpace(task)
 		if link == "" {
@@ -720,7 +726,7 @@ func homeworkCardDescription(taskType, task, desc string) (string, error) {
 		}
 		return appendHomeworkDescription(desc, "作业类型：阅读英语\n阅读英语链接："+link), nil
 	default:
-		return "", fmt.Errorf("unsupported homework type %q; use normal, word_memorization, or english_reading", taskType)
+		return "", fmt.Errorf("unsupported homework type %q; use normal, word_memorization, english_reading, or arithmetic", taskType)
 	}
 }
 

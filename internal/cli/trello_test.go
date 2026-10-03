@@ -189,11 +189,32 @@ func TestHomeworkCardDescriptionRejectsInvalidTypedTasks(t *testing.T) {
 	}{
 		{taskType: "word_memorization"},
 		{taskType: "english_reading"},
+		{taskType: "arithmetic"},
+		{taskType: "口算", task: " \n\t "},
 		{taskType: "unknown", task: "anything"},
 	} {
 		if _, err := homeworkCardDescription(tt.taskType, tt.task, ""); err == nil {
 			t.Errorf("homeworkCardDescription(%q, %q) succeeded", tt.taskType, tt.task)
 		}
+	}
+}
+
+func TestArithmeticCardDescriptionPreservesMultilineQuestions(t *testing.T) {
+	for _, taskType := range []string{"arithmetic", "口算", " ARITHMETIC "} {
+		t.Run(taskType, func(t *testing.T) {
+			questions := []string{"26 + 17 = ___", "54 − 28 = ___", "25÷8＝（ ）……（ ）", "1.5 + 2 = ___"}
+			task := "  " + strings.Join(questions, "\r\n") + "\r\n"
+			desc := "预计用时: 5\n当日第 2 项"
+			got, err := homeworkCardDescription(taskType, task, desc)
+			if err != nil {
+				t.Fatal(err)
+			}
+			marker := "作业类型：口算\n作业内容：\n"
+			before, content, ok := strings.Cut(got, marker)
+			if !ok || before != desc+"\n\n" || content != strings.Join(questions, "\n") {
+				t.Fatalf("description lost metadata or question content: %q", got)
+			}
+		})
 	}
 }
 
