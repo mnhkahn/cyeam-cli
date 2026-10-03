@@ -1,6 +1,20 @@
 
+<a name="v0.2.16"></a>
+## [v0.2.16](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.15...v0.2.16) (2026-09-29)
+
+### Features
+
+
+- **cli:** add Git release tag command with minor/major version bump
+
+
 <a name="v0.2.15"></a>
 ## [v0.2.15](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.14...v0.2.15) (2026-09-23)
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.14"></a>
