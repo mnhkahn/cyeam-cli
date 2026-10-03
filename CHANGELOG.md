@@ -1,4 +1,13 @@
 
+<a name="v0.2.17"></a>
+## [v0.2.17](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.16...v0.2.17) (2026-10-03)
+
+### Features
+
+
+- **trello:** 支持口算作业类型
+
+
 <a name="v0.2.16"></a>
 ## [v0.2.16](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.15...v0.2.16) (2026-09-29)
 
@@ -6,6 +15,11 @@
 
 
 - **cli:** add Git release tag command with minor/major version bump
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.15"></a>
