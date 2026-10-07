@@ -1,7 +1,7 @@
 ---
 name: pdf
 version: 0.1.17
-description: Markdown/HTML/Typst 转 PDF——输入 Markdown、HTML 或 Typst 文件，本地生成 PDF 文档。支持标题/列表/代码块/多列/自由排版。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
+description: Markdown/HTML/Typst 转 PDF——输入 Markdown、HTML 或 Typst 文件，本地生成 PDF 文档。支持标题/列表/代码块/多列/自由排版及口算练习单。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
 # Markdown/HTML/Typst 转 PDF
@@ -9,6 +9,8 @@ description: Markdown/HTML/Typst 转 PDF——输入 Markdown、HTML 或 Typst �
 ## 概述
 
 把 Markdown、HTML 或 Typst 文件转成 PDF 文档。全部本地生成，无需网络。
+
+支持三种模式：`--mode auto`（默认，普通文档）、`--mode arithmetic`（口算练习单）、`--mode pinyin`（看拼音写字）。后两种模式使用纯文本输入并直接由 CLI 排版。
 
 ```bash
 cyeam pdf README.md                      # 从 Markdown 文件生成 PDF（base64 JSON）
@@ -84,6 +86,54 @@ cyeam pdf /tmp/layout.typ -o /tmp/layout.pdf --pretty
 ```
 
 如果本机没有安装 `typst`，命令会报错。此时改用 Markdown columns 扩展，或提示用户安装 Typst。
+
+### 口算练习格式
+
+CLI 原生支持 `--mode arithmetic`，无需 Typst。输入为 UTF-8 纯文本，每个非空行一道题（可带编号），空行忽略；不要混入 Markdown 标题、元信息、表格或答案。CLI 只排版，不自动出题、编号或补答案。
+
+```bash
+cyeam pdf questions.txt --mode arithmetic -o practice.pdf
+cyeam pdf questions.txt --mode arithmetic --layout grade4 --title "四年级口算" -o practice.pdf
+cyeam pdf questions.txt --mode arithmetic --layout vertical -o practice.pdf
+```
+
+`--layout` 可选 `standard`（默认）、`grade4`、`large-number`、`negative`、`quantity`、`vertical`，对应下表；`--title` 默认“宝宝口算”。这两个参数仅用于 arithmetic 模式。默认 `--mode auto` 保留 Markdown/HTML/Typst 自动检测；arithmetic 模式优先于扩展名，始终按逐行题目解析，支持文件或 stdin 输入及原有 base64 JSON 输出。
+
+用户要求“口算 PDF”“口算练习单”或“按宝宝口算格式排版”时使用。参考 `cyeam_web/controllers/baobao_controller.go` 的 `ArithmeticExec()`，以 PDF 后端布局为准，不采用前端 HTML 打印逻辑写死的 100 题。
+
+- 使用 A4 纵向（210 × 297 mm），黑白、无边框题目网格；题目区左侧 10 mm，总宽 190 mm，从页面顶部 32 mm 开始。页首分隔线位于 30 mm，横跨 5–205 mm。
+- 页首默认标题“宝宝口算”，20 pt 加粗；四年级使用具体题型标题，13 pt 加粗。标题左上位置参考 x=10 mm、y=7 mm。网站普通版标题右侧放“检查题目、检查十位、检查个位、检查答案”四项简短提示（8–10 pt），四年级版不放这组提示。CLI 原生模式使用普通字重标题，不附检查提示、二维码或姓名日期栏；需要完整复刻这些装饰时使用自定义 Typst。
+- 复刻网站版时，右上角 x=170 mm、y=7 mm 放 20 × 20 mm 二维码，指向 `https://www.cyeam.com/tool/arithmetic`。自定义练习单可省略二维码；来自 arithmetic skill 的标题、姓名、日期等元信息应保留，并相应调整题目起始位置与每页行数，避免重叠。
+
+| 题型 | 每页行 × 列 | 每页容量 | 行高 | 列宽 | 题目字号 |
+| --- | --- | --- | --- | --- | --- |
+| 普通横式口算 | 20 × 5 | 100 题 | 12 mm | 38 mm | 11.5 pt |
+| 四年级一般题型 | 25 × 4 | 100 题 | 10 mm | 47.5 mm | 9 pt |
+| 四年级大数 `g4-large-number`、负数 `g4-negative` | 25 × 3 | 75 题 | 10 mm | 190/3 mm | 10 pt |
+| 四年级数量关系 `g4-quantity` | 25 × 2 | 50 题 | 10 mm | 95 mm | 10 pt |
+| 非四年级竖式（网站题型标识以 `-2` 结尾） | 5 × 5 | 25 题 | 48 mm | 38 mm | 11.5 pt |
+
+- 按从左到右、从上到下的顺序填充网格。横式左对齐、垂直居中；竖式题干置于格子顶部，下面保留演算空间。字体参考黑体，实际使用可用且覆盖中文与运算符的字体。
+- 四年级普通填空留 `（　　）`，数量关系留更宽的 `（　　　　）`；保留单位与完整题干。长题放不下时优先增加行高或减少列数，并重新计算每页容量，不截断题干。
+- 表中题数是参考版式的每页容量。用户指定题数或已提供题目时，按实际数量分页，末页保留空白，不为填满页面擅自补题。只有用户要求满页且未指定题数时，按对应容量出题；网站生成器也可能因题库或去重限制返回少于容量的题目。
+- 题目内容与答案分离，默认不附答案；需要答案时另起答案页。需要出题时遵循 arithmetic skill 的年级、题型和数量约束；本格式只规定 PDF 排版，不扩大支持的题型范围。
+- 默认直接使用 CLI 口算模式，按对应容量分页，末页不补题。长题在格内自动换行，超出行高时报错并指出题号；此时缩短题干或选用更宽的布局。竖式模式在顶部放横式题干，下面留演算空白，不自动生成纵向算式。需要额外元信息、自定义行高或纵向算式时改用 Typst；本节毫米尺寸覆盖上方通用示例的 18 mm 页边距。
+
+### 看拼音写字格式
+
+用户要求“看拼音写字 PDF”“拼音米字格练习纸”时，使用 `--mode pinyin`。输入是要练习的汉字原文（UTF-8），不是拼音；文件或 stdin 均可。无需 Typst、网络或登录。
+
+```bash
+printf '%s' '你好' | cyeam pdf --mode pinyin -o practice.pdf
+cyeam pdf words.txt --mode pinyin -o practice.pdf
+```
+
+- 参考网站 `/tool/pinyin?xiezi=你好`：A4 纵向，左上标题“看拼音写字”，拼音提示下面是空白米字格，不显示汉字答案。
+- 题区从 x=13 mm、y=20 mm 开始，米字格 11 × 11 mm，拼音区高 7 mm，词组间隔 5 mm，每行最多 17 格；空格、换行、标点和其他非汉字分隔词组，不占格。超过 17 字的词组自动拆分。
+- 底部保留“改错：”及 255、265、275、285 mm 处的四条横线。长文本自动分页，每页重复标题和改错区，不静默截断；分组间距可能让每页容纳字数少于 204 字。
+- 拼音由本地词典生成，多音字读音应按语境核对。不含汉字时返回错误。
+- 拼音字体内置；标题与改错标签沿用 PDF 中文字体检测，需要系统提供可用中文字体。`--layout`、`--title` 仅用于口算模式，不能与 pinyin 模式混用。
+- 与其它 PDF 模式相同，`-o` 保存文件，省略 `-o` 返回 base64 JSON。位置参数始终是文件路径；直接传文字请使用 stdin，或已有的 `cyeam pinyin sheet "你好" -o practice.pdf`。
 
 ### 方式一：文件输入（推荐给 Agent）
 

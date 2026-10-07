@@ -16,6 +16,17 @@ cyeam pinyin sheet "你好世界"              # 生成练习纸（PDF base64）
 cyeam pinyin sheet --out practice.pdf "你好世界"  # 保存 PDF 到文件
 ```
 
+## PDF 模式入口
+
+也可从文件或 stdin 生成同样的练习纸：
+
+```bash
+printf '%s' '你好' | cyeam pdf --mode pinyin -o practice.pdf
+cyeam pdf words.txt --mode pinyin -o practice.pdf
+```
+
+A4 纵向，拼音提示、空白米字格及底部改错区。空格、换行和标点分隔词组；长词自动拆分，长文本自动分页，不截断。没有汉字时返回错误。PDF 模式的中文标题需要可用系统中文字体；多音字请核对语境。
+
 ## 安装
 
 ```bash

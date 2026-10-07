@@ -7,22 +7,41 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/mnhkahn/gofpdf"
 	"github.com/mnhkahn/go-pinyin"
+	"github.com/mnhkahn/gofpdf"
 )
 
 //go:embed font/pinyin-wenkai-light.ttf
 var pyFont []byte
 
 func GenerateSheetPDF(text string) ([]byte, error) {
+	return GenerateSheetPDFWithHeaderFont(text, pyFont)
+}
+
+// GenerateSheetPDFWithHeaderFont uses a Chinese-capable font for worksheet labels.
+func GenerateSheetPDFWithHeaderFont(text string, headerFont []byte) ([]byte, error) {
+	words := sheetWords(text)
+	if len(words) == 0 {
+		return nil, fmt.Errorf("no Chinese characters provided")
+	}
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddUTF8FontFromBytes("pyfont", "", pyFont)
 	pdf.SetAutoPageBreak(false, 0)
-	pdf.AddPage()
-
-	pdf.SetFont("pyfont", "", 20)
-	pdf.SetXY(10, 7)
-	pdf.CellFormat(190, 10, "看拼音写字", "", 0, "C", false, 0, "")
+	pdf.AddUTF8FontFromBytes("header", "", headerFont)
+	addPage := func() {
+		pdf.AddPage()
+		pdf.SetFont("header", "", 20)
+		pdf.SetXY(10, 7)
+		pdf.CellFormat(190, 10, "看拼音写字", "", 0, "L", false, 0, "")
+		pdf.SetFont("header", "", 13)
+		pdf.SetXY(10, 237)
+		pdf.CellFormat(70, 10, "改错：", "", 0, "L", false, 0, "")
+		pdf.SetLineWidth(0.1)
+		for i := 0; i < 4; i++ {
+			pdf.Line(10, 255+float64(i)*10, 200, 255+float64(i)*10)
+		}
+	}
+	addPage()
 
 	const paddingLeft = 13
 	xStart := float64(paddingLeft)
@@ -30,7 +49,7 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 	const wMi = float64(11)
 	const hPy = float64(7)
 
-	for _, word := range strings.Split(text, " ") {
+	for _, word := range words {
 		if word == "" {
 			continue
 		}
@@ -51,8 +70,10 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 			xStart = paddingLeft
 			yStart += wMi + hPy
 		}
-		if yStart >= 236 {
-			break
+		if yStart+wMi+hPy > 236 {
+			addPage()
+			xStart = paddingLeft
+			yStart = 20
 		}
 
 		cy := yStart + hPy
@@ -107,19 +128,25 @@ func GenerateSheetPDF(text string) ([]byte, error) {
 		xStart += blockWidth + 5
 	}
 
-	pdf.SetFont("pyfont", "", 13)
-	pdf.SetXY(10, 237)
-	pdf.CellFormat(70, 10, "改错：", "", 0, "L", false, 0, "")
-
-	for i := 0; i < 4; i++ {
-		y := 255 + float64(i)*10
-		pdf.SetLineWidth(0.1)
-		pdf.Line(10, y, 200, y)
-	}
-
 	var buf bytes.Buffer
 	if err := pdf.Output(&buf); err != nil {
 		return nil, fmt.Errorf("output pdf: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+// Split on non-Han separators and cap each block at the page width (17 cells).
+func sheetWords(text string) []string {
+	var words []string
+	for _, word := range strings.FieldsFunc(text, func(r rune) bool { return !unicode.Is(unicode.Han, r) }) {
+		chars := []rune(word)
+		for len(chars) > 17 {
+			words = append(words, string(chars[:17]))
+			chars = chars[17:]
+		}
+		if len(chars) > 0 {
+			words = append(words, string(chars))
+		}
+	}
+	return words
 }
