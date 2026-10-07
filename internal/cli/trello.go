@@ -221,12 +221,19 @@ func filterTodayCards(data []byte, now time.Time) ([]byte, error) {
 
 // filterCardsDueOn keeps open cards whose due date falls on day's local date.
 func filterCardsDueOn(data []byte, day time.Time) ([]byte, error) {
+	start, end, err := localDayRange(day.Format(time.DateOnly), day)
+	if err != nil {
+		return nil, err
+	}
+	return filterCardsDueBetween(data, start, end)
+}
+
+// end is exclusive; preserve complete card objects for model input.
+func filterCardsDueBetween(data []byte, start, end time.Time) ([]byte, error) {
 	var rawCards []json.RawMessage
 	if err := json.Unmarshal(data, &rawCards); err != nil {
 		return nil, err
 	}
-	location := day.Location()
-	day = day.In(location)
 	result := make([]json.RawMessage, 0)
 	for _, raw := range rawCards {
 		var card struct {
@@ -240,7 +247,7 @@ func filterCardsDueOn(data []byte, day time.Time) ([]byte, error) {
 		if err != nil {
 			continue
 		}
-		if !card.Closed && due.In(location).Format("2006-01-02") == day.Format("2006-01-02") {
+		if !card.Closed && !due.Before(start) && due.Before(end) {
 			result = append(result, raw)
 		}
 	}
@@ -417,18 +424,23 @@ type trelloHomeworkAttachment struct {
 }
 
 type trelloHomeworkCard struct {
-	ID          string                     `json:"id"`
-	Name        string                     `json:"name"`
-	ListID      string                     `json:"list_id"`
-	ListName    string                     `json:"list_name"`
-	Due         string                     `json:"due,omitempty"`
-	DueComplete bool                       `json:"due_complete"`
-	URL         string                     `json:"url,omitempty"`
-	Attachments []trelloHomeworkAttachment `json:"attachments"`
-	Error       string                     `json:"error,omitempty"`
+	Description  string                     `json:"desc"`
+	Actions      json.RawMessage            `json:"actions,omitempty"`
+	ActionsError string                     `json:"actions_error,omitempty"`
+	ID           string                     `json:"id"`
+	Name         string                     `json:"name"`
+	ListID       string                     `json:"list_id"`
+	ListName     string                     `json:"list_name"`
+	Due          string                     `json:"due,omitempty"`
+	DueComplete  bool                       `json:"due_complete"`
+	URL          string                     `json:"url,omitempty"`
+	Attachments  []trelloHomeworkAttachment `json:"attachments"`
+	Error        string                     `json:"error,omitempty"`
 }
 
 type trelloHomeworkReport struct {
+	From    string               `json:"from"`
+	To      string               `json:"to"`
 	Date    string               `json:"date"`
 	BoardID string               `json:"board_id"`
 	Dir     string               `json:"dir"`
@@ -436,18 +448,23 @@ type trelloHomeworkReport struct {
 }
 
 func newTrelloHomeworkCommand() *cobra.Command {
-	var boardID, day, dir string
+	var boardID, day, from, to, dir string
+	var includeActions bool
 	var maxBytes int64
 	var maxWidth int
-	cmd := &cobra.Command{Use: "homework", Short: "One-shot report of one day's homework cards with attachments downloaded", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+	cmd := &cobra.Command{Use: "homework", Short: "Batch homework report by due date with attachments downloaded", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
 		if boardID == "" {
 			return fmt.Errorf("--board is required")
 		}
-		start, _, err := localDayRange(day, time.Now())
+		start, end, err := homeworkDateRange(day, from, to, time.Now())
 		if err != nil {
 			return err
 		}
 		date := start.Format(time.DateOnly)
+		lastDate := end.AddDate(0, 0, -1).Format(time.DateOnly)
+		if from != "" {
+			date += "_" + lastDate
+		}
 		if dir == "" {
 			dir = "homework-" + date
 		}
@@ -483,11 +500,12 @@ func newTrelloHomeworkCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		cardsData, err = filterCardsDueOn(cardsData, start)
+		cardsData, err = filterCardsDueBetween(cardsData, start, end)
 		if err != nil {
 			return err
 		}
 		var cards []struct {
+			Description string `json:"desc"`
 			ID          string `json:"id"`
 			Name        string `json:"name"`
 			Due         string `json:"due"`
@@ -499,9 +517,10 @@ func newTrelloHomeworkCommand() *cobra.Command {
 			return err
 		}
 
-		report := trelloHomeworkReport{Date: date, BoardID: boardID, Dir: dir, Cards: make([]trelloHomeworkCard, 0, len(cards))}
+		report := trelloHomeworkReport{From: start.Format(time.DateOnly), To: lastDate, Date: date, BoardID: boardID, Dir: dir, Cards: make([]trelloHomeworkCard, 0, len(cards))}
 		for _, card := range cards {
 			entry := trelloHomeworkCard{
+				Description: card.Description,
 				ID:          card.ID,
 				Name:        card.Name,
 				ListID:      card.IDList,
@@ -513,6 +532,18 @@ func newTrelloHomeworkCommand() *cobra.Command {
 			}
 			if entry.ListName == "" {
 				entry.ListName = card.IDList
+			}
+			if includeActions {
+				data, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
+					return client.Actions(ctx, card.ID, 1000)
+				})
+				if err != nil {
+					entry.ActionsError = err.Error()
+				} else if !json.Valid(data) {
+					entry.ActionsError = "invalid actions JSON"
+				} else {
+					entry.Actions = json.RawMessage(data)
+				}
 			}
 			attachmentsData, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
 				return client.Attachments(ctx, card.ID)
@@ -546,7 +577,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 				if download.MIMEType != "" {
 					item.MIMEType = download.MIMEType
 				}
-				cardDir := filepath.Join(dir, sanitizeTrelloFilename(card.Name))
+				cardDir := filepath.Join(dir, sanitizeTrelloFilename(card.ID+"-"+card.Name))
 				if err := os.MkdirAll(cardDir, 0755); err != nil {
 					item.Error = err.Error()
 					entry.Attachments = append(entry.Attachments, item)
@@ -579,10 +610,34 @@ func newTrelloHomeworkCommand() *cobra.Command {
 	}}
 	cmd.Flags().StringVar(&boardID, "board", "", "board ID")
 	cmd.Flags().StringVar(&day, "date", "", "local date in YYYY-MM-DD; defaults to today")
+	cmd.Flags().StringVar(&from, "from", "", "first local due date, YYYY-MM-DD (requires --to)")
+	cmd.Flags().StringVar(&to, "to", "", "last local due date, inclusive (requires --from)")
+	cmd.Flags().BoolVar(&includeActions, "include-actions", false, "include up to 1000 recent actions per card, including submission comments")
 	cmd.Flags().StringVar(&dir, "dir", "", "directory to save attachments; defaults to homework-<date>")
 	cmd.Flags().IntVar(&maxWidth, "max-width", 1200, "download the largest image preview up to this width; 0 downloads the original")
 	cmd.Flags().Int64Var(&maxBytes, "max-bytes", 25<<20, "maximum attachment size to download")
 	return cmd
+}
+
+func homeworkDateRange(day, from, to string, now time.Time) (time.Time, time.Time, error) {
+	if from == "" && to == "" {
+		return localDayRange(day, now)
+	}
+	if day != "" || from == "" || to == "" {
+		return time.Time{}, time.Time{}, fmt.Errorf("use either --date or both --from and --to")
+	}
+	start, _, err := localDayRange(from, now)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	last, end, err := localDayRange(to, now)
+	if err != nil {
+		return time.Time{}, time.Time{}, err
+	}
+	if last.Before(start) {
+		return time.Time{}, time.Time{}, fmt.Errorf("--to must not be before --from")
+	}
+	return start, end, nil
 }
 
 // formatTrelloHomeworkReport 按 --pretty 约定把作业报告渲染成人可读文本。
@@ -591,6 +646,15 @@ func formatTrelloHomeworkReport(report trelloHomeworkReport) string {
 	fmt.Fprintf(&b, "日期: %s\n目录: %s\n卡片数: %d\n", report.Date, report.Dir, len(report.Cards))
 	for _, card := range report.Cards {
 		fmt.Fprintf(&b, "\n[%s] %s\n", card.ListName, card.Name)
+		if card.Description != "" {
+			fmt.Fprintf(&b, "  作业内容: %s\n", card.Description)
+		}
+		if card.ActionsError != "" {
+			fmt.Fprintf(&b, "  历史读取失败: %s\n", card.ActionsError)
+		}
+		if len(card.Actions) > 0 {
+			fmt.Fprintf(&b, "  提交历史: %s\n", card.Actions)
+		}
 		if card.Error != "" {
 			fmt.Fprintf(&b, "  错误: %s\n", card.Error)
 			continue

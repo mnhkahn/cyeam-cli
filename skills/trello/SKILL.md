@@ -29,7 +29,8 @@ cyeam trello cards --board <board-id> [--today]
 cyeam trello status-changes --board <board-id>
     [--date <YYYY-MM-DD>] [--to-list <list-id>] [--limit 1000]
 cyeam trello homework --board <board-id>
-    [--date <YYYY-MM-DD>] [--dir <目录>] [--max-width 1200] [--max-bytes <bytes>]
+    [--date <YYYY-MM-DD> | --from <YYYY-MM-DD> --to <YYYY-MM-DD>]
+    [--include-actions] [--dir <目录>] [--max-width 1200] [--max-bytes <bytes>]
 
 cyeam trello card create --list <list-id> --name <title>
     [--desc <text>] [--due <RFC3339>] [--labels <label-id,...>]
@@ -69,3 +70,6 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 查某一天的作业进度和提交图片，使用完整命令 `cyeam trello homework --board <board-id>`：筛出 due 当天的卡片，返回每张卡片所在列表并下载全部附件到本地目录（默认 `homework-<date>/`）。这是**只读报告命令**，不创建或追加作业；不要写成不存在的 `cyeam homework`，新增作业请使用 `cyeam trello card create`。默认下载不超过 `--max-width`（1200）宽的最大预览图（WebP，约 100KB，比原图快一个数量级），传 `--max-width 0` 下载原图。JSON 报告里每个附件带 `saved_to` 路径和 `homework_photo_url` 链接（形如 `https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>`，浏览器登录 Trello 后可直接打开）；加 `--pretty` 输出人可读的文本报告。内置超时重试，单卡片失败不中断。
 
 提取图片的硬性规则：**查看或转发图片一律用 `saved_to` 本地文件**，用读图工具打开确认内容后再展示；`homework_photo_url` 链接仅作展示，禁止对它 curl/wget 或发给飞书（无浏览器会话会 401/403）。逐个附件检查报告：`error` 非空或 `size_bytes` 为 0 表示下载失败，用 `card attachment get <card-id> <attachment-id> --out <path>` 单独补下（默认下载原图，加 `--max-width 1200` 下载小体积预览图）。
+
+
+作业总结可用 `cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --include-actions` 一次批量读取多天材料。起止日期含首尾，与 `--date` 互斥；省略日期仍查今天。按**截止日期**筛选当前未归档卡片，不是按提交时间筛选；无截止日期及归档卡片不在报告内。报告增加 `from`、`to` 和每张卡的 `desc` 原题描述；`--include-actions` 额外返回每卡最近最多 1000 条 `actions`（含评论），读取失败写入 `actions_error`，不阻断图片下载。历史达到 1000 条时应声明可能截断。附件目录包含卡片 ID，避免同名作业混淆。模型批改和复习记录流程见 homework skill；CLI 不自行评分。

@@ -323,3 +323,53 @@ func TestFormatTrelloHomeworkReport(t *testing.T) {
 		}
 	}
 }
+
+func TestHomeworkDateRange(t *testing.T) {
+	loc := time.FixedZone("UTC+8", 8*60*60)
+	now := time.Date(2026, 10, 7, 12, 0, 0, 0, loc)
+	for _, tc := range []struct{ day, from, to string }{
+		{"2026-10-07", "2026-10-01", "2026-10-07"},
+		{"", "2026-10-01", ""},
+		{"", "", "2026-10-07"},
+		{"", "2026-10-08", "2026-10-07"},
+		{"", "2026-02-30", "2026-10-07"},
+	} {
+		if _, _, err := homeworkDateRange(tc.day, tc.from, tc.to, now); err == nil {
+			t.Errorf("accepted invalid range: %+v", tc)
+		}
+	}
+	start, end, err := homeworkDateRange("", "2026-09-30", "2026-10-02", now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if start.Format(time.RFC3339) != "2026-09-30T00:00:00+08:00" || end.Format(time.RFC3339) != "2026-10-03T00:00:00+08:00" {
+		t.Fatalf("range = %v — %v", start, end)
+	}
+	input := []byte(`[
+		{"id":"before","due":"2026-09-29T15:59:59Z"},
+		{"id":"first","due":"2026-09-29T16:00:00Z","desc":"原题"},
+		{"id":"last","due":"2026-10-02T15:59:59Z"},
+		{"id":"after","due":"2026-10-02T16:00:00Z"},
+		{"id":"closed","due":"2026-10-01T00:00:00Z","closed":true},
+		{"id":"missing","due":null},
+		{"id":"invalid","due":"bad"}
+	]`)
+	data, err := filterCardsDueBetween(input, start, end)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var cards []struct {
+		ID          string `json:"id"`
+		Description string `json:"desc"`
+	}
+	if err := json.Unmarshal(data, &cards); err != nil {
+		t.Fatal(err)
+	}
+	if len(cards) != 2 || cards[0].ID != "first" || cards[1].ID != "last" || cards[0].Description != "原题" {
+		t.Fatalf("cards = %s", data)
+	}
+	start, end, err = homeworkDateRange("", "", "", now)
+	if err != nil || start.Day() != 7 || end.Day() != 8 {
+		t.Fatalf("default range: %v %v %v", start, end, err)
+	}
+}
