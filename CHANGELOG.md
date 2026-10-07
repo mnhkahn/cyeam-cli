@@ -1,4 +1,13 @@
 
+<a name="v1.0.0"></a>
+## [v1.0.0](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.17...v1.0.0) (2026-10-07)
+
+### Features
+
+
+- **pdf:** 新增算术与拼音 PDF 模式及 CLI 参数
+
+
 <a name="v0.2.17"></a>
 ## [v0.2.17](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.16...v0.2.17) (2026-10-03)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 支持口算作业类型
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.16"></a>
