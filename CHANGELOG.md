@@ -1,6 +1,20 @@
 
+<a name="v1.0.2"></a>
+## [v1.0.2](https://github.com/mnhkahn/cyeam-cli/compare/v1.0.1...v1.0.2) (2026-10-14)
+
+### Features
+
+
+- **trello:** 为 trello homework 添加 audio-only 过滤选项
+
+
 <a name="v1.0.1"></a>
 ## [v1.0.1](https://github.com/mnhkahn/cyeam-cli/compare/v1.0.0...v1.0.1) (2026-10-07)
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.0.0"></a>
