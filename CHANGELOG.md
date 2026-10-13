@@ -1,4 +1,8 @@
 
+<a name="v1.0.1"></a>
+## [v1.0.1](https://github.com/mnhkahn/cyeam-cli/compare/v1.0.0...v1.0.1) (2026-10-07)
+
+
 <a name="v1.0.0"></a>
 ## [v1.0.0](https://github.com/mnhkahn/cyeam-cli/compare/v0.2.17...v1.0.0) (2026-10-07)
 
@@ -6,6 +10,11 @@
 
 
 - **pdf:** 新增算术与拼音 PDF 模式及 CLI 参数
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v0.2.17"></a>
