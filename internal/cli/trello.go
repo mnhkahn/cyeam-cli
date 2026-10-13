@@ -449,7 +449,7 @@ type trelloHomeworkReport struct {
 
 func newTrelloHomeworkCommand() *cobra.Command {
 	var boardID, day, from, to, dir string
-	var includeActions bool
+	var includeActions, audioOnly bool
 	var maxBytes int64
 	var maxWidth int
 	cmd := &cobra.Command{Use: "homework", Short: "Batch homework report by due date with attachments downloaded", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
@@ -565,6 +565,9 @@ func newTrelloHomeworkCommand() *cobra.Command {
 				continue
 			}
 			for _, attachment := range attachments {
+				if audioOnly && !strings.HasPrefix(attachment.Name, "homework-audio-") {
+					continue
+				}
 				item := trelloHomeworkAttachment{ID: attachment.ID, Name: attachment.Name, MIMEType: attachment.MIMEType, HomeworkPhotoURL: attachment.URL}
 				download, err := trelloWithRetry(ctx, func(ctx context.Context) (trello.AttachmentDownload, error) {
 					return client.DownloadAttachmentSized(ctx, card.ID, attachment.ID, maxWidth, maxBytes)
@@ -613,6 +616,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 	cmd.Flags().StringVar(&from, "from", "", "first local due date, YYYY-MM-DD (requires --to)")
 	cmd.Flags().StringVar(&to, "to", "", "last local due date, inclusive (requires --from)")
 	cmd.Flags().BoolVar(&includeActions, "include-actions", false, "include up to 1000 recent actions per card, including submission comments")
+	cmd.Flags().BoolVar(&audioOnly, "audio-only", false, "only include attachments named homework-audio-*")
 	cmd.Flags().StringVar(&dir, "dir", "", "directory to save attachments; defaults to homework-<date>")
 	cmd.Flags().IntVar(&maxWidth, "max-width", 1200, "download the largest image preview up to this width; 0 downloads the original")
 	cmd.Flags().Int64Var(&maxBytes, "max-bytes", 25<<20, "maximum attachment size to download")
@@ -663,11 +667,15 @@ func formatTrelloHomeworkReport(report trelloHomeworkReport) string {
 			b.WriteString("  (无附件)\n")
 		}
 		for _, att := range card.Attachments {
+			label := "作业附件"
+			if strings.HasPrefix(att.Name, "homework-audio-") {
+				label = "作业录音"
+			}
 			if att.Error != "" {
-				fmt.Fprintf(&b, "  作业照片: %s (下载失败: %s)\n", att.Name, att.Error)
+				fmt.Fprintf(&b, "  %s: %s (下载失败: %s)\n", label, att.Name, att.Error)
 				continue
 			}
-			fmt.Fprintf(&b, "  作业照片: %s (%d bytes)\n", att.Name, att.SizeBytes)
+			fmt.Fprintf(&b, "  %s: %s (%d bytes)\n", label, att.Name, att.SizeBytes)
 			if att.SavedTo != "" {
 				fmt.Fprintf(&b, "    本地: %s\n", att.SavedTo)
 			}
