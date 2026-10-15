@@ -38,13 +38,14 @@ type Service interface {
 }
 
 type Dependencies struct {
-	Service     Service
-	Stdout      io.Writer
-	Now         func() time.Time
-	VersionInfo func() version.Info
-	Updater     Updater
-	OneDrive    func() OneDriveClient
-	Phonetic    phonetic.Fetcher
+	Service        Service
+	Stdout         io.Writer
+	Now            func() time.Time
+	VersionInfo    func() version.Info
+	Updater        Updater
+	OneDrive       func() OneDriveClient
+	Phonetic       phonetic.Fetcher
+	CommandStarted func(string, version.Info)
 }
 
 type Updater interface {
@@ -206,12 +207,28 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	deps.Stdout = &buf
 
 	var pretty bool
+	var noAnalytics bool
+	var commandTracked bool
+	trackCommand := func(cmd *cobra.Command) {
+		// Only canonical command names are passed to analytics, never arguments.
+		if noAnalytics || commandTracked || deps.CommandStarted == nil {
+			return
+		}
+		for current := cmd; current != nil; current = current.Parent() {
+			if strings.HasPrefix(current.Name(), "__complete") || current.Name() == "completion" {
+				return
+			}
+		}
+		commandTracked = true
+		deps.CommandStarted(cmd.CommandPath(), deps.VersionInfo())
+	}
 
 	root := &cobra.Command{
 		Use:           "cyeam",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			trackCommand(cmd)
 			setupNotices(deps)
 			return nil
 		},
@@ -237,9 +254,11 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	}
 	root.SetOut(&buf)
 	root.PersistentFlags().BoolVar(&pretty, "pretty", false, "human-readable output (omit JSON envelope)")
+	root.PersistentFlags().BoolVar(&noAnalytics, "no-analytics", false, "disable anonymous usage statistics")
 
 	helpFunc := root.HelpFunc()
 	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
+		trackCommand(cmd)
 		cmd.SetOut(originalStdout)
 		helpFunc(cmd, args)
 		cmd.SetOut(&buf)

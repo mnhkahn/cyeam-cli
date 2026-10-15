@@ -1,6 +1,6 @@
 # Binaries
-cyeam
-cyeam.exe
+/cyeam
+/cyeam.exe
 *.exe
 
 # Archives

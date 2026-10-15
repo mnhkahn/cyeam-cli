@@ -12,6 +12,7 @@ require (
 	github.com/mnhkahn/go-pinyin v0.1.0
 	github.com/mnhkahn/gofpdf v0.0.0-20241007103317-36f676dfaa45
 	github.com/mozillazg/go-pinyin v0.21.0
+	github.com/posthog/posthog-go v1.35.0
 	github.com/spf13/cobra v1.9.1
 	github.com/srwiley/oksvg v0.0.0-20221011165216-be6e8873101c
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef
@@ -22,12 +23,19 @@ require (
 )
 
 require (
+	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/goccy/go-json v0.10.6 // indirect
+	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
+	github.com/klauspost/compress v1.17.11 // indirect
+)
+
+require (
 	github.com/andybalholm/cascadia v1.3.3 // indirect
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/emersion/go-sasl v0.0.0-20241020182733-b788ff22d5a6 // indirect
 	github.com/godbus/dbus/v5 v5.2.2 // indirect
 	github.com/google/jsonschema-go v0.4.2 // indirect
-	github.com/google/uuid v1.6.0 // indirect
+	github.com/google/uuid v1.6.0
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/spf13/cast v1.7.1 // indirect
