@@ -1,11 +1,25 @@
 
+<a name="v1.1.0"></a>
+## [v1.1.0](https://github.com/mnhkahn/cyeam-cli/compare/v1.0.2...v1.1.0) (2026-10-15)
+
+### Features
+
+
+- **analytics:** 添加 PostHog 使用统计
+
+
 <a name="v1.0.2"></a>
-## [v1.0.2](https://github.com/mnhkahn/cyeam-cli/compare/v1.0.1...v1.0.2) (2026-10-14)
+## [v1.0.2](https://github.com/mnhkahn/cyeam-cli/compare/v1.0.1...v1.0.2) (2026-10-13)
 
 ### Features
 
 
 - **trello:** 为 trello homework 添加 audio-only 过滤选项
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.0.1"></a>
