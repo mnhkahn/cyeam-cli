@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -69,25 +70,47 @@ func (f *espnFetcher) base() string {
 func (f *espnFetcher) fetch(ctx context.Context, q Query) ([]Match, error) {
 	dates := espnDateRanges(q)
 	var all []Match
-	var firstErr error
-	successCount := 0
-	totalCalls := 0
+	type job struct{ leagueID, date string }
+	var jobs []job
 	for _, leagueID := range f.LeagueIDs {
 		for _, d := range dates {
-			totalCalls++
-			matches, err := f.fetchOne(ctx, leagueID, d)
-			if err != nil {
-				if firstErr == nil {
-					firstErr = err
-				}
-				continue
-			}
-			successCount++
-			all = append(all, matches...)
+			jobs = append(jobs, job{leagueID, d})
 		}
 	}
-	if successCount == 0 && firstErr != nil {
-		return nil, firstErr
+	results := make([]FetchResult, len(jobs))
+	queue := make(chan int)
+	var wg sync.WaitGroup
+	// Bound concurrent requests instead of serially waiting up to ten seconds
+	// for every league and date. Each result owns a distinct slice element.
+	for range min(6, len(jobs)) {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for i := range queue {
+				j := jobs[i]
+				ms, err := f.fetchOne(ctx, j.leagueID, j.date)
+				results[i] = FetchResult{Matches: ms, Err: err}
+			}
+		}()
+	}
+	for i := range jobs {
+		queue <- i
+	}
+	close(queue)
+	wg.Wait()
+	var firstErr error
+	failed := 0
+	for _, r := range results {
+		all = append(all, r.Matches...)
+		if r.Err != nil {
+			failed++
+			if firstErr == nil {
+				firstErr = r.Err
+			}
+		}
+	}
+	if firstErr != nil {
+		return dedupMatches(all), fmt.Errorf("%d/%d schedule requests failed: %w", failed, len(jobs), firstErr)
 	}
 	return dedupMatches(all), nil
 }
@@ -185,6 +208,36 @@ func (f *espnFetcher) parse(body []byte) ([]Match, error) {
 		if len(comp.Notes) > 0 {
 			stage = comp.Notes[0].Headline
 		}
+		if f.League == LeagueWorldCup {
+			// ESPN often puts the tournament round in season.slug while notes
+			// is empty. Use canonical names so broadcast rules also see the round.
+			switch e.Season.Slug {
+			case "final":
+				stage = "Final"
+			case "semi-finals", "semifinals":
+				stage = "Semifinals"
+			case "quarter-finals", "quarterfinals":
+				stage = "Quarterfinals"
+			case "round-of-16":
+				stage = "Round of 16"
+			case "round-of-32":
+				stage = "Round of 32"
+			case "group-stage", "group":
+				stage = "Group Stage"
+			case "third-place", "third-place-game":
+				stage = "Third Place"
+			}
+		}
+		if f.League == LeagueNBA && stage == "" {
+			switch e.Season.Slug {
+			case "preseason":
+				stage = "Preseason"
+			case "post-season", "postseason":
+				stage = "Playoffs"
+			default:
+				stage = "Regular"
+			}
+		}
 		out = append(out, Match{
 			League:     f.League,
 			LeagueName: f.LeagueName,
@@ -246,10 +299,15 @@ func espnDateRanges(q Query) []string {
 	// each side to catch matches that fall on neighboring US calendar days
 	from = from.AddDate(0, 0, -1)
 	to = to.AddDate(0, 0, 1)
-	if !to.After(from) {
-		return []string{from.Format("20060102")}
+	// The scoreboard endpoint accepts a single date, but date ranges return
+	// HTTP 400. Query each calendar day, retaining the timezone boundary padding.
+	var dates []string
+	from = time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, from.Location())
+	to = to.In(from.Location())
+	for day := from; !day.After(to); day = day.AddDate(0, 0, 1) {
+		dates = append(dates, day.Format("20060102"))
 	}
-	return []string{from.Format("20060102") + "-" + to.Format("20060102")}
+	return dates
 }
 
 func dedupMatches(in []Match) []Match {

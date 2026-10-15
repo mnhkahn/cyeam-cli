@@ -144,6 +144,9 @@ func FilterAndSort(matches []Match, q Query) []Match {
 
 func matchTeam(m Match, needle string) bool {
 	needle = strings.ToLower(needle)
+	if alias, ok := chineseTeamAliases[needle]; ok {
+		needle = alias
+	}
 	for _, t := range []Team{m.Home, m.Away} {
 		if strings.Contains(strings.ToLower(t.Name), needle) ||
 			strings.Contains(strings.ToLower(t.Abbr), needle) {
@@ -151,6 +154,20 @@ func matchTeam(m Match, needle string) bool {
 		}
 	}
 	return false
+}
+
+// Match the Chinese nicknames used by the CLI examples against either source's
+// English team names. Nicknames also tolerate differing city names (LA / Los Angeles).
+var chineseTeamAliases = map[string]string{
+	"湖人": "lakers", "勇士": "warriors", "凯尔特人": "celtics", "快船": "clippers",
+	"火箭": "rockets", "雷霆": "thunder", "掘金": "nuggets", "太阳": "suns",
+	"独行侠": "mavericks", "小牛": "mavericks", "马刺": "spurs", "森林狼": "timberwolves",
+	"灰熊": "grizzlies", "鹈鹕": "pelicans", "国王": "kings", "爵士": "jazz",
+	"开拓者": "trail blazers", "雄鹿": "bucks", "热火": "heat", "尼克斯": "knicks",
+	"篮网": "nets", "公牛": "bulls", "骑士": "cavaliers", "76人": "76ers",
+	"七六人": "76ers", "老鹰": "hawks", "魔术": "magic", "步行者": "pacers",
+	"活塞": "pistons", "黄蜂": "hornets", "猛龙": "raptors", "奇才": "wizards",
+	"中国": "china", "中国队": "china", "国足": "china",
 }
 
 func matchSource(m Match, needle string) bool {

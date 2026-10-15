@@ -3,6 +3,7 @@ package tv
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,13 +15,14 @@ import (
 const nbaScheduleURL = "https://cdn.nba.com/static/json/staticData/scheduleLeagueV2.json"
 
 type NBAFetcher struct {
-	HTTPClient *http.Client
-	URL        string
+	HTTPClient  *http.Client
+	URL         string
+	FallbackURL string
 }
 
 func NewNBAFetcher() *NBAFetcher {
 	return &NBAFetcher{
-		HTTPClient: &http.Client{Timeout: 60 * time.Second},
+		HTTPClient: &http.Client{Timeout: 8 * time.Second},
 		URL:        nbaScheduleURL,
 	}
 }
@@ -60,6 +62,24 @@ type nbaTeam struct {
 }
 
 func (f *NBAFetcher) Fetch(ctx context.Context, q Query) ([]Match, error) {
+	matches, err := f.fetchSchedule(ctx, q)
+	if err == nil || ctx.Err() != nil {
+		return matches, err
+	}
+	base := f.FallbackURL
+	if base == "" {
+		base = "https://site.api.espn.com/apis/site/v2/sports/basketball"
+	}
+	fallback := &espnFetcher{HTTPClient: f.HTTPClient, BaseURL: base,
+		League: LeagueNBA, LeagueName: "NBA", LeagueIDs: []string{"nba"}}
+	matches, fallbackErr := fallback.fetch(ctx, q)
+	if fallbackErr != nil {
+		return matches, errors.Join(err, fmt.Errorf("nba fallback: %w", fallbackErr))
+	}
+	return matches, nil
+}
+
+func (f *NBAFetcher) fetchSchedule(ctx context.Context, q Query) ([]Match, error) {
 	url := f.URL
 	if url == "" {
 		url = nbaScheduleURL
@@ -146,10 +166,10 @@ func nbaTeamName(t nbaTeam) string {
 func nbaStage(label, series string) string {
 	l := strings.ToLower(label)
 	switch {
+	case strings.Contains(l, "conference finals") || strings.Contains(l, "conf finals") || strings.Contains(l, "semifinals") || strings.Contains(l, "first round") || strings.Contains(l, "playoffs"):
+		return "Playoffs"
 	case strings.Contains(l, "finals") && !strings.Contains(l, "conference"):
 		return "Finals"
-	case strings.Contains(l, "conference finals") || strings.Contains(l, "semifinals") || strings.Contains(l, "first round") || strings.Contains(l, "playoffs"):
-		return "Playoffs"
 	case strings.Contains(l, "play-in") || strings.Contains(l, "play in"):
 		return "Play-In"
 	case strings.Contains(l, "preseason"):

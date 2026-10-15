@@ -77,6 +77,25 @@ export CYEAM_CLI_NO_ANALYTICS=1
 设置 `DO_NOT_TRACK=1` 或 `CI=true` 也会关闭统计。新增命令自动继承根命令的
 统计钩子；如需自定义 `PersistentPreRunE`，应保留根命令的统计逻辑。
 
+### 比赛与转播预报
+
+```bash
+cyeam tv today
+cyeam tv list --league nba --days 7
+cyeam tv list --league cn-football --from 2026-03-01 --to 2026-03-21 --include-finished
+cyeam tv next --league nba --team 湖人 --json
+```
+
+支持 NBA、男女足世界杯和中国男女足国家队。默认按北京时间显示；
+`--days N` 从当天起查询 N 个自然日，`--from` / `--to` 可指定日期范围。
+NBA 官方赛程源不可用时自动尝试 ESPN；ESPN 按单日查询并合并去重。
+
+查询完整成功时，`--json` 的 `data` 保持比赛数组（没有比赛为 `[]`）。
+部分请求失败且仍有符合条件的比赛时，`data` 为
+`{"matches": [...], "partial": true, "warnings": [...]}`，每条警告包含 `league` 和 `message`。
+没有符合条件的比赛且存在请求失败时，命令返回非零退出码和 `ok: false` 错误，
+不会把数据源失败报告成“暂无比赛”。转播信息来自内置规则，实际播出以平台为准。
+
 ### 账号
 
 ```bash

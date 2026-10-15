@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -161,9 +162,12 @@ func runTVList(ctx context.Context, deps Dependencies, td tvDeps, f tvFlags) err
 	matches, errs := collectMatches(ctx, td, q)
 	tv.AttachBroadcasts(matches)
 	matches = tv.FilterAndSort(matches, q)
+	if err := tvEmptyResultError(matches, errs); err != nil {
+		return err
+	}
 
 	if f.jsonOut {
-		return writeTVJSON(deps.Stdout, matches)
+		return writeTVJSON(deps.Stdout, matches, errs)
 	}
 	for _, e := range errs {
 		fmt.Fprintf(deps.Stdout, "warning: %s data unavailable: %v\n", e.League, e.Err)
@@ -183,18 +187,35 @@ func runTVNext(ctx context.Context, deps Dependencies, td tvDeps, f tvFlags) err
 	matches, errs := collectMatches(ctx, td, q)
 	tv.AttachBroadcasts(matches)
 	matches = tv.FilterAndSort(matches, q)
+	if err := tvEmptyResultError(matches, errs); err != nil {
+		return err
+	}
+	if len(matches) > 0 {
+		matches = matches[:1]
+	}
+	if f.jsonOut {
+		return writeTVJSON(deps.Stdout, matches, errs)
+	}
+	for _, e := range errs {
+		fmt.Fprintf(deps.Stdout, "warning: %s data unavailable: %v\n", e.League, e.Err)
+	}
 	if len(matches) == 0 {
-		for _, e := range errs {
-			fmt.Fprintf(deps.Stdout, "warning: %s data unavailable: %v\n", e.League, e.Err)
-		}
 		_, err := io.WriteString(deps.Stdout, "暂无即将开始的比赛。\n")
 		return err
 	}
-	matches = matches[:1]
-	if f.jsonOut {
-		return writeTVJSON(deps.Stdout, matches)
-	}
 	return renderTVTable(deps.Stdout, matches, loc, !f.noColor)
+}
+
+// An empty result is only authoritative if all sources completed successfully.
+func tvEmptyResultError(matches []tv.Match, errs []tv.FetchResult) error {
+	if len(matches) > 0 || len(errs) == 0 {
+		return nil
+	}
+	causes := []error{tv.ErrSourceUnavailable}
+	for _, e := range errs {
+		causes = append(causes, fmt.Errorf("%s: %w", e.League, e.Err))
+	}
+	return fmt.Errorf("比赛查询失败，无法确认是否有比赛: %w", errors.Join(causes...))
 }
 
 func buildTVQuery(td tvDeps, f tvFlags) (tv.Query, *time.Location, error) {
@@ -234,14 +255,14 @@ func buildTVQuery(td tvDeps, f tvFlags) (tv.Query, *time.Location, error) {
 	startOfDay := now().In(loc)
 	startOfDay = time.Date(startOfDay.Year(), startOfDay.Month(), startOfDay.Day(), 0, 0, 0, 0, loc)
 	from := startOfDay
-	to := from.AddDate(0, 0, days+1).Add(-time.Nanosecond)
+	to := from.AddDate(0, 0, days).Add(-time.Nanosecond)
 	if f.from != "" {
 		t, err := time.ParseInLocation(time.DateOnly, f.from, loc)
 		if err != nil {
 			return tv.Query{}, nil, fmt.Errorf("invalid --from %q", f.from)
 		}
 		from = t
-		to = from.AddDate(0, 0, days+1).Add(-time.Nanosecond)
+		to = from.AddDate(0, 0, days).Add(-time.Nanosecond)
 	}
 	if f.to != "" {
 		t, err := time.ParseInLocation(time.DateOnly, f.to, loc)
@@ -249,6 +270,9 @@ func buildTVQuery(td tvDeps, f tvFlags) (tv.Query, *time.Location, error) {
 			return tv.Query{}, nil, fmt.Errorf("invalid --to %q", f.to)
 		}
 		to = t.AddDate(0, 0, 1).Add(-time.Second)
+	}
+	if to.Before(from) {
+		return tv.Query{}, nil, fmt.Errorf("--to must not be earlier than --from")
 	}
 	q := tv.Query{
 		Leagues:         leagues,
@@ -282,11 +306,10 @@ func collectMatches(ctx context.Context, td tvDeps, q tv.Query) ([]tv.Match, []t
 	var matches []tv.Match
 	var errs []tv.FetchResult
 	for _, r := range results {
+		matches = append(matches, r.Matches...)
 		if r.Err != nil {
 			errs = append(errs, r)
-			continue
 		}
-		matches = append(matches, r.Matches...)
 	}
 	return matches, errs
 }

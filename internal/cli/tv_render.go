@@ -99,7 +99,7 @@ type tvJSONMatch struct {
 	Broadcasts []tvJSONBroadcast `json:"broadcasts,omitempty"`
 }
 
-func writeTVJSON(out io.Writer, matches []tv.Match) error {
+func writeTVJSON(out io.Writer, matches []tv.Match, errs []tv.FetchResult) error {
 	view := make([]tvJSONMatch, 0, len(matches))
 	for _, m := range matches {
 		bs := make([]tvJSONBroadcast, 0, len(m.Broadcasts))
@@ -123,5 +123,20 @@ func writeTVJSON(out io.Writer, matches []tv.Match) error {
 	}
 	enc := json.NewEncoder(out)
 	enc.SetIndent("", "  ")
+	if len(errs) > 0 {
+		type warning struct {
+			League  tv.League `json:"league"`
+			Message string    `json:"message"`
+		}
+		warnings := make([]warning, 0, len(errs))
+		for _, e := range errs {
+			warnings = append(warnings, warning{League: e.League, Message: e.Err.Error()})
+		}
+		return enc.Encode(struct {
+			Matches  []tvJSONMatch `json:"matches"`
+			Partial  bool          `json:"partial"`
+			Warnings []warning     `json:"warnings"`
+		}{view, true, warnings})
+	}
 	return enc.Encode(view)
 }
