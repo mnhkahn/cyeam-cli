@@ -1,4 +1,13 @@
 
+<a name="v1.1.1"></a>
+## [v1.1.1](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.0...v1.1.1) (2026-10-15)
+
+### Features
+
+
+- **tv:** 增强体育赛事查询与转播预报功能
+
+
 <a name="v1.1.0"></a>
 ## [v1.1.0](https://github.com/mnhkahn/cyeam-cli/compare/v1.0.2...v1.1.0) (2026-10-15)
 
@@ -6,6 +15,11 @@
 
 
 - **analytics:** 添加 PostHog 使用统计
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.0.2"></a>
