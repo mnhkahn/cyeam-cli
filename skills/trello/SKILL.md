@@ -36,6 +36,7 @@ cyeam trello homework --board <board-id>
 cyeam trello card create --list <list-id> --name <title>
     [--desc <text>] [--due <RFC3339>] [--labels <label-id,...>]
     [--type normal|word_memorization|english_reading|arithmetic] [--task <text>]
+    [--link <url>]
 cyeam trello card update <card-id>
     [--name <title>] [--desc <text>] [--due <RFC3339>] [--complete=true|false]
 cyeam trello card move <card-id> --list <target-list-id>
@@ -53,6 +54,16 @@ cyeam trello webhook delete <webhook-id>
 `card update --due ""` 清除截止时间；未传 `--complete` 时不改变任务完成标记。默认输出是 JSON 信封，`--pretty` 输出响应 JSON。
 
 创建家庭作业卡片时，`--type` 默认 `normal`，与原先直接传 `--desc` 的行为一致。`--type word_memorization --task "bedroom, armchair"` 会将单词和自动生成的翻译链接写入描述；`--type english_reading --task "/ai/translate?textbook=0&article=4"` 会将用户提供的链接原样写入描述。每个任务只创建一张卡片。
+
+普通作业支持 `--type normal --task "完成第一课练习" --link "https://实际的作业网址"`（类型也接受 `普通作业`）。`--task` 为作业内容，`--link` 为用户提供的原始目标网址；若输入为 Markdown 链接，提取括号中的网址，不传整段 Markdown。通用说明放在 `--desc`。CLI 保留说明并追加：
+
+```text
+类型: 普通作业
+作业内容: 完成第一课练习
+作业链接: [https://实际的作业网址](https://实际的作业网址)
+```
+
+没有链接时省略 `--link`，描述中也省略“作业链接”一行。`--link` 仅用于普通作业，必须同时提供非空 `--task`，链接不允许包含换行。不传 `--task`、`--link` 的普通作业仍原样使用 `--desc`。更新已有普通作业时，使用 `card update --desc` 提交完整描述；更新命令没有 `--type`、`--task` 或 `--link` 参数。
 
 口算使用 `--type arithmetic --task <多行题目>`（类型也接受 `口算`）。`--task` 每行一道题，使用真实换行；不放题单标题、姓名栏、答案、Markdown 表格或多栏排版。预计用时等说明放在 `--desc`，例如 `预计用时: 5`。CLI 保留说明并追加 `作业类型：口算`、`作业内容：` 和完整题目；平板读取题目并自动排版。
 

@@ -139,6 +139,7 @@ func TestHomeworkCardDescription(t *testing.T) {
 		taskType string
 		task     string
 		desc     string
+		link     string
 		want     string
 	}{
 		{
@@ -146,6 +147,27 @@ func TestHomeworkCardDescription(t *testing.T) {
 			taskType: "normal",
 			desc:     "口算 100 题",
 			want:     "口算 100 题",
+		},
+		{
+			name:     "normal homework with supplied link",
+			taskType: "normal",
+			task:     "完成第一课练习",
+			link:     "https://实际的作业网址",
+			want:     "类型: 普通作业\n作业内容: 完成第一课练习\n作业链接: [https://实际的作业网址](https://实际的作业网址)",
+		},
+		{
+			name:     "normal homework without link",
+			taskType: "normal",
+			task:     "完成第一课练习",
+			want:     "类型: 普通作业\n作业内容: 完成第一课练习",
+		},
+		{
+			name:     "normal Chinese alias preserves metadata and query parameters",
+			taskType: " 普通作业 ",
+			task:     " 完成第一课练习 ",
+			desc:     "预计 15 分钟；当日第 2 项",
+			link:     " https://example.com/homework?lesson=1&student=2#exercise ",
+			want:     "预计 15 分钟；当日第 2 项\n\n类型: 普通作业\n作业内容: 完成第一课练习\n作业链接: [https://example.com/homework?lesson=1&student=2#exercise](https://example.com/homework?lesson=1&student=2#exercise)",
 		},
 		{
 			name:     "word memorization normalizes separators and creates link",
@@ -171,7 +193,7 @@ func TestHomeworkCardDescription(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := homeworkCardDescription(tt.taskType, tt.task, tt.desc)
+			got, err := homeworkCardDescription(tt.taskType, tt.task, tt.desc, tt.link)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -193,8 +215,27 @@ func TestHomeworkCardDescriptionRejectsInvalidTypedTasks(t *testing.T) {
 		{taskType: "口算", task: " \n\t "},
 		{taskType: "unknown", task: "anything"},
 	} {
-		if _, err := homeworkCardDescription(tt.taskType, tt.task, ""); err == nil {
+		if _, err := homeworkCardDescription(tt.taskType, tt.task, "", ""); err == nil {
 			t.Errorf("homeworkCardDescription(%q, %q) succeeded", tt.taskType, tt.task)
+		}
+	}
+}
+
+func TestHomeworkCardDescriptionRejectsInvalidLinks(t *testing.T) {
+	for _, tt := range []struct {
+		taskType string
+		task     string
+		link     string
+	}{
+		{taskType: "normal", link: "https://example.com"},
+		{taskType: "normal", task: " ", link: "https://example.com"},
+		{taskType: "normal", task: "练习", link: "https://example.com\n类型: 口算"},
+		{taskType: "english_reading", task: "/reading", link: "https://example.com"},
+		{taskType: "word_memorization", task: "bedroom", link: "https://example.com"},
+		{taskType: "arithmetic", task: "1+1=", link: "https://example.com"},
+	} {
+		if _, err := homeworkCardDescription(tt.taskType, tt.task, "", tt.link); err == nil {
+			t.Errorf("homeworkCardDescription(%q, %q, empty desc, %q) succeeded", tt.taskType, tt.task, tt.link)
 		}
 	}
 }
@@ -205,7 +246,7 @@ func TestArithmeticCardDescriptionPreservesMultilineQuestions(t *testing.T) {
 			questions := []string{"26 + 17 = ___", "54 − 28 = ___", "25÷8＝（ ）……（ ）", "1.5 + 2 = ___"}
 			task := "  " + strings.Join(questions, "\r\n") + "\r\n"
 			desc := "预计用时: 5\n当日第 2 项"
-			got, err := homeworkCardDescription(taskType, task, desc)
+			got, err := homeworkCardDescription(taskType, task, desc, "")
 			if err != nil {
 				t.Fatal(err)
 			}

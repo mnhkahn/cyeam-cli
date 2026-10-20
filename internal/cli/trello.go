@@ -732,12 +732,12 @@ func newTrelloDeleteCardCommand() *cobra.Command {
 }
 
 func newTrelloCreateCardCommand() *cobra.Command {
-	var listID, name, desc, due, labels, taskType, task string
+	var listID, name, desc, due, labels, taskType, task, link string
 	cmd := &cobra.Command{Use: "create", Short: "Create a task card", RunE: func(cmd *cobra.Command, _ []string) error {
 		if listID == "" || name == "" {
 			return fmt.Errorf("--list and --name are required")
 		}
-		cardDesc, err := homeworkCardDescription(taskType, task, desc)
+		cardDesc, err := homeworkCardDescription(taskType, task, desc, link)
 		if err != nil {
 			return err
 		}
@@ -767,17 +767,39 @@ func newTrelloCreateCardCommand() *cobra.Command {
 	cmd.Flags().StringVar(&due, "due", "", "RFC3339 deadline")
 	cmd.Flags().StringVar(&labels, "labels", "", "comma-separated label IDs")
 	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, english_reading, or arithmetic")
-	cmd.Flags().StringVar(&task, "task", "", "type-specific task: words, an English-reading link, or multiline arithmetic questions")
+	cmd.Flags().StringVar(&task, "task", "", "type-specific task: normal homework content, words, an English-reading link, or multiline arithmetic questions")
+	cmd.Flags().StringVar(&link, "link", "", "optional homework link for --type normal (requires --task)")
 	return cmd
 }
 
 // homeworkCardDescription translates structured homework types into
-// plain Trello card text. Normal cards intentionally preserve the historical
-// --desc behavior unchanged.
-func homeworkCardDescription(taskType, task, desc string) (string, error) {
-	switch strings.ToLower(strings.TrimSpace(taskType)) {
+// plain Trello card text. Normal cards without --task or --link preserve the
+// historical --desc behavior unchanged.
+func homeworkCardDescription(taskType, task, desc, link string) (string, error) {
+	taskType = strings.ToLower(strings.TrimSpace(taskType))
+	link = strings.TrimSpace(link)
+	if link != "" {
+		if taskType != "" && taskType != "normal" && taskType != "普通作业" {
+			return "", fmt.Errorf("--link is only supported when --type is normal")
+		}
+		if strings.ContainsAny(link, "\r\n") {
+			return "", fmt.Errorf("--link must be a single link without line breaks")
+		}
+	}
+	switch taskType {
 	case "", "normal", "普通作业":
-		return desc, nil
+		content := strings.TrimSpace(task)
+		if content == "" {
+			if link != "" {
+				return "", fmt.Errorf("--task must contain homework content when --link is provided")
+			}
+			return desc, nil
+		}
+		generated := "类型: 普通作业\n作业内容: " + content
+		if link != "" {
+			generated += fmt.Sprintf("\n作业链接: [%s](%s)", link, link)
+		}
+		return appendHomeworkDescription(desc, generated), nil
 	case "word_memorization", "word-memorization", "背单词":
 		words := normalizeHomeworkWords(task)
 		if words == "" {
