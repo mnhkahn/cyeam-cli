@@ -1,4 +1,13 @@
 
+<a name="v1.1.3"></a>
+## [v1.1.3](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.2...v1.1.3) (2026-10-24)
+
+### Features
+
+
+- **trello:** 实现作业批改结果提交命令
+
+
 <a name="v1.1.2"></a>
 ## [v1.1.2](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.1...v1.1.2) (2026-10-20)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 支持普通作业类型添加作业链接
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.1"></a>
