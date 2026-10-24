@@ -319,3 +319,96 @@ func TestReviewLookupFailureNeverPublishes(t *testing.T) {
 		})
 	}
 }
+
+func TestReviewOutcomeWorkflow(t *testing.T) {
+	for _, tc := range []struct {
+		name, current, target          string
+		hasErrors, missing, failUpdate bool
+	}{
+		{"errors", "done", "待改错", true, false, false},
+		{"initial-pass", "done", "已完成", false, false, false},
+		{"correction-pass", "corrected", "已改错", false, false, false},
+		{"correction-fails", "corrected", "待改错", true, false, false},
+		{"missing-list", "done", "待改错", true, true, false},
+		{"retry-status-only", "corrected", "待改错", true, false, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			opts := reviewOpts(t, "text")
+			opts.HasErrors = &tc.hasErrors
+			posts, updates, creates := 0, 0, 0
+			client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+				switch r.Method + " " + r.URL.Path {
+				case "GET /cards/card-1/actions":
+					fmt.Fprint(w, `[]`)
+				case "POST /cards/card-1/actions/comments":
+					posts++
+					r.ParseForm()
+					var payload reviewPayload
+					if err := json.Unmarshal([]byte(strings.TrimPrefix(r.FormValue("text"), ReviewPrefix)), &payload); err != nil || payload.HasErrors == nil || *payload.HasErrors != tc.hasErrors {
+						t.Errorf("outcome missing from protocol: %v, %v", payload, err)
+					}
+					fmt.Fprint(w, `{"id":"review-action"}`)
+				case "GET /cards/card-1":
+					if r.URL.Query().Get("fields") != "idBoard,idList" {
+						t.Error("must request board and list")
+					}
+					fmt.Fprintf(w, `{"idBoard":"board","idList":%q}`, tc.current)
+				case "GET /boards/board/lists":
+					if tc.missing {
+						fmt.Fprint(w, `[]`)
+					} else {
+						fmt.Fprint(w, `[{"id":"done","name":"已完成"},{"id":"correction","name":"待改错"},{"id":"corrected","name":"已改错"}]`)
+					}
+				case "POST /lists":
+					creates++
+					if r.URL.Query().Get("name") != tc.target || r.URL.Query().Get("idBoard") != "board" {
+						t.Error(r.URL)
+					}
+					fmt.Fprint(w, `{"id":"new-list"}`)
+				case "PUT /cards/card-1":
+					updates++
+					want := map[string]string{"待改错": "correction", "已完成": "done", "已改错": "corrected"}[tc.target]
+					if tc.missing {
+						want = "new-list"
+					}
+					if r.URL.Query().Get("idList") != want || r.URL.Query().Get("dueComplete") != fmt.Sprint(!tc.hasErrors) {
+						t.Error(r.URL)
+					}
+					if tc.failUpdate && updates == 1 {
+						http.Error(w, "temporary failure", 500)
+						return
+					}
+					fmt.Fprint(w, `{}`)
+				default:
+					t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+					http.Error(w, "unexpected", 500)
+				}
+			})
+			result, err := client.PublishReview(context.Background(), opts)
+			if tc.failUpdate {
+				if err == nil {
+					t.Fatal("must report incomplete status update")
+				}
+				result, err = client.PublishReview(context.Background(), opts)
+			}
+			if err != nil || result.Status != tc.target {
+				t.Fatalf("%+v %v", result, err)
+			}
+			if _, err := client.PublishReview(context.Background(), opts); err != nil {
+				t.Fatal(err)
+			}
+			wantUpdates := 1
+			if tc.failUpdate {
+				wantUpdates = 2
+			}
+			if posts != 1 || updates != wantUpdates || (tc.missing && creates != 1) {
+				t.Fatalf("posts=%d updates=%d creates=%d", posts, updates, creates)
+			}
+			different := !tc.hasErrors
+			opts.HasErrors = &different
+			if _, err := client.PublishReview(context.Background(), opts); err == nil {
+				t.Fatal("must reject changed outcome for the same review ID")
+			}
+		})
+	}
+}

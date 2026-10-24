@@ -32,3 +32,23 @@ func TestTrelloCardRegistersReview(t *testing.T) {
 		t.Fatal(cmd, err)
 	}
 }
+
+func TestReviewOutcomeFlagPreservesExplicitFalse(t *testing.T) {
+	for _, arg := range []string{"--has-errors=true", "--has-errors=false"} {
+		cmd := newTrelloReviewCommand()
+		if err := cmd.ParseFlags([]string{arg}); err != nil {
+			t.Fatal(err)
+		}
+		if !cmd.Flags().Changed("has-errors") {
+			t.Fatal("explicit false must differ from omission")
+		}
+	}
+}
+
+func TestHomeworkStatusUsesFourLists(t *testing.T) {
+	for list, want := range map[string]string{"待完成": "todo", "已完成": "completed", "待改错": "needs_correction", "已改错": "corrected", "其他": "unknown"} {
+		if got := trelloHomeworkStatus(list); got != want {
+			t.Errorf("%s: %s, want %s", list, got, want)
+		}
+	}
+}

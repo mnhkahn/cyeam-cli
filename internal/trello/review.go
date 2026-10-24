@@ -22,6 +22,7 @@ const ReviewPrefix = "作业批改：\n"
 type ReviewOptions struct {
 	CardID, ReviewID, Type, Text, File, StatePath string
 	RetryUncertain                                bool
+	HasErrors                                     *bool
 }
 
 type ReviewResult struct {
@@ -30,19 +31,24 @@ type ReviewResult struct {
 	AttachmentID string `json:"attachment_id,omitempty"`
 	ActionID     string `json:"action_id"`
 	StatePath    string `json:"state_file"`
+	Status       string `json:"status,omitempty"`
 }
 
 type reviewState struct {
 	ReviewResult
-	Type        string   `json:"type"`
-	Fingerprint string   `json:"fingerprint"`
-	Name        string   `json:"name,omitempty"`
-	Comment     string   `json:"comment,omitempty"`
-	Phase       string   `json:"phase"`
-	Baseline    []string `json:"baseline,omitempty"`
+	Type          string   `json:"type"`
+	Fingerprint   string   `json:"fingerprint"`
+	Name          string   `json:"name,omitempty"`
+	Comment       string   `json:"comment,omitempty"`
+	Phase         string   `json:"phase"`
+	Baseline      []string `json:"baseline,omitempty"`
+	HasErrors     *bool    `json:"has_errors,omitempty"`
+	StatusApplied bool     `json:"status_applied,omitempty"`
+	TargetListID  string   `json:"target_list_id,omitempty"`
 }
 
 type reviewPayload struct {
+	HasErrors    *bool  `json:"has_errors,omitempty"`
 	Version      int    `json:"version"`
 	Type         string `json:"type"`
 	Text         string `json:"text,omitempty"`
@@ -132,7 +138,7 @@ func (c *Client) reviewComments(ctx context.Context, cardID string) ([]reviewCom
 	}
 }
 
-// PublishReview only appends a native file attachment and a protocol comment.
+// PublishReview appends a native attachment/comment and optionally applies the explicit review outcome.
 // Durable intent checkpoints precede POSTs; uncertain writes are reconciled before retry.
 func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewResult, error) {
 	var empty ReviewResult
@@ -190,20 +196,22 @@ func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewR
 	}
 	lock.Close()
 	defer os.Remove(opts.StatePath + ".lock")
-	state := reviewState{ReviewResult: ReviewResult{ReviewID: opts.ReviewID, CardID: opts.CardID, StatePath: opts.StatePath}, Type: opts.Type, Fingerprint: fingerprint, Name: name, Phase: "ready"}
+	state := reviewState{ReviewResult: ReviewResult{ReviewID: opts.ReviewID, CardID: opts.CardID, StatePath: opts.StatePath}, Type: opts.Type, Fingerprint: fingerprint, Name: name, Phase: "ready", HasErrors: opts.HasErrors}
 	data, err := os.ReadFile(opts.StatePath)
 	if err == nil {
-		if err := json.Unmarshal(data, &state); err != nil {
+		var saved reviewState
+		if err := json.Unmarshal(data, &saved); err != nil {
 			return empty, fmt.Errorf("decode review state: %w", err)
 		}
-		if state.ReviewID != opts.ReviewID || state.CardID != opts.CardID || state.Type != opts.Type || state.Fingerprint != fingerprint || state.Name != name {
+		state = saved
+		if state.ReviewID != opts.ReviewID || state.CardID != opts.CardID || state.Type != opts.Type || state.Fingerprint != fingerprint || state.Name != name || !sameReviewOutcome(state.HasErrors, opts.HasErrors) {
 			return empty, fmt.Errorf("review ID already belongs to different content or card; use a new --review-id")
 		}
 	} else if !os.IsNotExist(err) {
 		return empty, err
 	}
 	if state.ActionID != "" {
-		return state.ReviewResult, nil
+		return c.finishReview(ctx, &state)
 	}
 	save := func() error { return saveReviewState(opts.StatePath, &state) }
 	if err := save(); err != nil {
@@ -267,7 +275,7 @@ func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewR
 			return empty, err
 		}
 	}
-	payload, err := json.Marshal(reviewPayload{Version: 1, Type: opts.Type, Text: opts.Text, AttachmentID: state.AttachmentID})
+	payload, err := json.Marshal(reviewPayload{Version: 1, Type: opts.Type, Text: opts.Text, AttachmentID: state.AttachmentID, HasErrors: opts.HasErrors})
 	if err != nil {
 		return empty, err
 	}
@@ -293,7 +301,7 @@ func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewR
 			if err := save(); err != nil {
 				return empty, err
 			}
-			return state.ReviewResult, nil
+			return c.finishReview(ctx, &state)
 		}
 		if !opts.RetryUncertain {
 			return empty, uncertain()
@@ -325,6 +333,93 @@ func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewR
 	state.ActionID = action.ID
 	if err := save(); err != nil {
 		return empty, err
+	}
+	return c.finishReview(ctx, &state)
+}
+
+func sameReviewOutcome(a, b *bool) bool {
+	return (a == nil && b == nil) || (a != nil && b != nil && *a == *b)
+}
+
+// Checkpoint the comment independently so a failed status update never republishes it.
+func (c *Client) finishReview(ctx context.Context, state *reviewState) (ReviewResult, error) {
+	if state.HasErrors == nil || state.StatusApplied {
+		return state.ReviewResult, nil
+	}
+	if state.TargetListID == "" {
+		raw, err := c.get(ctx, "cards/"+state.CardID, url.Values{"fields": {"idBoard,idList"}})
+		if err != nil {
+			return ReviewResult{}, err
+		}
+		var card struct {
+			BoardID string `json:"idBoard"`
+			ListID  string `json:"idList"`
+		}
+		if err := json.Unmarshal(raw, &card); err != nil {
+			return ReviewResult{}, err
+		}
+		if card.BoardID == "" {
+			return ReviewResult{}, fmt.Errorf("review published, but card has no board ID; retry with the same --review-id")
+		}
+		raw, err = c.Lists(ctx, card.BoardID)
+		if err != nil {
+			return ReviewResult{}, err
+		}
+		var lists []struct {
+			ID     string `json:"id"`
+			Name   string `json:"name"`
+			Closed bool   `json:"closed"`
+		}
+		if err := json.Unmarshal(raw, &lists); err != nil {
+			return ReviewResult{}, err
+		}
+		target := "已完成"
+		if *state.HasErrors {
+			target = "待改错"
+		} else {
+			for _, list := range lists {
+				if list.ID == card.ListID && list.Name == "已改错" && !list.Closed {
+					target = "已改错"
+				}
+			}
+		}
+		for _, list := range lists {
+			if list.Name == target && !list.Closed {
+				state.TargetListID = list.ID
+				break
+			}
+		}
+		if state.TargetListID == "" {
+			raw, err = c.CreateList(ctx, url.Values{"idBoard": {card.BoardID}, "name": {target}})
+			if err != nil {
+				return ReviewResult{}, err
+			}
+			var list struct {
+				ID string `json:"id"`
+			}
+			if err := json.Unmarshal(raw, &list); err != nil {
+				return ReviewResult{}, err
+			}
+			if list.ID == "" {
+				return ReviewResult{}, fmt.Errorf("review published, but list creation returned no ID; retry with the same --review-id")
+			}
+			state.TargetListID = list.ID
+		}
+		state.Status = target
+		if err := saveReviewState(state.StatePath, state); err != nil {
+			return ReviewResult{}, err
+		}
+	}
+	complete := "true"
+	if *state.HasErrors {
+		complete = "false"
+	}
+	if _, err := c.UpdateCard(ctx, state.CardID, url.Values{"idList": {state.TargetListID}, "dueComplete": {complete}}); err != nil {
+		return ReviewResult{}, fmt.Errorf("review published but status update failed; retry with the same --review-id: %w", err)
+	}
+	state.StatusApplied = true
+	if err := saveReviewState(state.StatePath, state); err != nil {
+		return ReviewResult{}, err
 	}
 	return state.ReviewResult, nil
 }

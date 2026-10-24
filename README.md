@@ -243,6 +243,6 @@ cyeam trello card review <原卡片ID> --image correction.webp
 cyeam trello card review <原卡片ID> --audio correction.m4a
 ```
 
-支持文字、图片、音频三选一，按协议 v1 在原卡片发布批改评论并保留历史。
+支持文字、图片、音频三选一，按协议 v1 在原卡片发布批改评论并保留历史。加 `--has-errors=true` 转入「待改错」，`--has-errors=false` 批改通过并保留「已改错」；省略则只发布内容。作业状态统一为待完成、已完成、待改错、已改错。
 失败后使用输出的 `review_id`，携带相同内容和 `--review-id <UUID>` 重试。
 完整说明见 [作业批改命令](docs/trello-review.md)。

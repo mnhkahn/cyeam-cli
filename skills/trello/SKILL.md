@@ -97,12 +97,15 @@ cyeam trello card review <card-id> --image <本地图片> [--review-id <UUID>]
 cyeam trello card review <card-id> --audio <本地音频> [--review-id <UUID>]
 ```
 
-这四个内容参数必须且只能选一个。只发布批改，不自动评分。始终写原卡片，不创建卡、不移动列表、不修改描述或 dueComplete。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
+这四个内容参数必须且只能选一个。不自动评分。始终写原卡片，不创建卡、不修改原题描述。可选 `--has-errors=true|false` 明确发布是否有错：true 转入「待改错」并清除 dueComplete；false 批改通过，当前为「已改错」时保留该状态，否则进入「已完成」，dueComplete=true。省略时只发布批改内容，不移动列表或修改完成标记。目标列表按卡片看板查询 ID，缺少时自动创建。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
 
 默认生成 UUID，执行时在 stderr 输出 `review_id` 和 `state_file`；也可首次提交就显式指定 UUID。成功响应包含 `review_id`、`card_id`、`action_id`、`state_file`，媒体还包含 `attachment_id`。状态保存在 `~/.cyeam/trello-reviews/<UUID>.json`（0600），包括正文、附件 ID、action ID，不包含 Token。不要删除仍可能重试的状态文件。
 
-失败后用**同一 UUID、同一卡片、完全相同内容**重跑命令。CLI 先查同名原生附件及卡片评论（分页），恢复已成功的上传/发布；已成功的本地记录直接返回，不重复发评论。同一 UUID 改内容会报错。评论恢复排除发布前已存在的同文评论，因此新 UUID 可发布相同文案作为新一轮历史。
+失败后用**同一 UUID、同一卡片、完全相同内容**重跑命令。CLI 先查同名原生附件及卡片评论（分页），恢复已成功的上传/发布；已成功的本地记录直接返回，不重复发评论。同一 UUID 改内容或是否有错（包括省略该参数）会报错。评论成功但状态更新失败时，使用完全相同参数和 UUID 重试，只补状态，不重发评论；整个流程成功后重跑不重放状态。评论恢复排除发布前已存在的同文评论，因此新 UUID 可发布相同文案作为新一轮历史。
 
 如果请求结果未知且查询仍未发现匹配记录，CLI 默认停止，不盲目重复 POST。稍后继续用同一 UUID 重试核对；仅在人工确认之前的写入失败后，才可加 `--retry-uncertain` 允许再次 POST（仍有重复风险）。此选项必须显式传原 `--review-id`。如果进程崩溃留下 `.lock`，先确认该提交没有进程仍在运行，再移除对应锁文件；保留 JSON 状态。
 
 新一轮批改使用新 UUID 保留历史；不要删除旧评论引用的附件。命令不提供设备 Token、不上传外链、不修改原评论。完整用法与验收边界见仓库 `docs/trello-review.md`。
+
+
+作业统一使用四个列表状态：待完成 → 已完成 → 待改错 → 已改错。已改错表示孩子提交了订正，尚不代表复批通过；复批仍错回待改错，通过保留已改错。`homework` 报告新增 `status`：todo/completed/needs_correction/corrected，非上述列表为 unknown；`list_name` 保留原名，不从 due_complete 猜测正确率。发布前依据最新一轮提交判读；有待判定内容且无法确认整份作业通过时，省略 `--has-errors`。

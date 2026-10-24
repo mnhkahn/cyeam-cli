@@ -431,6 +431,7 @@ type trelloHomeworkCard struct {
 	Name         string                     `json:"name"`
 	ListID       string                     `json:"list_id"`
 	ListName     string                     `json:"list_name"`
+	Status       string                     `json:"status"`
 	Due          string                     `json:"due,omitempty"`
 	DueComplete  bool                       `json:"due_complete"`
 	URL          string                     `json:"url,omitempty"`
@@ -445,6 +446,22 @@ type trelloHomeworkReport struct {
 	BoardID string               `json:"board_id"`
 	Dir     string               `json:"dir"`
 	Cards   []trelloHomeworkCard `json:"cards"`
+}
+
+// The list is authoritative; completion flags alone cannot distinguish corrections.
+func trelloHomeworkStatus(listName string) string {
+	switch listName {
+	case "待完成":
+		return "todo"
+	case "已完成":
+		return "completed"
+	case "待改错":
+		return "needs_correction"
+	case "已改错":
+		return "corrected"
+	default:
+		return "unknown"
+	}
 }
 
 func newTrelloHomeworkCommand() *cobra.Command {
@@ -533,6 +550,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 			if entry.ListName == "" {
 				entry.ListName = card.IDList
 			}
+			entry.Status = trelloHomeworkStatus(entry.ListName)
 			if includeActions {
 				data, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
 					return client.Actions(ctx, card.ID, 1000)
