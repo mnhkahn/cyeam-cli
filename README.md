@@ -234,3 +234,15 @@ cyeam version
 # 更新工具
 cyeam update
 ```
+
+### 作业批改结果提交
+
+```bash
+cyeam trello card review <原卡片ID> --text '第3题需要订正：注意进位。'
+cyeam trello card review <原卡片ID> --image correction.webp
+cyeam trello card review <原卡片ID> --audio correction.m4a
+```
+
+支持文字、图片、音频三选一，按协议 v1 在原卡片发布批改评论并保留历史。
+失败后使用输出的 `review_id`，携带相同内容和 `--review-id <UUID>` 重试。
+完整说明见 [作业批改命令](docs/trello-review.md)。

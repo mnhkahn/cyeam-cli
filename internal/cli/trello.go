@@ -696,6 +696,7 @@ func newTrelloCardCommand() *cobra.Command {
 		newTrelloMoveCardCommand(),
 		newTrelloDeleteCardCommand(),
 		newTrelloAttachCardCommand(),
+		newTrelloReviewCommand(),
 		newTrelloAttachmentsCommand(),
 		newTrelloAttachmentCommand(),
 		newTrelloActionsCommand(),

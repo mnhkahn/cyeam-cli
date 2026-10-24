@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"net/http"
+	"net/textproto"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -417,24 +419,28 @@ func (c *Client) AttachFile(ctx context.Context, cardID, filename, displayName s
 		return nil, err
 	}
 	defer file.Close()
-
-	var body bytes.Buffer
-	writer := multipart.NewWriter(&body)
 	name := displayName
 	if name == "" {
 		name = filepath.Base(filename)
 	}
-	part, err := writer.CreateFormFile("file", name)
+	return c.attachFileContent(ctx, cardID, file, name, "application/octet-stream")
+}
+
+func (c *Client) attachFileContent(ctx context.Context, cardID string, content io.Reader, name, mimeType string) ([]byte, error) {
+	var body bytes.Buffer
+	writer := multipart.NewWriter(&body)
+	header := make(textproto.MIMEHeader)
+	header.Set("Content-Disposition", mime.FormatMediaType("form-data", map[string]string{"name": "file", "filename": name}))
+	header.Set("Content-Type", mimeType)
+	part, err := writer.CreatePart(header)
 	if err != nil {
 		return nil, err
 	}
-	if _, err := io.Copy(part, file); err != nil {
+	if _, err := io.Copy(part, content); err != nil {
 		return nil, err
 	}
-	if displayName != "" {
-		if err := writer.WriteField("name", displayName); err != nil {
-			return nil, err
-		}
+	if err := writer.WriteField("name", name); err != nil {
+		return nil, err
 	}
 	if err := writer.Close(); err != nil {
 		return nil, err

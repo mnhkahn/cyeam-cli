@@ -353,10 +353,10 @@ func TestFormatTrelloHomeworkReport(t *testing.T) {
 		"日期: 2026-08-24",
 		"卡片数: 3",
 		"[已完成] 口算（第37天）",
-		"作业照片: photo.jpg (48538 bytes)",
+		"作业附件: photo.jpg (48538 bytes)",
 		"本地: homework-2026-08-24/口算（第37天）/photo.webp",
 		"链接: https://trello.com/1/cards/card-1/attachments/att-1/download/photo.jpg",
-		"作业照片: photo2.jpg (下载失败: download failed)",
+		"作业附件: photo2.jpg (下载失败: download failed)",
 		"[已完成] 语文（第37天）\n  (无附件)",
 	} {
 		if !strings.Contains(got, want) {

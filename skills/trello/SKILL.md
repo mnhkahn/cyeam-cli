@@ -87,3 +87,22 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 
 
 作业总结可用 `cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --include-actions` 一次批量读取多天材料。起止日期含首尾，与 `--date` 互斥；省略日期仍查今天。按**截止日期**筛选当前未归档卡片，不是按提交时间筛选；无截止日期及归档卡片不在报告内。报告增加 `from`、`to` 和每张卡的 `desc` 原题描述；`--include-actions` 额外返回每卡最近最多 1000 条 `actions`（含评论），读取失败写入 `actions_error`，不阻断图片下载。历史达到 1000 条时应声明可能截断。附件目录包含卡片 ID，避免同名作业混淆。模型批改和复习记录流程见 homework skill；CLI 不自行评分。
+
+## 发布作业批改（协议 v1）
+
+```text
+cyeam trello card review <card-id> --text <纯文本> [--review-id <UUID>]
+cyeam trello card review <card-id> --text-file <UTF-8文件> [--review-id <UUID>]
+cyeam trello card review <card-id> --image <本地图片> [--review-id <UUID>]
+cyeam trello card review <card-id> --audio <本地音频> [--review-id <UUID>]
+```
+
+这四个内容参数必须且只能选一个。只发布批改，不自动评分。始终写原卡片，不创建卡、不移动列表、不修改描述或 dueComplete。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
+
+默认生成 UUID，执行时在 stderr 输出 `review_id` 和 `state_file`；也可首次提交就显式指定 UUID。成功响应包含 `review_id`、`card_id`、`action_id`、`state_file`，媒体还包含 `attachment_id`。状态保存在 `~/.cyeam/trello-reviews/<UUID>.json`（0600），包括正文、附件 ID、action ID，不包含 Token。不要删除仍可能重试的状态文件。
+
+失败后用**同一 UUID、同一卡片、完全相同内容**重跑命令。CLI 先查同名原生附件及卡片评论（分页），恢复已成功的上传/发布；已成功的本地记录直接返回，不重复发评论。同一 UUID 改内容会报错。评论恢复排除发布前已存在的同文评论，因此新 UUID 可发布相同文案作为新一轮历史。
+
+如果请求结果未知且查询仍未发现匹配记录，CLI 默认停止，不盲目重复 POST。稍后继续用同一 UUID 重试核对；仅在人工确认之前的写入失败后，才可加 `--retry-uncertain` 允许再次 POST（仍有重复风险）。此选项必须显式传原 `--review-id`。如果进程崩溃留下 `.lock`，先确认该提交没有进程仍在运行，再移除对应锁文件；保留 JSON 状态。
+
+新一轮批改使用新 UUID 保留历史；不要删除旧评论引用的附件。命令不提供设备 Token、不上传外链、不修改原评论。完整用法与验收边界见仓库 `docs/trello-review.md`。
