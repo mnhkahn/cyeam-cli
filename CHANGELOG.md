@@ -1,4 +1,13 @@
 
+<a name="v1.1.5"></a>
+## [v1.1.5](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.4...v1.1.5) (2026-10-24)
+
+### Documentation
+
+
+- **installation:** 更新安装说明至固定版本 v1.1.4
+
+
 <a name="v1.1.4"></a>
 ## [v1.1.4](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.3...v1.1.4) (2026-10-24)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 新增作业批改结果与四状态流转
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.3"></a>
