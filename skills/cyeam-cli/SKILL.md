@@ -9,7 +9,7 @@ allowed-tools: Bash(cyeam:*)
 
 ## 规则
 
-这个 skill 只描述 CLI 本身的安装、更新、输出格式和完整命令列表。**每个领域的具体用法和注意事项在对应的独立 skill 中（live-broadcast、pinyin、mo 等），AI 应先查那些 skill 再执行命令。**
+这个 skill 只描述 CLI 本身的安装、更新、输出格式和完整命令列表。**每个领域的具体用法和注意事项在对应的独立 skill 中（live-broadcast、pinyin、calligraphy-composition、seal-script-ocr 等），AI 应先查那些 skill 再执行命令。**
 
 ---
 
@@ -122,7 +122,8 @@ cyeam tv ...                           # 直播 → 见 live-broadcast skill
 cyeam news ...                         # 新闻 → 见 news skill
 cyeam pinyin ...                       # 拼音 → 见 pinyin skill
 cyeam phonetic <word>                  # 英语音标 → 见 phonetic skill
-cyeam mo ...                           # 书法 → 见 mo skill
+cyeam mo guwen/char ...                # 书法集字 → 见 calligraphy-composition skill
+cyeam mo ocr <image>                  # 篆字识别 → 见 seal-script-ocr skill
 cyeam roadbook ...                     # 路书 → 见 roadbook skill
 cyeam cnote ...                        # 云笔记 → 见 cnote skill
 cyeam mail ...                         # 多邮箱收发 → 见 mail skill

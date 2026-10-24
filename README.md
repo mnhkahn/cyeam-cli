@@ -214,7 +214,7 @@ cyeam roadbook share route.json
 cyeam roadbook get <id>
 ```
 
-### 书法字形（Mo）
+### Calligraphy Composition / Seal Script OCR
 
 ```bash
 # 生成行书古文字形数据
@@ -230,7 +230,7 @@ cyeam mo char composition "永"
 # 合成行书字符图片
 cyeam mo char compose "永" --out yong.png
 
-# OCR 行书图片
+# OCR 篆字图片
 cyeam mo ocr calligraphy.png
 ```
 

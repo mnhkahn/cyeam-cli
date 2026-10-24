@@ -1,0 +1,3 @@
+interface:
+  display_name: "Seal Script OCR"
+  short_description: "Recognize Chinese seal-script characters in images"
