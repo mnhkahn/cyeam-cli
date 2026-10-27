@@ -1,4 +1,13 @@
 
+<a name="v1.1.6"></a>
+## [v1.1.6](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.5...v1.1.6) (2026-10-24)
+
+### Features
+
+
+- **skills:** 新增书法字形合成与篆字识别技能
+
+
 <a name="v1.1.5"></a>
 ## [v1.1.5](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.4...v1.1.5) (2026-10-24)
 
@@ -6,6 +15,11 @@
 
 
 - **installation:** 更新安装说明至固定版本 v1.1.4
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.4"></a>
