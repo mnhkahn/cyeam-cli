@@ -1,4 +1,13 @@
 
+<a name="v1.1.7"></a>
+## [v1.1.7](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.6...v1.1.7) (2026-10-27)
+
+### Features
+
+
+- **trello:** 添加评分和暂评支持
+
+
 <a name="v1.1.6"></a>
 ## [v1.1.6](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.5...v1.1.6) (2026-10-24)
 
@@ -6,6 +15,11 @@
 
 
 - **skills:** 新增书法字形合成与篆字识别技能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.5"></a>
