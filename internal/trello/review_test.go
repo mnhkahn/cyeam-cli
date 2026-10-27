@@ -335,7 +335,10 @@ func TestReviewOutcomeWorkflow(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			opts := reviewOpts(t, "text")
 			opts.HasErrors = &tc.hasErrors
-			posts, updates, creates := 0, 0, 0
+			if tc.failUpdate {
+				opts.Grade = "良"
+			}
+			posts, updates, creates, gradeUpdates := 0, 0, 0, 0
 			client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 				switch r.Method + " " + r.URL.Path {
 				case "GET /cards/card-1/actions":
@@ -349,6 +352,10 @@ func TestReviewOutcomeWorkflow(t *testing.T) {
 					}
 					fmt.Fprint(w, `{"id":"review-action"}`)
 				case "GET /cards/card-1":
+					if r.URL.Query().Get("fields") == "desc" {
+						fmt.Fprint(w, `{"desc":"原题"}`)
+						return
+					}
 					if r.URL.Query().Get("fields") != "idBoard,idList" {
 						t.Error("must request board and list")
 					}
@@ -366,6 +373,11 @@ func TestReviewOutcomeWorkflow(t *testing.T) {
 					}
 					fmt.Fprint(w, `{"id":"new-list"}`)
 				case "PUT /cards/card-1":
+					if r.URL.Query().Has("desc") {
+						gradeUpdates++
+						fmt.Fprint(w, `{}`)
+						return
+					}
 					updates++
 					want := map[string]string{"待改错": "correction", "已完成": "done", "已改错": "corrected"}[tc.target]
 					if tc.missing {
@@ -396,6 +408,9 @@ func TestReviewOutcomeWorkflow(t *testing.T) {
 			}
 			if _, err := client.PublishReview(context.Background(), opts); err != nil {
 				t.Fatal(err)
+			}
+			if tc.failUpdate && gradeUpdates != 1 {
+				t.Fatalf("grade must not replay on status retry: %d", gradeUpdates)
 			}
 			wantUpdates := 1
 			if tc.failUpdate {

@@ -21,6 +21,8 @@ const ReviewPrefix = "作业批改：\n"
 // ReviewOptions describes one publication. Reuse ReviewID and StatePath on retry.
 type ReviewOptions struct {
 	CardID, ReviewID, Type, Text, File, StatePath string
+	Grade                                         string
+	Provisional                                   bool
 	RetryUncertain                                bool
 	HasErrors                                     *bool
 }
@@ -32,6 +34,8 @@ type ReviewResult struct {
 	ActionID     string `json:"action_id"`
 	StatePath    string `json:"state_file"`
 	Status       string `json:"status,omitempty"`
+	Grade        string `json:"grade,omitempty"`
+	Provisional  bool   `json:"provisional,omitempty"`
 }
 
 type reviewState struct {
@@ -44,11 +48,14 @@ type reviewState struct {
 	Baseline      []string `json:"baseline,omitempty"`
 	HasErrors     *bool    `json:"has_errors,omitempty"`
 	StatusApplied bool     `json:"status_applied,omitempty"`
+	GradeApplied  bool     `json:"grade_applied,omitempty"`
 	TargetListID  string   `json:"target_list_id,omitempty"`
 }
 
 type reviewPayload struct {
 	HasErrors    *bool  `json:"has_errors,omitempty"`
+	Grade        string `json:"grade,omitempty"`
+	Provisional  bool   `json:"provisional,omitempty"`
 	Version      int    `json:"version"`
 	Type         string `json:"type"`
 	Text         string `json:"text,omitempty"`
@@ -142,6 +149,9 @@ func (c *Client) reviewComments(ctx context.Context, cardID string) ([]reviewCom
 // Durable intent checkpoints precede POSTs; uncertain writes are reconciled before retry.
 func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewResult, error) {
 	var empty ReviewResult
+	if (opts.Grade != "" && !ValidGrade(opts.Grade)) || (opts.Provisional && opts.Grade == "") {
+		return empty, fmt.Errorf("--grade must be 优, 良, 中 or 差; --provisional requires --grade")
+	}
 	if opts.CardID == "" || strings.ContainsAny(opts.CardID, "/?#") {
 		return empty, fmt.Errorf("a card ID is required")
 	}
@@ -196,7 +206,7 @@ func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewR
 	}
 	lock.Close()
 	defer os.Remove(opts.StatePath + ".lock")
-	state := reviewState{ReviewResult: ReviewResult{ReviewID: opts.ReviewID, CardID: opts.CardID, StatePath: opts.StatePath}, Type: opts.Type, Fingerprint: fingerprint, Name: name, Phase: "ready", HasErrors: opts.HasErrors}
+	state := reviewState{ReviewResult: ReviewResult{ReviewID: opts.ReviewID, CardID: opts.CardID, StatePath: opts.StatePath, Grade: opts.Grade, Provisional: opts.Provisional}, Type: opts.Type, Fingerprint: fingerprint, Name: name, Phase: "ready", HasErrors: opts.HasErrors}
 	data, err := os.ReadFile(opts.StatePath)
 	if err == nil {
 		var saved reviewState
@@ -204,7 +214,7 @@ func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewR
 			return empty, fmt.Errorf("decode review state: %w", err)
 		}
 		state = saved
-		if state.ReviewID != opts.ReviewID || state.CardID != opts.CardID || state.Type != opts.Type || state.Fingerprint != fingerprint || state.Name != name || !sameReviewOutcome(state.HasErrors, opts.HasErrors) {
+		if state.ReviewID != opts.ReviewID || state.CardID != opts.CardID || state.Type != opts.Type || state.Fingerprint != fingerprint || state.Name != name || !sameReviewOutcome(state.HasErrors, opts.HasErrors) || state.Grade != opts.Grade || state.Provisional != opts.Provisional {
 			return empty, fmt.Errorf("review ID already belongs to different content or card; use a new --review-id")
 		}
 	} else if !os.IsNotExist(err) {
@@ -275,7 +285,7 @@ func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewR
 			return empty, err
 		}
 	}
-	payload, err := json.Marshal(reviewPayload{Version: 1, Type: opts.Type, Text: opts.Text, AttachmentID: state.AttachmentID, HasErrors: opts.HasErrors})
+	payload, err := json.Marshal(reviewPayload{Version: 1, Type: opts.Type, Text: opts.Text, AttachmentID: state.AttachmentID, HasErrors: opts.HasErrors, Grade: opts.Grade, Provisional: opts.Provisional})
 	if err != nil {
 		return empty, err
 	}
@@ -343,6 +353,9 @@ func sameReviewOutcome(a, b *bool) bool {
 
 // Checkpoint the comment independently so a failed status update never republishes it.
 func (c *Client) finishReview(ctx context.Context, state *reviewState) (ReviewResult, error) {
+	if err := c.applyReviewGrade(ctx, state); err != nil {
+		return ReviewResult{}, err
+	}
 	if state.HasErrors == nil || state.StatusApplied {
 		return state.ReviewResult, nil
 	}

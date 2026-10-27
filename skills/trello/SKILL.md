@@ -88,16 +88,24 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 
 作业总结可用 `cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --include-actions` 一次批量读取多天材料。起止日期含首尾，与 `--date` 互斥；省略日期仍查今天。按**截止日期**筛选当前未归档卡片，不是按提交时间筛选；无截止日期及归档卡片不在报告内。报告增加 `from`、`to` 和每张卡的 `desc` 原题描述；`--include-actions` 额外返回每卡最近最多 1000 条 `actions`（含评论），读取失败写入 `actions_error`，不阻断图片下载。历史达到 1000 条时应声明可能截断。附件目录包含卡片 ID，避免同名作业混淆。模型批改和复习记录流程见 homework skill；CLI 不自行评分。
 
+## 打分结果字段
+
+发布批改时，传 `--grade 优|良|中|差` 同时将卡片描述的第一行写为「打分结果：良」并写入本次批改评论。只替换第一行已有的同名字段，否则在原描述前新增一行，保留原题和其他说明。此方案兼容 Trello 免费版，不依赖原生自定义字段。有待判定内容的暂评另加 `--provisional`，显示如「打分结果：暂评·良」。没有可判定内容时不传评分，不能从完成状态推断。
+
+旧版本可能没有这些参数，先看 `cyeam trello card review --help`；不支持时提示升级，不覆盖用户已安装的 CLI，也不声称评分已同步。评分与 `--has-errors` 独立：高等级也可能有错，暂评不能据等级判整份通过。
+
+重试必须保持相同 UUID、评分、暂评标志、正文和结果参数；评论已发布而描述更新失败时只补更新，不重复评论。成功后重跑同一 UUID 不重放旧评分；新一轮批改用新 UUID 保留历史。发布期间不要并行编辑同一卡片描述。
+
 ## 发布作业批改（协议 v1）
 
 ```text
-cyeam trello card review <card-id> --text <纯文本> [--review-id <UUID>]
+cyeam trello card review <card-id> --text <纯文本> [--review-id <UUID>] [--grade 优|良|中|差] [--provisional]
 cyeam trello card review <card-id> --text-file <UTF-8文件> [--review-id <UUID>]
 cyeam trello card review <card-id> --image <本地图片> [--review-id <UUID>]
 cyeam trello card review <card-id> --audio <本地音频> [--review-id <UUID>]
 ```
 
-这四个内容参数必须且只能选一个。不自动评分。始终写原卡片，不创建卡、不修改原题描述。可选 `--has-errors=true|false` 明确发布是否有错：true 转入「待改错」并清除 dueComplete；false 批改通过，当前为「已改错」时保留该状态，否则进入「已完成」，dueComplete=true。省略时只发布批改内容，不移动列表或修改完成标记。目标列表按卡片看板查询 ID，缺少时自动创建。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
+这四个内容参数必须且只能选一个。不自动评分。始终写原卡片，不创建卡；有评分时仅在描述顶部写入“打分结果”，保留原题和其他说明。可选 `--has-errors=true|false` 明确发布是否有错：true 转入「待改错」并清除 dueComplete；false 批改通过，当前为「已改错」时保留该状态，否则进入「已完成」，dueComplete=true。省略时只发布批改内容，不移动列表或修改完成标记。目标列表按卡片看板查询 ID，缺少时自动创建。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
 
 默认生成 UUID，执行时在 stderr 输出 `review_id` 和 `state_file`；也可首次提交就显式指定 UUID。成功响应包含 `review_id`、`card_id`、`action_id`、`state_file`，媒体还包含 `attachment_id`。状态保存在 `~/.cyeam/trello-reviews/<UUID>.json`（0600），包括正文、附件 ID、action ID，不包含 Token。不要删除仍可能重试的状态文件。
 

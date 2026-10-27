@@ -9,6 +9,9 @@ import (
 func TestTrelloReviewFlagValidation(t *testing.T) {
 	for _, args := range [][]string{
 		{"card-1"},
+		{"card-1", "--text", "hi", "--grade", "100"},
+		{"card-1", "--text", "hi", "--grade", ""},
+		{"card-1", "--text", "hi", "--provisional"},
 		{"card-1", "--text", "hi", "--image", "image.png"},
 		{"card-1", "--audio", "a.m4a", "--text-file", "text.txt"},
 		{"card-1", "--text", "hi", "--review-id", "../escape"},
