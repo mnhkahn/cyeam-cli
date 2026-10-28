@@ -150,7 +150,14 @@ func (c *Client) reviewComments(ctx context.Context, cardID string) ([]reviewCom
 func (c *Client) PublishReview(ctx context.Context, opts ReviewOptions) (ReviewResult, error) {
 	var empty ReviewResult
 	if (opts.Grade != "" && !ValidGrade(opts.Grade)) || (opts.Provisional && opts.Grade == "") {
-		return empty, fmt.Errorf("--grade must be 优, 良, 中 or 差; --provisional requires --grade")
+		return empty, fmt.Errorf("--grade must be 100, 优, 良, 中 or 差; --provisional requires --grade")
+	}
+	if opts.Grade == "100" {
+		if opts.Provisional || (opts.HasErrors != nil && *opts.HasErrors) {
+			return empty, fmt.Errorf("--grade 100 means fully correct; do not combine it with --provisional or --has-errors=true")
+		}
+		passed := false
+		opts.HasErrors = &passed
 	}
 	if opts.CardID == "" || strings.ContainsAny(opts.CardID, "/?#") {
 		return empty, fmt.Errorf("a card ID is required")

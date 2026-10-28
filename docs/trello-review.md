@@ -68,7 +68,7 @@ cyeam trello card review <原卡片ID> --text '订正全部正确。' --has-erro
 
 ## 评分字段与平板
 
-发布：`cyeam trello card review <card-id> --text-file review.txt --grade 良 --has-errors=true`。`--grade` 接受优、良、中、差；`--provisional` 需同时传等级。评分保存于原卡片描述第一行「打分结果：良」（或「打分结果：暂评·良」），替换首行已有同名字段，否则新增一行，保留全部原题和其他说明。兼容免费版，无需原生自定义字段，不创建额外卡片。不要同时编辑同一张卡片描述。
+发布：`cyeam trello card review <card-id> --text-file review.txt --grade 良 --has-errors=true`。`--grade` 接受 100、优、良、中、差；`--provisional` 需同时传等级。100 表示整份全对，自动按 `--has-errors=false` 批改通过，不可与 `--provisional` 或 `--has-errors=true` 并用。评分保存于原卡片描述第一行「打分结果：良」（或「打分结果：暂评·良」），替换首行已有同名字段，否则新增一行，保留全部原题和其他说明。兼容免费版，无需原生自定义字段，不创建额外卡片。不要同时编辑同一张卡片描述。
 
 协议 v1 评论可选增加 `grade` 和 `provisional`，旧客户端仍能展示正文。没有评分时保持旧行为。平板读取描述第一行和每轮评论的评分快照，以文字、图标、不同色彩显示，本地缓存保留最近评分。订正提交保留最近评分，复批后再更新。
 

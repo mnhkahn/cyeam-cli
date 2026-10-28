@@ -11,7 +11,7 @@ import (
 const GradeFieldName = "打分结果"
 
 func ValidGrade(grade string) bool {
-	return grade == "优" || grade == "良" || grade == "中" || grade == "差"
+	return grade == "100" || grade == "优" || grade == "良" || grade == "中" || grade == "差"
 }
 
 // The first line is reserved score metadata. Never rewrite assignment text below it.

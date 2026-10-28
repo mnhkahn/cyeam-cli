@@ -22,7 +22,8 @@ cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> -
 
 | 等级 | 正确率 |
 | --- | --- |
-| 优 | ≥90% |
+| 100 | 100%，整份已判定且全对 |
+| 优 | ≥90% 且 <100% |
 | 良 | ≥80% 且 <90% |
 | 中 | ≥60% 且 <80% |
 | 差 | <60% |
@@ -63,6 +64,6 @@ cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> -
 
 ## 发布打分结果
 
-用户授权发布批改时，将按上述规则得到的等级通过 `cyeam trello card review <card-id> --text-file <批改文件> --grade 良` 一并发布（图片/音频也支持 `--grade`）。有待判定题但已有可判定题时加 `--provisional`；没有可判定内容时不评级、不传 `--grade`。先确认 CLI 支持该参数；旧版本需提示升级，不替换用户安装的 CLI。同步失败时明确报告，不能把本地评级或评论成功说成字段已同步。
+用户授权发布批改时，将按上述规则得到的等级通过 `cyeam trello card review <card-id> --text-file <批改文件> --grade 良` 一并发布（图片/音频也支持 `--grade`）。整份已判定且全对时传 `--grade 100`，CLI 自动按批改通过处理，不传 `--provisional` 或 `--has-errors=true`。有待判定题但已有可判定题时加 `--provisional`，即使可判定题全对也只能暂评「优」；没有可判定内容时不评级、不传 `--grade`。先确认 CLI 支持该参数；旧版本需提示升级，不替换用户安装的 CLI。同步失败时明确报告，不能把本地评级或评论成功说成字段已同步。
 
 免费方案在卡片描述第一行保存「打分结果：良」（暂评为「打分结果：暂评·良」），保留原题和说明，评论保存每轮历史。孩子提交订正不会自动获得新评分；复批后用新 UUID 发布新等级。评分参数与正文、是否有错共同纳入同一 UUID 的重试内容，不得变更参数重试。

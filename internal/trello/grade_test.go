@@ -88,7 +88,7 @@ func TestReviewGradeRetryDoesNotDuplicateComment(t *testing.T) {
 
 func TestInvalidReviewGradeNeverUsesNetwork(t *testing.T) {
 	client := testClient(t, func(w http.ResponseWriter, r *http.Request) { t.Fatal("unexpected network call") })
-	for _, grade := range []string{"100", "优良", " 暂评"} {
+	for _, grade := range []string{"101", "优良", " 暂评"} {
 		opts := reviewOpts(t, "text")
 		opts.Grade = grade
 		if _, err := client.PublishReview(context.Background(), opts); err == nil {
@@ -99,6 +99,78 @@ func TestInvalidReviewGradeNeverUsesNetwork(t *testing.T) {
 	opts.Provisional = true
 	if _, err := client.PublishReview(context.Background(), opts); err == nil {
 		t.Fatal("provisional needs grade")
+	}
+	for _, invalid := range []ReviewOptions{
+		func() ReviewOptions {
+			opts := reviewOpts(t, "text")
+			opts.Grade = "100"
+			opts.Provisional = true
+			return opts
+		}(),
+		func() ReviewOptions {
+			opts := reviewOpts(t, "text")
+			opts.Grade = "100"
+			hasErrors := true
+			opts.HasErrors = &hasErrors
+			return opts
+		}(),
+	} {
+		if _, err := client.PublishReview(context.Background(), invalid); err == nil {
+			t.Fatal("100 cannot be provisional or have errors")
+		}
+	}
+}
+
+func TestPerfectGradeMarksReviewPassed(t *testing.T) {
+	opts := reviewOpts(t, "text")
+	opts.Grade = "100"
+	posts, gradeUpdates, statusUpdates := 0, 0, 0
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.Method + " " + r.URL.Path {
+		case "GET /cards/card-1/actions":
+			fmt.Fprint(w, `[]`)
+		case "POST /cards/card-1/actions/comments":
+			posts++
+			r.ParseForm()
+			var payload reviewPayload
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(r.FormValue("text"), ReviewPrefix)), &payload); err != nil || payload.Grade != "100" || payload.HasErrors == nil || *payload.HasErrors {
+				t.Errorf("perfect grade must publish a passed review: %+v, %v", payload, err)
+			}
+			fmt.Fprint(w, `{"id":"review-action"}`)
+		case "GET /cards/card-1":
+			if r.URL.Query().Get("fields") == "desc" {
+				fmt.Fprint(w, `{"desc":"作业内容：计算第3题"}`)
+			} else {
+				fmt.Fprint(w, `{"idBoard":"board","idList":"correction"}`)
+			}
+		case "GET /boards/board/lists":
+			fmt.Fprint(w, `[{"id":"done","name":"已完成"},{"id":"correction","name":"待改错"}]`)
+		case "PUT /cards/card-1":
+			if r.URL.Query().Has("desc") {
+				gradeUpdates++
+				if r.URL.Query().Get("desc") != "打分结果：100\n作业内容：计算第3题" {
+					t.Error(r.URL)
+				}
+			} else {
+				statusUpdates++
+				if r.URL.Query().Get("idList") != "done" || r.URL.Query().Get("dueComplete") != "true" {
+					t.Error(r.URL)
+				}
+			}
+			fmt.Fprint(w, `{}`)
+		default:
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL)
+		}
+	})
+	result, err := client.PublishReview(context.Background(), opts)
+	if err != nil || result.Grade != "100" || result.Status != "已完成" {
+		t.Fatalf("%+v %v", result, err)
+	}
+	if _, err := client.PublishReview(context.Background(), opts); err != nil {
+		t.Fatal(err)
+	}
+	if posts != 1 || gradeUpdates != 1 || statusUpdates != 1 {
+		t.Fatalf("posts=%d grade=%d status=%d", posts, gradeUpdates, statusUpdates)
 	}
 }
 
