@@ -21,6 +21,7 @@ var catalog = []Type{
 	{"divide", "表内除法", 2}, {"mixed-multiply-divide", "乘除混合", 2}, {"remainder", "有余数除法", 2},
 	{"three-digit-add", "三位数加法", 2}, {"three-digit-subtract", "三位数减法", 2}, {"three-digit-chain", "三位数连加减", 2}, {"length", "长度单位换算", 2},
 	{"round-multiply", "整十整百整千乘法", 4}, {"product-change", "积的变化规律", 4}, {"split-multiply", "两位数乘两位数拆分", 4},
+	{"mult-3x2", "三位数乘两位数", 4}, {"round-3x2", "三位数乘两位数整十整百", 4},
 	{"add-laws", "加法交换律结合律", 4}, {"multiply-laws", "乘法交换律结合律", 4},
 	{"distribute", "乘法分配律", 4}, {"large-number", "大数读写与填空", 4},
 	{"quantity", "数量关系", 4}, {"estimate", "乘法估算", 4},
@@ -247,6 +248,33 @@ func candidate(r *rand.Rand, kind string) Question {
 	case "split-multiply":
 		a = n(11, 25)
 		b = n(11, 15)
+		return expr(a, "×", b, a*b)
+	case "mult-3x2":
+		switch n(0, 2) {
+		case 0:
+			if n(0, 2) == 0 {
+				// 中间有0，如 408×25
+				a = n(2, 9)*100 + n(1, 9)
+			} else {
+				a = n(101, 999)
+			}
+			b = n(11, 99)
+			return expr(a, "×", b, a*b)
+		case 1:
+			// 三位数末尾有0，如 570×16
+			a = n(10, 99) * 10
+			b = n(11, 99)
+			return expr(a, "×", b, a*b)
+		default:
+			// 两位数×三位数末尾有0，如 32×290
+			a = n(11, 99)
+			b = n(10, 99) * 10
+			return expr(a, "×", b, a*b)
+		}
+	case "round-3x2":
+		// 两个乘数都是整十/整百结构，仍保持三位数×两位数，如 300×40
+		a = n(10, 99) * 10
+		b = n(1, 9) * 10
 		return expr(a, "×", b, a*b)
 	case "add-laws":
 		a = n(11, 89)

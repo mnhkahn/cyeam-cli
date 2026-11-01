@@ -112,6 +112,25 @@ func TestNumericAnswersAndCurriculumBounds(t *testing.T) {
 					if ns[0] < 11 || ns[0] > 25 || ns[1] < 11 || ns[1] > 15 {
 						t.Fatal(q)
 					}
+				case "mult-3x2":
+					x, y := ns[0], ns[1]
+					if x < 100 {
+						x, y = y, x
+					}
+					if x < 100 || x > 999 || y < 11 || y > 99 {
+						t.Fatal(q)
+					}
+				case "round-3x2":
+					x, y := ns[0], ns[1]
+					if x < 100 {
+						x, y = y, x
+					}
+					if x < 100 || x > 999 || y < 10 || y > 99 {
+						t.Fatal(q)
+					}
+					if x%10 != 0 || y%10 != 0 {
+						t.Fatal(q)
+					}
 				case "add-laws":
 					if ns[0]+ns[2] != 100 {
 						t.Fatal(q)
