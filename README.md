@@ -101,6 +101,49 @@ export CYEAM_CLI_NO_UPDATE_NOTIFIER=1
 
 ## 使用
 
+### 口算出题
+
+`cyeam arithmetic` 在本地生成口算题，无需 AI 接口或登录，支持一年级、二年级及 2026 新版四年级上册。
+
+```bash
+cyeam arithmetic types --grade 2
+cyeam arithmetic --grade 2 --count 20
+cyeam arithmetic --type multiply,divide --count 20 --answers --seed 42
+cyeam arithmetic --grade 4 --format worksheet --pretty
+cyeam arithmetic --grade 2 --format text --pretty | cyeam pdf --mode arithmetic -o practice.pdf
+```
+
+默认 20 题、JSON 输出、不附答案。`--type` 接受题型 ID 或完整中文名，并可推断年级；不指定题型时需提供 `--grade`，均衡混合该年级题型。题目去重，题量超过题型容量会报错。`--seed` 用于复现；`--answers` 可选，文本中的答案独立列出。
+
+`--format text --pretty` 每行一道题，可写入平板作业或传入 PDF 命令；`--format worksheet --pretty` 输出含标题、姓名栏和编号的多栏练习单文本。生成 PDF 时只传逐行题目，不混入标题或答案。
+
+### 口算图片检查
+
+CLI 图片检查仅使用百度飞桨 PaddleOCR 服务。使用者必须配置自己的接口地址和密钥；未配置时明确返回功能不可用，不上传图片、不调用其它 OCR 或下载本地模型。口算出题无需密钥，继续正常使用。
+
+先保存自己的 PaddleOCR 接口地址与密钥；执行后会提示隐藏输入密钥：
+
+```bash
+cyeam ocr config set --url "https://你的PaddleOCR服务地址"
+cyeam ocr config status
+cyeam arithmetic check homework.jpg --expected-count 18
+cyeam ocr config clear
+```
+
+也可先用 `cyeam ocr config set --url "接口地址" --url-only` 单独保存地址，之后运行 `cyeam ocr config set` 隐藏输入密钥。单独保存地址不会启用 OCR，也不会修改已有的地址/密钥配对；`clear` 同时移除这个预设地址。
+
+
+优先保存在系统钥匙串，不可用时保存到 `~/.cyeam/paddleocr.json`（权限 0600）。状态命令不显示密钥，保存配置不上传图片或验证服务。脚本可使用 `--token-stdin` 从标准输入读取密钥。普通检查自动读取已保存配置；临时环境变量必须同时提供 `OCR_API_URL` 和 `OCR_API_TOKEN`，不会把已保存密钥搭配其它地址。指定 `--ocr-env` 时继续支持显式配置文件。
+
+
+```bash
+cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --expected-count 18 --timeout 3m --pretty
+```
+
+复用 wangxizhi 的 PaddleOCR HTTP 协议，读取 `OCR_API_URL` / `OCR_API_TOKEN`（进程环境优先，也可指定 `--ocr-env`）。图片上传到配置的 OCR 服务后，CLI 在本地重新计算四则算式，输出识别答案、计算结果、差值与判断；只关联横式右侧的答案，下方竖式草稿不作为最终答案。支持 PNG/JPEG/GIF/WebP（20 MiB 内）。
+
+默认置信度阈值为 0.9。低置信度、服务未提供置信度、答案含糊或缺失时标为“待核对”，仍显示可计算的比较结果。当前 wangxizhi 的 spotting 服务在实测中没有返回置信度，手写数字也有误识别，因此属于辅助检查。`--expected-count` 检查漏题；`--save-ocr ocr.json` 保存识别证据，之后通过 `--ocr-result ocr.json` 离线回放。
+
 ### 使用统计
 
 CLI 内置 PostHog 项目令牌，安装后无需配置账号或密钥。每次执行有效命令

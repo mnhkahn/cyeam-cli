@@ -278,6 +278,8 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newNewsCommand(deps))
 	root.AddCommand(newSkillsCommand(deps))
 	root.AddCommand(newPinyinCommand())
+	root.AddCommand(newArithmeticCommand())
+	root.AddCommand(newOCRCommand())
 	root.AddCommand(newPhoneticCommand(deps.Phonetic))
 	root.AddCommand(newAICommand())
 	root.AddCommand(newPDFCommand())

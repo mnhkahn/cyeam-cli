@@ -98,6 +98,9 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 
 ## 发布作业批改（协议 v1）
 
+批改反馈默认只给题号、判断、评分、错因类型和重做提示；正确答案、完整解法及能反推出答案的差值仅供内部核验，不写入 `--text`、`--text-file` 或图片/音频附件。只有用户明确要求答案或允许指定场景先参考答案时，才在该范围内提供；要求检查、判分或订正不等于允许展示答案。完整规则见 homework skill 的 `references/review.md`。
+
+
 ```text
 cyeam trello card review <card-id> --text <纯文本> [--review-id <UUID>] [--grade 100|优|良|中|差] [--provisional]
 cyeam trello card review <card-id> --text-file <UTF-8文件> [--review-id <UUID>]
