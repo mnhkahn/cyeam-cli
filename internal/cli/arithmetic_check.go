@@ -2,7 +2,6 @@ package cli
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -41,7 +40,8 @@ func newArithmeticCheckCommand() *cobra.Command {
 	var envFile, replay, save string
 	var opts arithmetic.CheckOptions
 	var timeout time.Duration
-	var rotation int
+	var rotation, retries int
+	var autoOrient, showTimings bool
 	cmd := &cobra.Command{
 		Use: "check <image>", Short: "Check photographed arithmetic using PaddleOCR and local calculation",
 		Long: `Upload a local image to the configured PaddleOCR service, then calculate and compare
@@ -67,6 +67,9 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 			}
 			if timeout <= 0 || timeout > 5*time.Minute {
 				return fmt.Errorf("--timeout must be between 0 and 5m")
+			}
+			if retries < 0 || retries > 5 {
+				return fmt.Errorf("--retries must be between 0 and 5")
 			}
 			if rotation != 0 && rotation != 90 && rotation != 180 && rotation != 270 {
 				return fmt.Errorf("--rotate must be 0, 90, 180, or 270")
@@ -114,20 +117,28 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 				if configErr != nil {
 					return configErr
 				}
-				ctx, cancel := context.WithTimeout(cmd.Context(), timeout)
-				defer cancel()
 				client.HTTP.Timeout = timeout
+				client.SkipOrientation = !autoOrient
 				upload, rotateErr := rotateArithmeticImage(src, rotation)
 				if rotateErr != nil {
 					return rotateErr
 				}
-				data, err = client.RecognizeRaw(ctx, upload)
+				upload, resizeErr := resizeArithmeticImage(upload, 1600)
+				if resizeErr != nil {
+					return resizeErr
+				}
+				data, err = recognizeArithmeticWithRetry(cmd.Context(), client, upload, timeout, retries, showTimings, cmd.ErrOrStderr())
 				if err == nil {
-					data, input, err = stampArithmeticInput(data, src, args[0], rotation)
+					data, input, err = stampArithmeticInput(data, src, upload, args[0], rotation)
 				}
 			}
 			if err != nil {
 				return err
+			}
+			if save != "" {
+				if err := os.WriteFile(save, data, 0600); err != nil {
+					return fmt.Errorf("save OCR evidence: %w", err)
+				}
 			}
 			lines, err := paddleocr.Parse(data)
 			if err != nil {
@@ -139,11 +150,6 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 			}
 			if sourceWarning != "" {
 				report.Warnings = append(report.Warnings, sourceWarning)
-			}
-			if save != "" {
-				if err := os.WriteFile(save, data, 0600); err != nil {
-					return fmt.Errorf("save OCR evidence: %w", err)
-				}
 			}
 			pretty, _ := cmd.Flags().GetBool("pretty")
 			if pretty {
@@ -165,13 +171,16 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 			}{report, input})
 		},
 	}
+	cmd.Flags().BoolVar(&autoOrient, "auto-orient", true, "enable server orientation detection; disable for known-upright photos")
+	cmd.Flags().BoolVar(&showTimings, "timings", false, "print client-observed OCR timing phases to stderr")
 	cmd.Flags().IntVar(&rotation, "rotate", 0, "rotate input clockwise by 0, 90, 180, or 270 degrees before OCR")
 	cmd.Flags().StringVar(&envFile, "ocr-env", "", "dotenv file with OCR_API_URL and OCR_API_TOKEN")
 	cmd.Flags().StringVar(&replay, "ocr-result", "", "replay an existing PaddleOCR JSON result; do not upload")
 	cmd.Flags().StringVar(&save, "save-ocr", "", "save raw PaddleOCR JSON evidence to a file")
 	cmd.Flags().Float64Var(&opts.MinConfidence, "min-confidence", 0, "optional confidence threshold when OCR provides scores (default: no filtering)")
 	cmd.Flags().IntVar(&opts.ExpectedCount, "expected-count", 0, "expected number of questions, to detect omissions")
-	cmd.Flags().DurationVar(&timeout, "timeout", 3*time.Minute, "OCR request timeout (maximum 5m)")
+	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Second, "timeout per OCR attempt (maximum 5m)")
+	cmd.Flags().IntVar(&retries, "retries", 2, "retries after OCR timeout (0–5; default: 2, up to 3 attempts)")
 	return cmd
 }
 func writeArithmeticCheck(out io.Writer, r arithmetic.CheckReport) error {

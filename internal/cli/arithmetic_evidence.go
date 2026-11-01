@@ -1,10 +1,12 @@
 package cli
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"image"
 	"os"
 	"path/filepath"
 )
@@ -12,15 +14,25 @@ import (
 // OCR evidence is bound to image bytes, so a cached earlier submission cannot
 // accidentally be graded as a different or corrected photograph.
 type arithmeticInput struct {
-	Rotation int    `json:"rotation,omitempty"`
-	Name     string `json:"name,omitempty"`
-	SHA256   string `json:"sha256,omitempty"`
-	Verified bool   `json:"verified"`
+	UploadSHA256 string `json:"upload_sha256,omitempty"`
+	UploadWidth  int    `json:"upload_width,omitempty"`
+	UploadHeight int    `json:"upload_height,omitempty"`
+	Mode         string `json:"mode,omitempty"`
+	Rotation     int    `json:"rotation,omitempty"`
+	Name         string `json:"name,omitempty"`
+	SHA256       string `json:"sha256,omitempty"`
+	Verified     bool   `json:"verified"`
 }
 
 func imageDigest(data []byte) string { sum := sha256.Sum256(data); return hex.EncodeToString(sum[:]) }
-func stampArithmeticInput(data, src []byte, name string, rotation int) ([]byte, arithmeticInput, error) {
+func stampArithmeticInput(data, src, upload []byte, name string, rotation int) ([]byte, arithmeticInput, error) {
 	input := arithmeticInput{Rotation: rotation, Name: filepath.Base(name), SHA256: imageDigest(src), Verified: true}
+	input.UploadSHA256 = imageDigest(upload)
+	input.Mode = "ocr"
+	if cfg, _, err := image.DecodeConfig(bytes.NewReader(upload)); err == nil {
+		input.UploadWidth = cfg.Width
+		input.UploadHeight = cfg.Height
+	}
 	var fields map[string]json.RawMessage
 	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
 		return nil, input, fmt.Errorf("invalid OCR JSON response")

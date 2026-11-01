@@ -10,7 +10,7 @@ import (
 func TestArithmeticReplayRejectsAnotherPhotograph(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "photo.png")
 	first := []byte("first photograph")
-	data, input, err := stampArithmeticInput([]byte(`{"result":{"ocrResults":[]}}`), first, path, 0)
+	data, input, err := stampArithmeticInput([]byte(`{"result":{"ocrResults":[]}}`), first, first, path, 0)
 	if err != nil || !input.Verified {
 		t.Fatal(err)
 	}

@@ -3,7 +3,11 @@ package cli
 import (
 	"bytes"
 	"fmt"
+	xdraw "golang.org/x/image/draw"
 	"image"
+	"image/color"
+	"image/draw"
+	"image/jpeg"
 	"image/png"
 )
 
@@ -43,6 +47,32 @@ func rotateArithmeticImage(src []byte, degrees int) ([]byte, error) {
 	var out bytes.Buffer
 	if err := png.Encode(&out, dst); err != nil {
 		return nil, fmt.Errorf("encode rotated image failed")
+	}
+	return out.Bytes(), nil
+}
+
+// Bound the OCR input resolution without modifying the original photograph.
+// This matches the tested document OCR input, avoiding oversized spotting jobs.
+func resizeArithmeticImage(src []byte, maxSide int) ([]byte, error) {
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(src))
+	if err != nil {
+		return nil, fmt.Errorf("decode OCR input dimensions failed")
+	}
+	longest := max(cfg.Width, cfg.Height)
+	if longest <= maxSide {
+		return src, nil
+	}
+	img, _, err := image.Decode(bytes.NewReader(src))
+	if err != nil {
+		return nil, fmt.Errorf("decode OCR input failed")
+	}
+	w, h := max(1, cfg.Width*maxSide/longest), max(1, cfg.Height*maxSide/longest)
+	dst := image.NewRGBA(image.Rect(0, 0, w, h))
+	draw.Draw(dst, dst.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
+	xdraw.CatmullRom.Scale(dst, dst.Bounds(), img, img.Bounds(), draw.Over, nil)
+	var out bytes.Buffer
+	if err := jpeg.Encode(&out, dst, &jpeg.Options{Quality: 95}); err != nil {
+		return nil, fmt.Errorf("encode OCR input failed")
 	}
 	return out.Bytes(), nil
 }

@@ -137,14 +137,18 @@ cyeam ocr config clear
 
 
 ```bash
-cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --expected-count 18 --timeout 3m --pretty
+cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --expected-count 18 --timeout 10s --retries 2 --pretty
 ```
 
 复用 wangxizhi 的 PaddleOCR HTTP 协议，读取 `OCR_API_URL` / `OCR_API_TOKEN`（进程环境优先，也可指定 `--ocr-env`）。图片上传到配置的 OCR 服务后，CLI 在本地重新计算四则算式，输出识别答案、计算结果、差值与判断；只关联横式右侧的答案，下方竖式草稿不作为最终答案。支持 PNG/JPEG/GIF/WebP（20 MiB 内）。
 
 默认直接根据飞桨识别值进行本地验算和对错判定，无需 AI 再识别原图或重复计算。服务未提供置信度不阻断判分；答案缺失、无法解析等无法比较的内容仍标为“待核对”。可选 `--min-confidence` 仅过滤实际返回且低于阈值的置信度。`--expected-count` 检查漏题；`--save-ocr ocr.json` 保存识别证据，之后通过 `--ocr-result ocr.json` 离线回放。
 
-图片检查默认开启飞桨方向矫正；可用 `--rotate 90` 在上传前顺时针旋转（不修改原文件）。OCR 缓存保存输入图片的 SHA-256，回放时拒绝套用到其它图片；旧缓存无指纹时会明确提示来源无法核验。结果中的 `input` 可用于确认实际检查的照片，订正照片应重新识别。
+图片检查默认每次请求最多等待 10 秒，超时立即重试 2 次（最多 3 次请求）；可用 `--timeout` 和 `--retries` 调整，`--retries 0` 禁用重试。仅超时重试，HTTP 错误直接返回，取消操作立即结束。
+
+图片检查使用普通 OCR 模式，上传前将最长边限制为 1600px，控制识别分辨率与输出长度；原图文件不修改。服务返回空文字时直接报识别失败，文本块按行解析。
+
+图片检查默认开启飞桨方向矫正；已确认正向的照片可用 `--auto-orient=false` 跳过该步骤，也可用 `--rotate 90` 在上传前顺时针旋转（不修改原文件）。`--timings` 在 stderr 输出准备/连接、上传、等待响应、下载及总耗时；等待响应包含网络往返与服务端处理，不能区分排队和推理。OCR 缓存保存输入图片的 SHA-256，回放时拒绝套用到其它图片；旧缓存无指纹时会明确提示来源无法核验。结果中的 `input` 可用于确认实际检查的照片，订正照片应重新识别。
 
 ### 使用统计
 

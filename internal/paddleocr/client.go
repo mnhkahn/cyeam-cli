@@ -35,8 +35,10 @@ type Line struct {
 	Page       int      `json:"page"`
 }
 type Client struct {
-	URL, Token string
-	HTTP       *http.Client
+	URL, Token      string
+	HTTP            *http.Client
+	SkipOrientation bool
+	Timing          *RequestTiming
 }
 
 // Config uses environment variables, an explicitly selected dotenv file, or
@@ -108,7 +110,9 @@ func (c *Client) RecognizeRaw(ctx context.Context, image []byte) ([]byte, error)
 	if strings.TrimSpace(c.URL) == "" || strings.TrimSpace(c.Token) == "" {
 		return nil, ErrNotConfigured
 	}
-	body, _ := json.Marshal(map[string]any{"file": base64.StdEncoding.EncodeToString(image), "fileType": 1, "useDocOrientationClassify": true, "useDocUnwarping": false, "useLayoutDetection": false, "promptLabel": "spotting"})
+	ctx, finishTiming := traceRequest(ctx, time.Now(), c.Timing)
+	defer finishTiming()
+	body, _ := json.Marshal(map[string]any{"file": base64.StdEncoding.EncodeToString(image), "fileType": 1, "useDocOrientationClassify": !c.SkipOrientation, "useDocUnwarping": false, "useLayoutDetection": false, "promptLabel": "ocr", "maxPixels": 1003520, "maxNewTokens": 2048, "visualize": false, "returnMarkdownImages": false})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("invalid OCR request")
@@ -125,6 +129,9 @@ func (c *Client) RecognizeRaw(ctx context.Context, image []byte) ([]byte, error)
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
+		if e, ok := err.(interface{ Timeout() bool }); ok && e.Timeout() {
+			return nil, context.DeadlineExceeded
+		}
 		return nil, fmt.Errorf("OCR request failed (connection or timeout)")
 	}
 	defer resp.Body.Close()
@@ -133,6 +140,12 @@ func (c *Client) RecognizeRaw(ctx context.Context, image []byte) ([]byte, error)
 	}
 	data, err := io.ReadAll(io.LimitReader(resp.Body, 32<<20+1))
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		if e, ok := err.(interface{ Timeout() bool }); ok && e.Timeout() {
+			return nil, context.DeadlineExceeded
+		}
 		return nil, fmt.Errorf("read OCR response failed")
 	}
 	if len(data) > 32<<20 {
@@ -196,6 +209,7 @@ func Parse(data []byte) ([]Line, error) {
 	}
 	lines := []Line{}
 	for i, p := range all {
+		pageStart := len(lines)
 		rec := p.Pruned
 		if rec.Spotting != nil && len(rec.Spotting.Texts) > 0 {
 			rec = *rec.Spotting
@@ -233,15 +247,20 @@ func Parse(data []byte) ([]Line, error) {
 				lines = append(lines, line)
 			}
 		}
-		if len(rec.Texts) == 0 {
+		if len(lines) == pageStart {
 			for _, b := range rec.Blocks {
-				line := Line{Text: b.Text, Page: i + 1}
-				if len(b.Box) == 4 {
-					copy(line.Box[:], b.Box)
+				for _, text := range strings.Split(b.Text, "\n") {
+					if strings.TrimSpace(text) == "" {
+						continue
+					}
+					line := Line{Text: text, Page: i + 1}
+					if len(b.Box) == 4 {
+						copy(line.Box[:], b.Box)
+					}
+					lines = append(lines, line)
 				}
-				lines = append(lines, line)
 			}
-			if len(rec.Blocks) == 0 {
+			if len(lines) == pageStart {
 				for _, text := range strings.Split(p.Markdown.Text, "\n") {
 					if strings.TrimSpace(text) != "" {
 						lines = append(lines, Line{Text: text, Page: i + 1})

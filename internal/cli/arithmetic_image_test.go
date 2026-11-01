@@ -36,3 +36,23 @@ func TestArithmeticRotationPreservesPixelsAndSource(t *testing.T) {
 		t.Fatal("original changed")
 	}
 }
+
+func TestOCRInputResizePreservesAspectAndSmallInputs(t *testing.T) {
+	img := image.NewRGBA(image.Rect(0, 0, 2304, 4096))
+	var src bytes.Buffer
+	if err := png.Encode(&src, img); err != nil {
+		t.Fatal(err)
+	}
+	out, err := resizeArithmeticImage(src.Bytes(), 1600)
+	if err != nil {
+		t.Fatal(err)
+	}
+	cfg, _, err := image.DecodeConfig(bytes.NewReader(out))
+	if err != nil || cfg.Width != 900 || cfg.Height != 1600 {
+		t.Fatal(cfg, err)
+	}
+	small, err := resizeArithmeticImage(out, 1600)
+	if err != nil || !bytes.Equal(small, out) {
+		t.Fatal("small image was recompressed")
+	}
+}

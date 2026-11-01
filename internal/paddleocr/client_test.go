@@ -26,7 +26,7 @@ func TestClientProtocolAndConfig(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
-		if body["file"] != base64.StdEncoding.EncodeToString(image) || body["fileType"] != float64(1) || body["promptLabel"] != "spotting" || body["useDocOrientationClassify"] != true {
+		if body["file"] != base64.StdEncoding.EncodeToString(image) || body["fileType"] != float64(1) || body["promptLabel"] != "ocr" || body["maxPixels"] != float64(1003520) || body["useDocOrientationClassify"] != true {
 			t.Error("wrong payload")
 		}
 		fmt.Fprint(w, ocrResponse)
@@ -126,5 +126,48 @@ func TestClientNeverUploadsWithoutToken(t *testing.T) {
 	_, err := (&Client{URL: server.URL}).Recognize(context.Background(), []byte("image"))
 	if !errors.Is(err, ErrNotConfigured) || called {
 		t.Fatal("missing token allowed an OCR request", err)
+	}
+}
+
+func TestParseRejectsSuccessfulButEmptySpottingResult(t *testing.T) {
+	data := []byte(`{"errorCode":0,"result":{"layoutParsingResults":[{"prunedResult":{"spotting_res":{"rec_texts":[],"rec_polys":[]},"parsing_res_list":[{"block_label":"spotting","block_content":""}]}}]}}`)
+	if _, err := Parse(data); err == nil || !strings.Contains(err.Error(), "no text") {
+		t.Fatal("empty response treated as successful OCR", err)
+	}
+}
+func TestParseEmptyBlocksFallBackToMarkdownAndSplitText(t *testing.T) {
+	data := []byte(`{"layoutParsingResults":[{"prunedResult":{"parsing_res_list":[{"block_content":""}]},"markdown":{"text":"(1)2+2=4\n(2)3+3=6"}}]}`)
+	lines, err := Parse(data)
+	if err != nil || len(lines) != 2 {
+		t.Fatal(lines, err)
+	}
+	data = []byte(`{"layoutParsingResults":[{"prunedResult":{"parsing_res_list":[{"block_content":"(1)2+2=4\n\n(2)3+3=6","block_bbox":[0,0,100,100]}]}}]}`)
+	lines, err = Parse(data)
+	if err != nil || len(lines) != 2 || lines[1].Text != "(2)3+3=6" {
+		t.Fatal(lines, err)
+	}
+}
+
+func TestOCRCanSkipOrientationAndMeasureRequestPhases(t *testing.T) {
+	var called bool
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		var body map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Error(err)
+		}
+		if body["useDocOrientationClassify"] != false {
+			t.Error("orientation was not disabled")
+		}
+		fmt.Fprint(w, ocrResponse)
+	}))
+	defer server.Close()
+	var timing RequestTiming
+	client := Client{URL: server.URL, Token: "test", SkipOrientation: true, Timing: &timing}
+	if _, err := client.Recognize(context.Background(), []byte("image")); err != nil {
+		t.Fatal(err)
+	}
+	if !called || timing.TotalMS <= 0 || timing.PrepareConnectMS < 0 || timing.UploadMS < 0 || timing.WaitMS < 0 || timing.DownloadMS < 0 {
+		t.Fatal(timing)
 	}
 }

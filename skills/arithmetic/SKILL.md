@@ -98,13 +98,14 @@ cyeam ocr config clear
 cyeam arithmetic check homework.jpg --expected-count 18
 
 # 显式读取已有的 PaddleOCR 接入配置（环境变量优先）
-cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --expected-count 18 --timeout 3m
+cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --expected-count 18 --timeout 10s --retries 2
 
 # 保存 OCR 原始结果，供不重复上传的离线回放
 cyeam arithmetic check homework.jpg --save-ocr ocr.json
 cyeam arithmetic check homework.jpg --ocr-result ocr.json
 ```
 
+- 默认使用普通文字识别任务 `promptLabel: ocr`，不使用整页 `spotting` 定位模式。上传前在内存中将最长边限制为 1600px（不放大较小图片；缩小时用高质量 JPEG），原图文件不改动；服务端 `maxPixels: 1003520`、`maxNewTokens: 2048`，不请求可视化图片。文本块按行解析，空文字响应直接报识别失败，不能当作“识别到 0 题”的正常结果。
 - 图像会发送到配置的 PaddleOCR HTTP 服务，上传方式与 wangxizhi 的客户端相同（Base64、`fileType: 1`、`Authorization: token ...`）。CLI 直接调用，不依赖 wangxizhi 的 Python 环境；不把凭证写进代码或输出。
 - 接受 PNG、JPEG、GIF、WebP，最大 20 MiB；当前按单张静态图检查。`--ocr-env` 只读指定文件的 `OCR_API_URL` 和 `OCR_API_TOKEN`，不执行文件内容；省略时优先使用完整进程环境配置，否则读取本机已保存配置，不自动寻找其它仓库的配置。
 - 默认返回 JSON 信封，`data.questions` 列出题号、表达式、识别答案、计算结果、差值（计算结果减识别答案）、比较结果、状态、原因及 OCR 证据索引。商余数答案分别核对商和余数，不提供数值差值。这些是内部验算数据；默认向用户反馈时省略 `expected_answer`、`difference` 和完整解法，不分享带答案的原始报告。批改优先读取 JSON 后整理不含答案的反馈；`--pretty` 的原始输出含计算结果，只供内部核对，除非用户明确允许，不直接展示或转发。
@@ -112,12 +113,12 @@ cyeam arithmetic check homework.jpg --ocr-result ocr.json
 - 默认不按置信度拦截判分；飞桨没有返回置信度时，仍直接验算和判对错。仅用户明确要求时传 `--min-confidence`（0–1），只过滤服务实际返回且低于阈值的分数；缺失分数不阻断判分。
 - 通过坐标关联横式题干与同一行右侧答案，**不会把下方竖式草稿当作最终答案**，也不会凭计算结果猜测或修正 OCR 数字。支持 PaddleOCR 的普通文本及常见 LaTeX 算式格式。
 - `--expected-count` 用于检查题数是否一致；编号题单还会报告识别到的编号范围内的缺号。总数一致不能证明 OCR 没有漏题或误识别；零题结果不能视为全部正确。
-- `--timeout` 默认 3m，最大 5m。`--save-ocr` 保存服务原始响应（可能含图片链接），文件应留在本地；测试夹具只能保留去除凭证、接口地址和图片链接后的文字/坐标，不能把原图当作识别正确的证据。`--ocr-result` 回放不上传图片，图片参数用于核对缓存的输入指纹；没有指纹的旧缓存会提示来源无法核验。
+- `--timeout` 为每次请求超时，默认 10s，最大 5m；超时后立即顺序重试，`--retries` 默认 2（共最多 3 次请求，约 30s 加本地处理），范围 0–5，传 0 禁用重试。只有超时自动重试，认证/HTTP 错误不重试，用户取消立即结束。每次重试会在 stderr 提示，不重复做本地图像处理；客户端取消不能保证服务端停止上一轮推理。`--save-ocr` 保存服务原始响应（可能含图片链接），文件应留在本地；测试夹具只能保留去除凭证、接口地址和图片链接后的文字/坐标，不能把原图当作识别正确的证据。`--ocr-result` 回放不上传图片，图片参数用于核对缓存的输入指纹；没有指纹的旧缓存会提示来源无法核验。
 - `--pretty` 输出中文判分清单。面向用户按 `correct`、`incorrect`、`needs_review` 汇报对/错/无法判定，不因为服务未返回置信度而再次要求 AI 看图复核。默认不展示标准答案和差值。
 
 ### 图片方向、原图与缓存来源
 
 - OCR 请求默认开启飞桨文档方向矫正。横转照片可显式传 `--rotate 90|180|270`（顺时针），仅在内存中旋转，不改动附件或原文件；该参数不用于 OCR 缓存回放。
 - Trello 口算照片送识别前优先通过 `card attachment get ... --max-width 0` 下载同一附件原图；不要把 1200px 缩略预览当成原图。此要求仅针对 OCR 输入，附件的现有展示方式保持不变。
-- 每份识别结果的 `input` 记录图片名、SHA-256、手动旋转角度及来源是否已核验。`--save-ocr` 同时在原始响应的 `_cyeam_input` 保存输入指纹。必须确认当前文件与本次提交对应，不把旧照片、旧提交的结果用于订正照片。
+- 每份识别结果的 `input` 记录原图名、原图及实际上传数据的 SHA-256、上传尺寸、识别模式、手动旋转角度及来源是否已核验。`--save-ocr` 同时在原始响应的 `_cyeam_input` 保存输入指纹。必须确认当前文件与本次提交对应，不把旧照片、旧提交的结果用于订正照片。
 - `--ocr-result` 会核对当前图片与缓存的 SHA-256，不一致时报错。老缓存没有指纹，或原图文件不在本机时，只能作为未核验来源的回放，不能宣称是当前照片的新识别结果；不要因方便而替换为另一个样例缓存。

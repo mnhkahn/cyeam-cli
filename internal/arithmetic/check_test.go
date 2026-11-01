@@ -174,3 +174,21 @@ func TestCorrectedSidewaysPhotoUsesNewOCR(t *testing.T) {
 	}
 	t.Fatal("question 2 was not detected")
 }
+
+func TestDocumentOCRExtractsNumberedQuestionsWithoutSpotting(t *testing.T) {
+	data, err := os.ReadFile("testdata/paddle_document_ocr.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := paddleocr.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Check(lines, CheckOptions{ExpectedCount: 18})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if report.Detected != 18 || report.NeedsReview != 0 || report.Correct != 16 || report.Incorrect != 2 {
+		t.Fatalf("document OCR result: %+v", report)
+	}
+}

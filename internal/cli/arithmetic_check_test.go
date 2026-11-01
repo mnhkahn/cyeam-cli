@@ -43,7 +43,7 @@ func TestArithmeticCheckReplayThroughRoot(t *testing.T) {
 	}
 }
 func TestArithmeticCheckRejectsInvalidFlagsBeforeUpload(t *testing.T) {
-	for _, extra := range [][]string{{"--expected-count", "0"}, {"--expected-count", "-1"}, {"--min-confidence", "NaN"}, {"--min-confidence", "1.1"}, {"--timeout", "0s"}, {"--timeout", "6m"}, {"--save-ocr", "image.png"}, {"--ocr-env", "config.env", "--save-ocr", "config.env"}, {"--ocr-result", "ocr.json", "--save-ocr", "ocr.json"}} {
+	for _, extra := range [][]string{{"--expected-count", "0"}, {"--expected-count", "-1"}, {"--min-confidence", "NaN"}, {"--min-confidence", "1.1"}, {"--retries", "-1"}, {"--retries", "6"}, {"--timeout", "0s"}, {"--timeout", "6m"}, {"--save-ocr", "image.png"}, {"--ocr-env", "config.env", "--save-ocr", "config.env"}, {"--ocr-result", "ocr.json", "--save-ocr", "ocr.json"}} {
 		var out bytes.Buffer
 		cmd := newArithmeticCheckCommand()
 		cmd.SetOut(&out)
