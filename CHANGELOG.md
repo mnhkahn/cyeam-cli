@@ -1,4 +1,13 @@
 
+<a name="v1.1.9"></a>
+## [v1.1.9](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.8...v1.1.9) (2026-11-01)
+
+### Features
+
+
+- **arithmetic:** 新增口算题目生成与 OCR 检查功能
+
+
 <a name="v1.1.8"></a>
 ## [v1.1.8](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.7...v1.1.8) (2026-10-28)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 新增 100 分评分表示全对自动通过
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.7"></a>
