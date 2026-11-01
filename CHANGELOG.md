@@ -1,4 +1,13 @@
 
+<a name="v1.1.10"></a>
+## [v1.1.10](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.9...v1.1.10) (2026-11-01)
+
+### Bug Fixes
+
+
+- **arithmetic:** 修复 OCR 置信度阈值判断逻辑
+
+
 <a name="v1.1.9"></a>
 ## [v1.1.9](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.8...v1.1.9) (2026-11-01)
 
@@ -6,6 +15,11 @@
 
 
 - **arithmetic:** 新增口算题目生成与 OCR 检查功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.8"></a>
