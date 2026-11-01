@@ -1,4 +1,13 @@
 
+<a name="v1.1.11"></a>
+## [v1.1.11](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.10...v1.1.11) (2026-11-01)
+
+### Features
+
+
+- **cli:** 算式检查新增重试、图片预处理与计时功能
+
+
 <a name="v1.1.10"></a>
 ## [v1.1.10](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.9...v1.1.10) (2026-11-01)
 
@@ -6,6 +15,11 @@
 
 
 - **arithmetic:** 修复 OCR 置信度阈值判断逻辑
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.9"></a>
