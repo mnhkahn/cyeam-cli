@@ -25,7 +25,7 @@ func TestArithmeticCheckReplayThroughRoot(t *testing.T) {
 			t.Fatal(err)
 		}
 		if pretty {
-			if !strings.Contains(out.String(), "识别 18 题") || !strings.Contains(out.String(), "相符 10，不符 6，无法比较 2") || !strings.Contains(out.String(), "待核对 18") {
+			if !strings.Contains(out.String(), "识别 18 题") || !strings.Contains(out.String(), "相符 10，不符 6，无法比较 2") || !strings.Contains(out.String(), "正确 10，错误 6，待核对 2") {
 				t.Fatal(out.String())
 			}
 		} else {
@@ -36,7 +36,7 @@ func TestArithmeticCheckReplayThroughRoot(t *testing.T) {
 			if err := json.Unmarshal(out.Bytes(), &envelope); err != nil {
 				t.Fatal(err)
 			}
-			if !envelope.OK || envelope.Data.Detected != 18 || envelope.Data.NeedsReview != 18 {
+			if !envelope.OK || envelope.Data.Detected != 18 || envelope.Data.NeedsReview != 2 || envelope.Data.Correct != 10 || envelope.Data.Incorrect != 6 {
 				t.Fatal(envelope)
 			}
 		}

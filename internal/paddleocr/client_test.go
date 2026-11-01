@@ -26,7 +26,7 @@ func TestClientProtocolAndConfig(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
-		if body["file"] != base64.StdEncoding.EncodeToString(image) || body["fileType"] != float64(1) || body["promptLabel"] != "spotting" {
+		if body["file"] != base64.StdEncoding.EncodeToString(image) || body["fileType"] != float64(1) || body["promptLabel"] != "spotting" || body["useDocOrientationClassify"] != true {
 			t.Error("wrong payload")
 		}
 		fmt.Fprint(w, ocrResponse)

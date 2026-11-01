@@ -101,14 +101,14 @@ func Config(envFile string) (*Client, error) {
 		return nil, err
 	}
 
-	return &Client{URL: values["OCR_API_URL"], Token: values["OCR_API_TOKEN"], HTTP: &http.Client{Timeout: 90 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
+	return &Client{URL: values["OCR_API_URL"], Token: values["OCR_API_TOKEN"], HTTP: &http.Client{Timeout: 3 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
 func (c *Client) RecognizeRaw(ctx context.Context, image []byte) ([]byte, error) {
 	if strings.TrimSpace(c.URL) == "" || strings.TrimSpace(c.Token) == "" {
 		return nil, ErrNotConfigured
 	}
-	body, _ := json.Marshal(map[string]any{"file": base64.StdEncoding.EncodeToString(image), "fileType": 1, "useDocOrientationClassify": false, "useDocUnwarping": false, "useLayoutDetection": false, "promptLabel": "spotting"})
+	body, _ := json.Marshal(map[string]any{"file": base64.StdEncoding.EncodeToString(image), "fileType": 1, "useDocOrientationClassify": true, "useDocUnwarping": false, "useLayoutDetection": false, "promptLabel": "spotting"})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("invalid OCR request")
@@ -117,7 +117,7 @@ func (c *Client) RecognizeRaw(ctx context.Context, image []byte) ([]byte, error)
 	req.Header.Set("Content-Type", "application/json")
 	client := c.HTTP
 	if client == nil {
-		client = &http.Client{Timeout: 90 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+		client = &http.Client{Timeout: 3 * time.Minute, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	}
 	resp, err := client.Do(req)
 	// Transport errors often include URLs; never include the configured endpoint or token.

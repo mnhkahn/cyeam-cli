@@ -64,9 +64,7 @@ func TestCheckUncertaintyAmbiguityAndOmissions(t *testing.T) {
 		lines  []paddleocr.Line
 		reason string
 	}{
-		{"no score", []paddleocr.Line{ocrLine("(1)2+2=4", 0, 0, 100, 20, nil)}, "confidence"},
 		{"low score", []paddleocr.Line{ocrLine("(1)2+2=4", 0, 0, 100, 20, confidence(.8))}, "threshold"},
-		{"no box", []paddleocr.Line{{Text: "(1)2+2=4", Page: 1, Confidence: confidence(.99)}}, "coordinates"},
 		{"garbled answer", []paddleocr.Line{ocrLine("(1)2+2=", 0, 0, 100, 20, confidence(.99)), ocrLine(`$q_{240}$`, 103, 0, 40, 20, confidence(.99))}, "unambiguous"},
 		{"ambiguous", []paddleocr.Line{ocrLine("(1)2+2=", 0, 0, 100, 20, confidence(.99)), ocrLine("4", 103, 0, 10, 20, confidence(.99)), ocrLine("7", 116, 0, 10, 20, confidence(.99))}, "multiple"},
 		{"unsafe expression", []paddleocr.Line{ocrLine("(1)2+foo()=4", 0, 0, 100, 20, confidence(.99))}, "invalid"},
@@ -120,7 +118,7 @@ func TestCheckRealSpottingReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if r.Detected != 18 || r.NeedsReview != 18 || r.Correct+r.Incorrect != 0 || len(r.MissingNumbers) > 0 {
+	if r.Detected != 18 || r.NeedsReview != 2 || r.Correct != 10 || r.Incorrect != 6 || len(r.MissingNumbers) > 0 {
 		t.Fatalf("%+v", r)
 	}
 	if r.MatchingValues != 10 || r.MismatchingValues != 6 {
@@ -137,4 +135,42 @@ func TestCheckRealSpottingReplay(t *testing.T) {
 	if r.Questions[13].SubmittedAnswer != "q_{240}" || r.Questions[16].ExpectedAnswer != "6480" {
 		t.Fatal(r.Questions[13], r.Questions[16])
 	}
+}
+
+func TestGradeOCRDirectlyWithoutConfidenceOrCoordinates(t *testing.T) {
+	lines := []paddleocr.Line{{Text: "(1)2+2=4", Page: 1}, {Text: "(2)3*4=13", Page: 1}, {Text: "(3)7-2=5", Page: 1, Confidence: confidence(.2)}}
+	report, err := Check(lines, CheckOptions{})
+	if err != nil || report.Correct != 2 || report.Incorrect != 1 || report.NeedsReview != 0 {
+		t.Fatal(report, err)
+	}
+	report, err = Check(lines, CheckOptions{MinConfidence: .9})
+	if err != nil || report.Correct != 1 || report.Incorrect != 1 || report.NeedsReview != 1 {
+		t.Fatal("explicit threshold should only filter scored results", report, err)
+	}
+}
+
+func TestCorrectedSidewaysPhotoUsesNewOCR(t *testing.T) {
+	data, err := os.ReadFile("testdata/paddle_corrected_orientation.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	lines, err := paddleocr.Parse(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	report, err := Check(lines, CheckOptions{ExpectedCount: 18})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, q := range report.Questions {
+		if q.Number == 2 {
+			// The submitted answer was explicitly confirmed by the user, not inferred
+			// from the expected product or copied from the earlier photograph.
+			if q.SubmittedAnswer != "6016" || q.Status != "correct" {
+				t.Fatal(q)
+			}
+			return
+		}
+	}
+	t.Fatal("question 2 was not detected")
 }

@@ -211,11 +211,7 @@ func Check(lines []paddleocr.Line, o CheckOptions) (CheckReport, error) {
 		case ambiguous:
 			item.Reason = "multiple possible answers on this row"
 		case err != nil: // Keep unparsed or missing answers pending review.
-		case !line.Box.Valid():
-			item.Reason = "OCR did not provide equation coordinates"
-		case item.Confidence == nil:
-			item.Reason = "OCR did not provide recognition confidence"
-		case math.IsNaN(*item.Confidence) || math.IsInf(*item.Confidence, 0) || *item.Confidence < o.MinConfidence || *item.Confidence > 1:
+		case item.Confidence != nil && o.MinConfidence > 0 && (math.IsNaN(*item.Confidence) || math.IsInf(*item.Confidence, 0) || *item.Confidence < o.MinConfidence || *item.Confidence > 1):
 			item.Reason = "OCR confidence is below the threshold"
 		default:
 			item.Status = item.Comparison
