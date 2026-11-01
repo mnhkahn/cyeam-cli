@@ -1,4 +1,13 @@
 
+<a name="v1.1.8"></a>
+## [v1.1.8](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.7...v1.1.8) (2026-10-28)
+
+### Features
+
+
+- **trello:** 新增 100 分评分表示全对自动通过
+
+
 <a name="v1.1.7"></a>
 ## [v1.1.7](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.6...v1.1.7) (2026-10-27)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 添加评分和暂评支持
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.6"></a>
