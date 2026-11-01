@@ -1,4 +1,15 @@
 
+<a name="v1.1.12"></a>
+## [v1.1.12](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.11...v1.1.12) (2026-11-01)
+
+### Features
+
+
+- **arithmetic:** 支持LaTeX数字装饰并放宽问题标签括号要求
+
+- **arithmetic:** 新增三位数乘两位数题型
+
+
 <a name="v1.1.11"></a>
 ## [v1.1.11](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.10...v1.1.11) (2026-11-01)
 
@@ -6,6 +17,11 @@
 
 
 - **cli:** 算式检查新增重试、图片预处理与计时功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.10"></a>
