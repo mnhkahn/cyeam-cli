@@ -26,8 +26,13 @@ func TestClientProtocolAndConfig(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
-		if body["file"] != base64.StdEncoding.EncodeToString(image) || body["fileType"] != float64(1) || body["promptLabel"] != "ocr" || body["maxPixels"] != float64(1003520) || body["useDocOrientationClassify"] != true {
+		if body["file"] != base64.StdEncoding.EncodeToString(image) || body["fileType"] != float64(1) || body["useLayoutDetection"] != true || body["useOcrForImageBlock"] != true || body["useDocUnwarping"] != false || body["useDocOrientationClassify"] != true {
 			t.Error("wrong payload")
+		}
+		for _, key := range []string{"promptLabel", "maxPixels", "maxNewTokens"} {
+			if _, exists := body[key]; exists {
+				t.Errorf("unexpected recognition override: %s", key)
+			}
 		}
 		fmt.Fprint(w, ocrResponse)
 	}))
@@ -156,6 +161,9 @@ func TestOCRCanSkipOrientationAndMeasureRequestPhases(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 			t.Error(err)
 		}
+		if body["useDocUnwarping"] != true {
+			t.Error("unwarping was not enabled")
+		}
 		if body["useDocOrientationClassify"] != false {
 			t.Error("orientation was not disabled")
 		}
@@ -163,7 +171,7 @@ func TestOCRCanSkipOrientationAndMeasureRequestPhases(t *testing.T) {
 	}))
 	defer server.Close()
 	var timing RequestTiming
-	client := Client{URL: server.URL, Token: "test", SkipOrientation: true, Timing: &timing}
+	client := Client{URL: server.URL, Token: "test", SkipOrientation: true, Unwarp: true, Timing: &timing}
 	if _, err := client.Recognize(context.Background(), []byte("image")); err != nil {
 		t.Fatal(err)
 	}

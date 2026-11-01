@@ -8,6 +8,8 @@ import (
 	"unicode"
 )
 
+var latexNumberDecoration = regexp.MustCompile(`\\(?:underline|text|mathrm|mathbf|boxed)\{([+−-]?[０-９0-9]+(?:[.．/][０-９0-9]+)?)\}`)
+
 var latexFraction = regexp.MustCompile(`\\frac\{([^{}]+)\}\{([^{}]+)\}`)
 
 // NormalizeMath changes typography only. It never guesses handwritten digits.
@@ -16,6 +18,10 @@ func NormalizeMath(s string) string {
 	for strings.Contains(s, `\\`) {
 		s = strings.ReplaceAll(s, `\\`, `\`)
 	}
+	for i := 0; i < 16 && latexNumberDecoration.MatchString(s); i++ {
+		s = latexNumberDecoration.ReplaceAllString(s, "$1")
+	}
+
 	s = strings.NewReplacer(`\times`, "*", `\cdot`, "*", `\div`, "/", `\left`, "", `\right`, "", `\,`, "", `\;`, "", `\!`, "", `\qquad`, "", `\quad`, "", "$", "", `\(`, "", `\)`, "", `\[`, "", `\]`, "").Replace(s)
 	for i := 0; i < 16 && latexFraction.MatchString(s); i++ {
 		s = latexFraction.ReplaceAllString(s, "(($1)/($2))")

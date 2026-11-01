@@ -2,7 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
+	"image"
+	"image/png"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -64,5 +69,51 @@ func TestArithmeticCheckRejectsInvalidFlagsBeforeUpload(t *testing.T) {
 	cmd.SetArgs([]string{bad})
 	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "readable PNG") {
 		t.Fatal(err)
+	}
+}
+
+func TestArithmeticCheckUploadsOriginalPixels(t *testing.T) {
+	var src bytes.Buffer
+	if err := png.Encode(&src, image.NewRGBA(image.Rect(0, 0, 2200, 1200))); err != nil {
+		t.Fatal(err)
+	}
+	path := filepath.Join(t.TempDir(), "original.png")
+	if err := os.WriteFile(path, src.Bytes(), 0600); err != nil {
+		t.Fatal(err)
+	}
+	called := false
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Error(err)
+		}
+		if payload["file"] != base64.StdEncoding.EncodeToString(src.Bytes()) {
+			t.Error("original image was altered")
+		}
+		w.Write([]byte(`{"errorCode":0,"result":{"ocrResults":[{"prunedResult":{"rec_texts":["2+2=4"]}}]}}`))
+	}))
+	defer server.Close()
+	t.Setenv("OCR_API_URL", server.URL)
+	t.Setenv("OCR_API_TOKEN", "test")
+	var out bytes.Buffer
+	cmd := newArithmeticCheckCommand()
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{path, "--retries", "0"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	if !called {
+		t.Fatal("OCR was not called")
+	}
+	var result struct {
+		Input arithmeticInput `json:"input"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &result); err != nil {
+		t.Fatal(err)
+	}
+	if result.Input.UploadWidth != 2200 || result.Input.UploadHeight != 1200 || result.Input.Mode != "layout" {
+		t.Fatal(result.Input)
 	}
 }

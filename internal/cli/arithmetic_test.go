@@ -65,7 +65,7 @@ func TestArithmeticTypesAndInvalidFlags(t *testing.T) {
 	if err := json.Unmarshal(out.Bytes(), &types); err != nil {
 		t.Fatal(err)
 	}
-	if len(types) != 9 {
+	if len(types) != 11 {
 		t.Fatal(types)
 	}
 	for _, args := range [][]string{{"--grade", "3"}, {"--type", "multiply", "--count", "0"}, {"--grade", "1", "--format", "pdf"}, {"types", "--grade", "3"}, {"unexpected"}} {

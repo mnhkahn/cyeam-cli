@@ -46,7 +46,7 @@ type CheckReport struct {
 	Lines             []paddleocr.Line  `json:"ocr_lines"`
 }
 
-var questionLabel = regexp.MustCompile(`^\(([0-9]{1,4})\)`)
+var questionLabel = regexp.MustCompile(`^\(?([0-9]{1,4})\)`)
 var standaloneLabel = regexp.MustCompile(`^\(([0-9]{1,4})\)$`)
 var numericAnswer = regexp.MustCompile(`^[+-]?(?:[0-9]+(?:\.[0-9]+)?|\.[0-9]+)(?:/[0-9]+)?$`)
 var remainderAnswer = regexp.MustCompile(`^([0-9]+)(?:……|…|\.{3,})([0-9]+)$`)

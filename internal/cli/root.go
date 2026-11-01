@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
@@ -45,6 +46,7 @@ type Dependencies struct {
 	Updater        Updater
 	OneDrive       func() OneDriveClient
 	Phonetic       phonetic.Fetcher
+	ASR            asr.Transcriber
 	CommandStarted func(string, version.Info)
 }
 
@@ -201,6 +203,9 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	if deps.Phonetic == nil {
 		deps.Phonetic = phonetic.NewClient()
 	}
+	if deps.ASR == nil {
+		deps.ASR = asr.NewClient()
+	}
 
 	originalStdout := deps.Stdout
 	var buf bytes.Buffer
@@ -281,6 +286,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newArithmeticCommand())
 	root.AddCommand(newOCRCommand())
 	root.AddCommand(newPhoneticCommand(deps.Phonetic))
+	root.AddCommand(newASRCommand(deps.ASR))
 	root.AddCommand(newAICommand())
 	root.AddCommand(newPDFCommand())
 	root.AddCommand(newImageCommand())

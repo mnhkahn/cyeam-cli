@@ -41,7 +41,7 @@ func newArithmeticCheckCommand() *cobra.Command {
 	var opts arithmetic.CheckOptions
 	var timeout time.Duration
 	var rotation, retries int
-	var autoOrient, showTimings bool
+	var autoOrient, showTimings, unwarp bool
 	cmd := &cobra.Command{
 		Use: "check <image>", Short: "Check photographed arithmetic using PaddleOCR and local calculation",
 		Long: `Upload a local image to the configured PaddleOCR service, then calculate and compare
@@ -119,13 +119,10 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 				}
 				client.HTTP.Timeout = timeout
 				client.SkipOrientation = !autoOrient
+				client.Unwarp = unwarp
 				upload, rotateErr := rotateArithmeticImage(src, rotation)
 				if rotateErr != nil {
 					return rotateErr
-				}
-				upload, resizeErr := resizeArithmeticImage(upload, 1600)
-				if resizeErr != nil {
-					return resizeErr
 				}
 				data, err = recognizeArithmeticWithRetry(cmd.Context(), client, upload, timeout, retries, showTimings, cmd.ErrOrStderr())
 				if err == nil {
@@ -171,6 +168,7 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 			}{report, input})
 		},
 	}
+	cmd.Flags().BoolVar(&unwarp, "unwarp", false, "enable document unwarping; compare quality before using on cropped photos")
 	cmd.Flags().BoolVar(&autoOrient, "auto-orient", true, "enable server orientation detection; disable for known-upright photos")
 	cmd.Flags().BoolVar(&showTimings, "timings", false, "print client-observed OCR timing phases to stderr")
 	cmd.Flags().IntVar(&rotation, "rotate", 0, "rotate input clockwise by 0, 90, 180, or 270 degrees before OCR")

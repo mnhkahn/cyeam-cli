@@ -16,6 +16,7 @@ import (
 	"time"
 	"unicode"
 
+	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
 	"github.com/mnhkahn/cyeam-cli/internal/trello"
@@ -420,7 +421,50 @@ type trelloHomeworkAttachment struct {
 	HomeworkPhotoURL string `json:"homework_photo_url,omitempty"`
 	SavedTo          string `json:"saved_to,omitempty"`
 	SizeBytes        int    `json:"size_bytes,omitempty"`
+	Transcript       string `json:"transcript,omitempty"`
+	TranscriptError  string `json:"transcript_error,omitempty"`
 	Error            string `json:"error,omitempty"`
+}
+
+// homeworkTranscriber 识别英语作业录音；测试可替换。
+var homeworkTranscriber asr.Transcriber = asr.NewClient()
+
+const maxTranscriptAudioBytes = 15 << 20
+
+// isEnglishHomeworkCard 按卡片标题或机器可读类型判断是否英语作业。
+func isEnglishHomeworkCard(name, desc string) bool {
+	return strings.Contains(name, "英语") ||
+		strings.Contains(desc, "作业类型：阅读英语") ||
+		strings.Contains(desc, "作业类型：背单词")
+}
+
+// isHomeworkAudio 按提交录音命名前缀、MIME 类型和扩展名识别音频附件；
+// Trello 会把 m4a 标记为 video/mp4，不能只看 MIME。
+func isHomeworkAudio(name, mimeType string) bool {
+	if strings.HasPrefix(name, "homework-audio-") || strings.HasPrefix(mimeType, "audio/") {
+		return true
+	}
+	switch strings.ToLower(filepath.Ext(name)) {
+	case ".m4a", ".mp3", ".wav", ".webm", ".ogg", ".aac", ".flac", ".amr", ".3gp", ".opus":
+		return true
+	}
+	return false
+}
+
+// transcribeHomeworkAudio 识别已下载的录音，把文本或失败原因写回附件条目。
+func transcribeHomeworkAudio(ctx context.Context, item *trelloHomeworkAttachment, audio []byte) {
+	if len(audio) > maxTranscriptAudioBytes {
+		item.TranscriptError = "audio exceeds the 15 MiB ASR limit"
+		return
+	}
+	result, err := trelloWithRetry(ctx, func(ctx context.Context) (*asr.Result, error) {
+		return homeworkTranscriber.Transcribe(ctx, item.Name, audio)
+	})
+	if err != nil {
+		item.TranscriptError = err.Error()
+		return
+	}
+	item.Transcript = result.Text
 }
 
 type trelloHomeworkCard struct {
@@ -466,7 +510,7 @@ func trelloHomeworkStatus(listName string) string {
 
 func newTrelloHomeworkCommand() *cobra.Command {
 	var boardID, day, from, to, dir string
-	var includeActions, audioOnly bool
+	var includeActions, audioOnly, transcript bool
 	var maxBytes int64
 	var maxWidth int
 	cmd := &cobra.Command{Use: "homework", Short: "Batch homework report by due date with attachments downloaded", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
@@ -536,6 +580,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 
 		report := trelloHomeworkReport{From: start.Format(time.DateOnly), To: lastDate, Date: date, BoardID: boardID, Dir: dir, Cards: make([]trelloHomeworkCard, 0, len(cards))}
 		for _, card := range cards {
+			english := transcript && isEnglishHomeworkCard(card.Name, card.Description)
 			entry := trelloHomeworkCard{
 				Description: card.Description,
 				ID:          card.ID,
@@ -614,6 +659,9 @@ func newTrelloHomeworkCommand() *cobra.Command {
 				} else {
 					item.SavedTo = savedTo
 					item.SizeBytes = len(download.Data)
+					if english && isHomeworkAudio(item.Name, item.MIMEType) {
+						transcribeHomeworkAudio(ctx, &item, download.Data)
+					}
 				}
 				entry.Attachments = append(entry.Attachments, item)
 			}
@@ -635,6 +683,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 	cmd.Flags().StringVar(&to, "to", "", "last local due date, inclusive (requires --from)")
 	cmd.Flags().BoolVar(&includeActions, "include-actions", false, "include up to 1000 recent actions per card, including submission comments")
 	cmd.Flags().BoolVar(&audioOnly, "audio-only", false, "only include attachments named homework-audio-*")
+	cmd.Flags().BoolVar(&transcript, "transcript", true, "transcribe audio attachments on English cards via ASR into the transcript field")
 	cmd.Flags().StringVar(&dir, "dir", "", "directory to save attachments; defaults to homework-<date>")
 	cmd.Flags().IntVar(&maxWidth, "max-width", 1200, "download the largest image preview up to this width; 0 downloads the original")
 	cmd.Flags().Int64Var(&maxBytes, "max-bytes", 25<<20, "maximum attachment size to download")
@@ -699,6 +748,12 @@ func formatTrelloHomeworkReport(report trelloHomeworkReport) string {
 			}
 			if att.HomeworkPhotoURL != "" {
 				fmt.Fprintf(&b, "    链接: %s\n", att.HomeworkPhotoURL)
+			}
+			if att.Transcript != "" {
+				fmt.Fprintf(&b, "    识别文本: %s\n", att.Transcript)
+			}
+			if att.TranscriptError != "" {
+				fmt.Fprintf(&b, "    识别失败: %s\n", att.TranscriptError)
 			}
 		}
 	}

@@ -106,7 +106,7 @@ cyeam arithmetic check homework.jpg --save-ocr ocr.json
 cyeam arithmetic check homework.jpg --ocr-result ocr.json
 ```
 
-- 默认使用普通文字识别任务 `promptLabel: ocr`，不使用整页 `spotting` 定位模式。上传前在内存中将最长边限制为 1600px（不放大较小图片；缩小时用高质量 JPEG），原图文件不改动；服务端 `maxPixels: 1003520`、`maxNewTokens: 2048`，不请求可视化图片。文本块按行解析，空文字响应直接报识别失败，不能当作“识别到 0 题”的正常结果。
+- 默认启用飞桨完整文档解析流程：方向检测、版面分析（`useLayoutDetection: true`）和图片块 OCR（`useOcrForImageBlock: true`）。图像矫正遵循服务默认关闭，可显式传 `--unwarp` 开启；这是识别质量对照选项，不是提速开关，贴边裁剪照片必须检查有无丢失边缘题干。由服务按区域选择识别任务，不强制整页 `ocr` 或 `spotting`。保留上传原图分辨率，不为提速缩图，不覆盖 `maxPixels`、`maxNewTokens` 的服务默认值。原图文件不改动；不请求可视化图片。文本块按行解析，数字外层的 LaTeX 下划线、文本等格式仅做去包装处理，不猜测或修改数字。空文字响应直接报识别失败，不能当作“识别到 0 题”的正常结果。
 - 图像会发送到配置的 PaddleOCR HTTP 服务，上传方式与 wangxizhi 的客户端相同（Base64、`fileType: 1`、`Authorization: token ...`）。CLI 直接调用，不依赖 wangxizhi 的 Python 环境；不把凭证写进代码或输出。
 - 接受 PNG、JPEG、GIF、WebP，最大 20 MiB；当前按单张静态图检查。`--ocr-env` 只读指定文件的 `OCR_API_URL` 和 `OCR_API_TOKEN`，不执行文件内容；省略时优先使用完整进程环境配置，否则读取本机已保存配置，不自动寻找其它仓库的配置。
 - 默认返回 JSON 信封，`data.questions` 列出题号、表达式、识别答案、计算结果、差值（计算结果减识别答案）、比较结果、状态、原因及 OCR 证据索引。商余数答案分别核对商和余数，不提供数值差值。这些是内部验算数据；默认向用户反馈时省略 `expected_answer`、`difference` 和完整解法，不分享带答案的原始报告。批改优先读取 JSON 后整理不含答案的反馈；`--pretty` 的原始输出含计算结果，只供内部核对，除非用户明确允许，不直接展示或转发。

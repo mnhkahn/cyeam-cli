@@ -192,3 +192,25 @@ func TestDocumentOCRExtractsNumberedQuestionsWithoutSpotting(t *testing.T) {
 		t.Fatalf("document OCR result: %+v", report)
 	}
 }
+
+func TestCheckLatexNumericDecorationPreservesRecognizedDigits(t *testing.T) {
+	lines := []paddleocr.Line{
+		{Text: `(1)128\times47=\underline{\text{6016}}`, Page: 1},
+		{Text: `(2)128\times47=\underline{\text{8016}}`, Page: 1},
+		{Text: `(3)128\times47=\underline{\text{6O16}}`, Page: 1},
+	}
+	r, err := Check(lines, CheckOptions{})
+	if err != nil || r.Detected != 3 || r.Correct != 1 || r.Incorrect != 1 || r.NeedsReview != 1 {
+		t.Fatalf("%+v %v", r, err)
+	}
+	if r.Questions[0].SubmittedAnswer != "6016" || r.Questions[1].SubmittedAnswer != "8016" {
+		t.Fatal(r.Questions)
+	}
+}
+
+func TestCheckQuestionLabelWithClosingParenthesis(t *testing.T) {
+	r, err := Check([]paddleocr.Line{{Text: "15) 2+2=4", Page: 1}}, CheckOptions{})
+	if err != nil || r.Detected != 1 || r.Questions[0].Number != 15 || r.Correct != 1 {
+		t.Fatalf("%+v %v", r, err)
+	}
+}

@@ -38,6 +38,7 @@ type Client struct {
 	URL, Token      string
 	HTTP            *http.Client
 	SkipOrientation bool
+	Unwarp          bool
 	Timing          *RequestTiming
 }
 
@@ -112,7 +113,7 @@ func (c *Client) RecognizeRaw(ctx context.Context, image []byte) ([]byte, error)
 	}
 	ctx, finishTiming := traceRequest(ctx, time.Now(), c.Timing)
 	defer finishTiming()
-	body, _ := json.Marshal(map[string]any{"file": base64.StdEncoding.EncodeToString(image), "fileType": 1, "useDocOrientationClassify": !c.SkipOrientation, "useDocUnwarping": false, "useLayoutDetection": false, "promptLabel": "ocr", "maxPixels": 1003520, "maxNewTokens": 2048, "visualize": false, "returnMarkdownImages": false})
+	body, _ := json.Marshal(map[string]any{"file": base64.StdEncoding.EncodeToString(image), "fileType": 1, "useDocOrientationClassify": !c.SkipOrientation, "useDocUnwarping": c.Unwarp, "useLayoutDetection": true, "useOcrForImageBlock": true, "visualize": false, "returnMarkdownImages": false})
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.URL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("invalid OCR request")

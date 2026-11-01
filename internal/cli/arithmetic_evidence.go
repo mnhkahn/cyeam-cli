@@ -28,7 +28,7 @@ func imageDigest(data []byte) string { sum := sha256.Sum256(data); return hex.En
 func stampArithmeticInput(data, src, upload []byte, name string, rotation int) ([]byte, arithmeticInput, error) {
 	input := arithmeticInput{Rotation: rotation, Name: filepath.Base(name), SHA256: imageDigest(src), Verified: true}
 	input.UploadSHA256 = imageDigest(upload)
-	input.Mode = "ocr"
+	input.Mode = "layout"
 	if cfg, _, err := image.DecodeConfig(bytes.NewReader(upload)); err == nil {
 		input.UploadWidth = cfg.Width
 		input.UploadHeight = cfg.Height
