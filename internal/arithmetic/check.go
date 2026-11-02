@@ -16,11 +16,21 @@ type CheckOptions struct {
 	MinConfidence float64
 	ExpectedCount int
 }
-type CheckedQuestion struct {
-	Number          int    `json:"number,omitempty"`
+type OCRReading struct {
+	Engine          string `json:"engine"`
 	Expression      string `json:"expression"`
 	SubmittedAnswer string `json:"submitted_answer,omitempty"`
-	ExpectedAnswer  string `json:"expected_answer,omitempty"`
+	Status          string `json:"status"`
+	Source          []int  `json:"source_lines"`
+}
+
+type CheckedQuestion struct {
+	OCREngine       string       `json:"ocr_engine,omitempty"`
+	Readings        []OCRReading `json:"ocr_readings,omitempty"`
+	Number          int          `json:"number,omitempty"`
+	Expression      string       `json:"expression"`
+	SubmittedAnswer string       `json:"submitted_answer,omitempty"`
+	ExpectedAnswer  string       `json:"expected_answer,omitempty"`
 	// Comparison records the calculation; status also accounts for OCR evidence.
 	Comparison string        `json:"comparison,omitempty"`
 	Difference string        `json:"difference,omitempty"`

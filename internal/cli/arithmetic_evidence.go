@@ -37,6 +37,9 @@ func stampArithmeticInput(data, src, upload []byte, name string, rotation int) (
 	if err := json.Unmarshal(data, &fields); err != nil || fields == nil {
 		return nil, input, fmt.Errorf("invalid OCR JSON response")
 	}
+	if _, ok := fields["_cyeam_ocr_version"]; ok {
+		input.Mode = "vision+paddleocr"
+	}
 	value, _ := json.Marshal(input)
 	fields["_cyeam_input"] = value
 	stamped, err := json.Marshal(fields)

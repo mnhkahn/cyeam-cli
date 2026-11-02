@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"image"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/mnhkahn/cyeam-cli/internal/arithmetic"
 	"github.com/mnhkahn/cyeam-cli/internal/paddleocr"
+	"github.com/mnhkahn/cyeam-cli/internal/visionocr"
 	"github.com/spf13/cobra"
 	_ "golang.org/x/image/webp"
 )
@@ -37,14 +39,19 @@ func readCheckFile(path string, limit int64) ([]byte, error) {
 	return data, nil
 }
 func newArithmeticCheckCommand() *cobra.Command {
+	return newArithmeticCheckCommandWithVision(visionocr.Available(), visionocr.RecognizeRaw)
+}
+
+func newArithmeticCheckCommandWithVision(visionAvailable bool, recognizeVision func(context.Context, []byte) ([]byte, error)) *cobra.Command {
 	var envFile, replay, save string
 	var opts arithmetic.CheckOptions
 	var timeout time.Duration
 	var rotation, retries int
 	var autoOrient, showTimings, unwarp bool
 	cmd := &cobra.Command{
-		Use: "check <image>", Short: "Check photographed arithmetic using PaddleOCR and local calculation",
-		Long: `Upload a local image to the configured PaddleOCR service, then calculate and compare
+		Use: "check <image>", Short: "Check photographed arithmetic using Vision/PaddleOCR and local calculation",
+		Long: `On supported macOS devices, run Apple Vision locally and PaddleOCR concurrently,
+then calculate and compare
 recognized horizontal equations and their answers. Supports +, -, ×, ÷, parentheses,
 exact decimals/fractions, and quotient/remainder answers. Ignores scratch work below.
 Recognized equations are graded locally without a second AI image-reading step.
@@ -52,7 +59,10 @@ Missing or unparseable answers remain unresolved. Missing confidence does not bl
 No handwriting digit substitutions or AI grading are performed.
 Run cyeam ocr config set --url <endpoint> to save your own credentials.
 Alternatively set OCR_API_URL/OCR_API_TOKEN or pass --ocr-env to a dotenv file.
-Without your own endpoint and token, image checking is unavailable; no other OCR backend is used.
+An equation passes if either engine returns a passing reading; otherwise Vision wins.
+If either engine fails or times out, use the other. Devices without Vision use PaddleOCR.
+Vision requires no credentials. PaddleOCR requires your own endpoint and token.
+Combined requests each have one --timeout deadline; --retries applies to PaddleOCR-only devices.
 Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uploading.`,
 		Example: `  cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --pretty
   cyeam arithmetic check homework.jpg --expected-count 18 --save-ocr ocr.json
@@ -114,17 +124,32 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 					return fmt.Errorf("input must be a readable PNG, JPEG, GIF, or WebP image")
 				}
 				client, configErr := paddleocr.Config(envFile)
-				if configErr != nil {
+				if configErr != nil && !visionAvailable {
 					return configErr
 				}
-				client.HTTP.Timeout = timeout
-				client.SkipOrientation = !autoOrient
-				client.Unwarp = unwarp
+				if client != nil {
+					client.HTTP.Timeout = timeout
+					client.SkipOrientation = !autoOrient
+					client.Unwarp = unwarp
+				}
 				upload, rotateErr := rotateArithmeticImage(src, rotation)
 				if rotateErr != nil {
 					return rotateErr
 				}
-				data, err = recognizeArithmeticWithRetry(cmd.Context(), client, upload, timeout, retries, showTimings, cmd.ErrOrStderr())
+				if visionAvailable {
+					jobs := []arithmeticRecognizer{
+						{Engine: "vision", Run: func(ctx context.Context) ([]byte, error) { return recognizeVision(ctx, upload) }},
+						{Engine: "paddleocr", Run: func(ctx context.Context) ([]byte, error) {
+							if configErr != nil {
+								return nil, configErr
+							}
+							return recognizeArithmeticWithRetry(ctx, client, upload, timeout, 0, showTimings, cmd.ErrOrStderr())
+						}},
+					}
+					data, err = recognizeArithmeticParallel(cmd.Context(), timeout, jobs)
+				} else {
+					data, err = recognizeArithmeticWithRetry(cmd.Context(), client, upload, timeout, retries, showTimings, cmd.ErrOrStderr())
+				}
 				if err == nil {
 					data, input, err = stampArithmeticInput(data, src, upload, args[0], rotation)
 				}
@@ -137,11 +162,7 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 					return fmt.Errorf("save OCR evidence: %w", err)
 				}
 			}
-			lines, err := paddleocr.Parse(data)
-			if err != nil {
-				return err
-			}
-			report, err := arithmetic.Check(lines, opts)
+			report, err := checkArithmeticEvidence(data, opts)
 			if err != nil {
 				return err
 			}
@@ -158,6 +179,11 @@ Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uplo
 				if sourceWarning != "" {
 					if _, err := fmt.Fprintln(cmd.OutOrStdout(), sourceWarning); err != nil {
 						return err
+					}
+				}
+				for _, warning := range report.Warnings {
+					if strings.HasPrefix(warning, "vision:") || strings.HasPrefix(warning, "paddleocr:") {
+						fmt.Fprintln(cmd.ErrOrStderr(), warning)
 					}
 				}
 				return writeArithmeticCheck(cmd.OutOrStdout(), report)
@@ -209,9 +235,6 @@ func writeArithmeticCheck(out io.Writer, r arithmetic.CheckReport) error {
 			answer = "未识别"
 		}
 		fmt.Fprintf(&text, "(%d) %s = %s  %s", number, q.Expression, answer, state)
-		if q.ExpectedAnswer != "" {
-			fmt.Fprintf(&text, "；计算结果：%s", q.ExpectedAnswer)
-		}
 		if q.Status == "needs_review" && q.Comparison != "" {
 			match := "相符"
 			if q.Comparison == "incorrect" {

@@ -97,7 +97,7 @@ func TestArithmeticCheckUploadsOriginalPixels(t *testing.T) {
 	t.Setenv("OCR_API_URL", server.URL)
 	t.Setenv("OCR_API_TOKEN", "test")
 	var out bytes.Buffer
-	cmd := newArithmeticCheckCommand()
+	cmd := newArithmeticCheckCommandWithVision(false, nil)
 	cmd.SetOut(&out)
 	cmd.SetErr(&out)
 	cmd.SetArgs([]string{path, "--retries", "0"})
