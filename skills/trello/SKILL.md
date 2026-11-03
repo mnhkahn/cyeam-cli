@@ -30,7 +30,7 @@ cyeam trello status-changes --board <board-id>
     [--date <YYYY-MM-DD>] [--to-list <list-id>] [--limit 1000]
 cyeam trello homework --board <board-id>
     [--date <YYYY-MM-DD> | --from <YYYY-MM-DD> --to <YYYY-MM-DD>]
-    [--include-actions] [--audio-only] [--dir <目录>]
+    [--include-actions] [--audio-only] [--asr] [--dir <目录>]
     [--max-width 1200] [--max-bytes <bytes>]
 
 cyeam trello card create --list <list-id> --name <title>
@@ -81,7 +81,7 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 
 查某一天的作业进度和提交附件，使用完整命令 `cyeam trello homework --board <board-id>`：筛出 due 当天的卡片，返回每张卡片所在列表并下载全部附件到本地目录（默认 `homework-<date>/`）。这是**只读报告命令**，不创建或追加作业；不要写成不存在的 `cyeam homework`，新增作业请使用 `cyeam trello card create`。默认下载不超过 `--max-width`（1200）宽的最大图片预览；传 `--max-width 0` 下载原始文件。JSON 报告里每个附件带 `saved_to` 路径和 `homework_photo_url` 链接（形如 `https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>`，浏览器登录 Trello 后可直接打开）；加 `--pretty` 输出人可读的文本报告。内置超时重试，单卡片失败不中断。
 
-录音附件使用文件名前缀 `homework-audio-` 标记，命名格式为 `homework-audio-{提交ID}-{序号}.{扩展名}`。`trello homework` 会像其他附件一样列出并下载录音；只提取录音时加 `--audio-only`，例如 `cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --audio-only`。录音保存在报告目录下对应卡片的子目录，路径见附件的 `saved_to` 字段；下载需要有效的 Trello CLI 授权。英语卡片（标题含「英语」或类型为阅读英语/背单词）的录音会自动经 ASR 识别，结果写在附件的 `transcript` 字段（失败时为 `transcript_error`），不需要时加 `--transcript=false` 关闭。报告里没有 `transcript` 的旧录音或例外情况，可用 asr skill 的 `cyeam asr <saved_to 路径>` 手动转写，不要自行拼装识别请求。
+录音附件使用文件名前缀 `homework-audio-` 标记，命名格式为 `homework-audio-{提交ID}-{序号}.{扩展名}`。`trello homework` 会像其他附件一样列出并下载录音；只提取录音时加 `--audio-only`，例如 `cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --audio-only`。录音保存在报告目录下对应卡片的子目录，路径见附件的 `saved_to` 字段；下载需要有效的 Trello CLI 授权。提取时加 `--asr` 可将所有作业类型的音频附件经 ASR 转写，直接在每个附件的 `transcript` 字段返回文字，`--pretty` 同时展示“识别文本”；失败写入 `transcript_error`，保留本地音频且不中断其它附件。音频按录音前缀、MIME 或扩展名识别。`--asr=false` 关闭全部转写。未显式传 `--asr` 时，保留英语卡片（标题含「英语」或类型为阅读英语/背单词）自动转写的旧行为，可用 `--transcript=false` 关闭；显式 `--asr` 优先于旧参数。报告里没有 `transcript` 的旧录音或例外情况，可用 asr skill 的 `cyeam asr <saved_to 路径>` 手动转写，不要自行拼装识别请求。
 
 提取图片的硬性规则：**查看或转发图片一律用 `saved_to` 本地文件**，用读图工具打开确认内容后再展示；`homework_photo_url` 链接仅作展示，禁止对它 curl/wget 或发给飞书（无浏览器会话会 401/403）。逐个附件检查报告：`error` 非空或 `size_bytes` 为 0 表示下载失败，用 `card attachment get <card-id> <attachment-id> --out <path>` 单独补下（默认下载原图，加 `--max-width 1200` 下载小体积预览图）。
 

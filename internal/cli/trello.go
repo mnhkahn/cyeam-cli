@@ -426,7 +426,7 @@ type trelloHomeworkAttachment struct {
 	Error            string `json:"error,omitempty"`
 }
 
-// homeworkTranscriber 识别英语作业录音；测试可替换。
+// homeworkTranscriber 识别作业录音；测试可替换。
 var homeworkTranscriber asr.Transcriber = asr.NewClient()
 
 const maxTranscriptAudioBytes = 15 << 20
@@ -510,7 +510,7 @@ func trelloHomeworkStatus(listName string) string {
 
 func newTrelloHomeworkCommand() *cobra.Command {
 	var boardID, day, from, to, dir string
-	var includeActions, audioOnly, transcript bool
+	var includeActions, audioOnly, transcript, withASR bool
 	var maxBytes int64
 	var maxWidth int
 	cmd := &cobra.Command{Use: "homework", Short: "Batch homework report by due date with attachments downloaded", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
@@ -580,7 +580,12 @@ func newTrelloHomeworkCommand() *cobra.Command {
 
 		report := trelloHomeworkReport{From: start.Format(time.DateOnly), To: lastDate, Date: date, BoardID: boardID, Dir: dir, Cards: make([]trelloHomeworkCard, 0, len(cards))}
 		for _, card := range cards {
-			english := transcript && isEnglishHomeworkCard(card.Name, card.Description)
+			transcribe := transcript && isEnglishHomeworkCard(card.Name, card.Description)
+			// An explicit --asr overrides the legacy English-only default,
+			// including --asr=false to skip ASR for every homework type.
+			if cmd.Flags().Changed("asr") {
+				transcribe = withASR
+			}
 			entry := trelloHomeworkCard{
 				Description: card.Description,
 				ID:          card.ID,
@@ -659,7 +664,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 				} else {
 					item.SavedTo = savedTo
 					item.SizeBytes = len(download.Data)
-					if english && isHomeworkAudio(item.Name, item.MIMEType) {
+					if transcribe && isHomeworkAudio(item.Name, item.MIMEType) {
 						transcribeHomeworkAudio(ctx, &item, download.Data)
 					}
 				}
@@ -683,7 +688,8 @@ func newTrelloHomeworkCommand() *cobra.Command {
 	cmd.Flags().StringVar(&to, "to", "", "last local due date, inclusive (requires --from)")
 	cmd.Flags().BoolVar(&includeActions, "include-actions", false, "include up to 1000 recent actions per card, including submission comments")
 	cmd.Flags().BoolVar(&audioOnly, "audio-only", false, "only include attachments named homework-audio-*")
-	cmd.Flags().BoolVar(&transcript, "transcript", true, "transcribe audio attachments on English cards via ASR into the transcript field")
+	cmd.Flags().BoolVar(&transcript, "transcript", true, "automatically transcribe audio on English cards (legacy default; overridden by --asr)")
+	cmd.Flags().BoolVar(&withASR, "asr", false, "transcribe audio attachments for all homework types; --asr=false disables all transcription")
 	cmd.Flags().StringVar(&dir, "dir", "", "directory to save attachments; defaults to homework-<date>")
 	cmd.Flags().IntVar(&maxWidth, "max-width", 1200, "download the largest image preview up to this width; 0 downloads the original")
 	cmd.Flags().Int64Var(&maxBytes, "max-bytes", 25<<20, "maximum attachment size to download")

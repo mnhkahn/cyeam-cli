@@ -312,6 +312,18 @@ cyeam cnote append "日记" < more.html
 cyeam mail mark-all-read <account>
 ```
 
+### 作业录音提取
+
+```bash
+# 下载作业附件，并为所有作业类型的音频附带转写文字
+cyeam trello homework --board <board-id> --asr
+
+# 只提取作业录音并转写
+cyeam trello homework --board <board-id> --audio-only --asr
+```
+
+附件的 `transcript` 为识别文字，`transcript_error` 为转写失败原因；失败保留已下载音频并继续处理。`--pretty` 同时展示识别文本。`--asr=false` 关闭全部转写；未传时保持仅英语卡片自动转写的原行为。
+
 ### 英语音标
 
 ```bash

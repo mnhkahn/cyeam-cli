@@ -30,4 +30,4 @@ cyeam --pretty asr <audio-file>
 
 ## 作业场景
 
-Trello 作业录音（`homework-audio-*.m4a`）在 `cyeam trello homework` 报告里会自动带 `transcript` 字段（仅英语卡片），一般直接读取即可；报告里没有识别文本或识别失败时，用本命令对附件的 `saved_to` 路径手动转写。详细流程见 homework skill。
+提取 Trello 作业时使用 `cyeam trello homework --board <board-id> --asr`，可直接获得各类作业音频附件的 `transcript` 字段，失败原因在 `transcript_error`，无需逐个调用本命令。`--asr=false` 关闭转写；未传时仍仅英语卡片自动转写。已有报告中的文本直接读取即可；报告里没有识别文本或识别失败时，用本命令对附件的 `saved_to` 路径手动转写。详细流程见 homework skill。

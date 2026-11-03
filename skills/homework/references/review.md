@@ -5,10 +5,10 @@
 先加载 trello skill。解析看板和时间范围：未指定日期默认今天；不知道看板 ID 时用 `cyeam trello boards`，再用 `cyeam trello lists <board-id>` 确认实际状态。多个学习看板且无法确定时询问用户，不猜 ID。
 
 ```bash
-cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --include-actions --dir <本地目录>
+cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --include-actions --asr --dir <本地目录>
 ```
 
-保留 JSON 输出供模型读取，单日也可用 `--date`。命令一次获取区间内的卡片描述、状态、近期历史/评论和附件本地路径。CLI 仅搬运材料，不调用模型判分。若安装的 CLI 不支持区间参数，按日期逐天调用 `cyeam trello homework --board <board-id> --date <YYYY-MM-DD>`，必要时用 `card actions <card-id> --limit 1000` 补读历史；不要改用手拼 HTTP。
+保留 JSON 输出供模型读取，单日也可用 `--date`。命令一次获取区间内的卡片描述、状态、近期历史/评论和附件本地路径。`--asr` 会为所有作业类型的音频附件附带 `transcript`；失败记录 `transcript_error`，不影响提取其它材料；不需要转写时传 `--asr=false`。CLI 仅搬运材料，不调用模型判分。若安装的 CLI 不支持区间参数，按日期逐天调用 `cyeam trello homework --board <board-id> --date <YYYY-MM-DD>`，必要时用 `card actions <card-id> --limit 1000` 补读历史；不要改用手拼 HTTP。
 
 筛选口径是当前未归档卡片的 due 日期，不是提交日期；报告中说明范围和此限制。按实际列表和提交证据区分待完成、已完成、待改错、已改错，不以 `due_complete` 直接推断正确率。下载失败、没有附件、没有可判读的答案各自列出，不视为答错。历史为最近最多 1000 条，达到上限时注明可能不完整。
 
