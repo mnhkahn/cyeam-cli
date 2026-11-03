@@ -1,4 +1,13 @@
 
+<a name="v1.1.13"></a>
+## [v1.1.13](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.12...v1.1.13) (2026-11-03)
+
+### Features
+
+
+- **CLI arithmetic check:** 添加 Vision OCR 支持并实现检查合并功能
+
+
 <a name="v1.1.12"></a>
 ## [v1.1.12](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.11...v1.1.12) (2026-11-01)
 
@@ -8,6 +17,11 @@
 - **arithmetic:** 支持LaTeX数字装饰并放宽问题标签括号要求
 
 - **arithmetic:** 新增三位数乘两位数题型
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.11"></a>
