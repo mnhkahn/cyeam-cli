@@ -312,6 +312,25 @@ cyeam cnote append "日记" < more.html
 cyeam mail mark-all-read <account>
 ```
 
+### 固定生成英语阅读批改
+
+```bash
+# 原文与已有转写均为UTF-8文件：不重复调用ASR，默认生成暂评
+cyeam asr review --reference passage.txt --transcript transcript.txt > reading-report.json
+
+# 也可直接传录音：由cyeam web转写后固定评分
+cyeam asr review --reference passage.txt --audio reading.m4a --pretty
+
+# 用户听音确认后可覆盖等级，同时保存固定反馈
+cyeam asr review --reference passage.txt --transcript transcript.txt \
+  --confirmed-grade 中 --feedback-out feedback.txt > reading-report.json
+
+# 明确执行才回写：自动带上报告中的等级和暂评标志，无需模型组织文案
+cyeam trello card review <card-id> --reading-report reading-report.json
+```
+
+代码统一执行缩写/同音等价处理、功能词过滤、仅匹配/替换的参考评分、重复实词练习链接和固定复读模板。阅读分档为：优≥80%、良>60%且<80%、中40%～60%（含两端）、差<40%。缺失与多出保留为证据，不扣参考分；材料过少不自动评级。它是ASR参考分，不是已确认的发音正确率。保存的报告含原文和转写及指纹，回写时重新生成结果，不能靠改写报告的文案/等级字段影响最终输出。
+
 ### 作业录音提取
 
 ```bash

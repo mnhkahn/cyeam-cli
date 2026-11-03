@@ -104,11 +104,12 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 ```text
 cyeam trello card review <card-id> --text <纯文本> [--review-id <UUID>] [--grade 100|优|良|中|差] [--provisional]
 cyeam trello card review <card-id> --text-file <UTF-8文件> [--review-id <UUID>]
+cyeam trello card review <card-id> --reading-report <asr-review生成的JSON> [--review-id <UUID>]
 cyeam trello card review <card-id> --image <本地图片> [--review-id <UUID>]
 cyeam trello card review <card-id> --audio <本地音频> [--review-id <UUID>]
 ```
 
-这四个内容参数必须且只能选一个。不自动评分。始终写原卡片，不创建卡；有评分时仅在描述顶部写入“打分结果”，保留原题和其他说明。可选 `--has-errors=true|false` 明确发布是否有错：true 转入「待改错」并清除 dueComplete；false 批改通过，当前为「已改错」时保留该状态，否则进入「已完成」，dueComplete=true。省略时只发布批改内容，不移动列表或修改完成标记；`--grade 100` 是例外，自动按 `--has-errors=false` 处理。目标列表按卡片看板查询 ID，缺少时自动创建。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
+这些内容参数必须且只能选一个。`--reading-report` 用于英语阅读：直接读取 `cyeam asr review` 报告，校验原始输入 SHA-256，并重新生成固定文案、等级和暂评标志；不要同时传 `--grade` 或 `--provisional`，用户确认等级应在生成报告时通过 `--confirmed-grade` 指定。忽略中间 JSON 里被改写的反馈和得分字段。不自动评分。始终写原卡片，不创建卡；有评分时仅在描述顶部写入“打分结果”，保留原题和其他说明。可选 `--has-errors=true|false` 明确发布是否有错：true 转入「待改错」并清除 dueComplete；false 批改通过，当前为「已改错」时保留该状态，否则进入「已完成」，dueComplete=true。省略时只发布批改内容，不移动列表或修改完成标记；`--grade 100` 是例外，自动按 `--has-errors=false` 处理。目标列表按卡片看板查询 ID，缺少时自动创建。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
 
 默认生成 UUID，执行时在 stderr 输出 `review_id` 和 `state_file`；也可首次提交就显式指定 UUID。成功响应包含 `review_id`、`card_id`、`action_id`、`state_file`，媒体还包含 `attachment_id`。状态保存在 `~/.cyeam/trello-reviews/<UUID>.json`（0600），包括正文、附件 ID、action ID，不包含 Token。不要删除仍可能重试的状态文件。
 

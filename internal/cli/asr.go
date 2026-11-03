@@ -54,5 +54,6 @@ func newASRCommand(transcriber asr.Transcriber) *cobra.Command {
 			return output.WriteJSON(cmd.OutOrStdout(), body)
 		},
 	}
+	cmd.AddCommand(newASRReviewCommand(transcriber))
 	return cmd
 }

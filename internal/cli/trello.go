@@ -20,6 +20,7 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
 	"github.com/mnhkahn/cyeam-cli/internal/trello"
+	"github.com/mnhkahn/cyeam-cli/internal/wordstudy"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -885,7 +886,7 @@ func homeworkCardDescription(taskType, task, desc, link string) (string, error) 
 		if words == "" {
 			return "", fmt.Errorf("--task must contain at least one word when --type is word_memorization")
 		}
-		generated := fmt.Sprintf("作业类型：背单词\n背单词：%s\n翻译链接：https://www.cyeam.com/ai/translate?words=%s", strings.ReplaceAll(words, ",", ", "), words)
+		generated := fmt.Sprintf("作业类型：背单词\n背单词：%s\n翻译链接：%s", strings.ReplaceAll(words, ",", ", "), wordstudy.PracticeURL(strings.Split(words, ",")))
 		return appendHomeworkDescription(desc, generated), nil
 	case "arithmetic", "口算":
 		questions := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(task, "\r\n", "\n"), "\r", "\n"))

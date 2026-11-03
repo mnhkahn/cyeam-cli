@@ -18,6 +18,26 @@ cyeam --pretty asr <audio-file>
 
 默认输出 JSON 信封，`data` 含 `file` 和 `text`；`--pretty` 只输出识别文本。
 
+## 固定生成英语阅读批改
+
+```bash
+# 用已有转写离线生成：原文和转写均为 UTF-8 文本文件
+cyeam asr review --reference passage.txt --transcript transcript.txt > reading-report.json
+
+# 直接识别录音后生成固定报告
+cyeam asr review --reference passage.txt --audio reading.m4a > reading-report.json
+
+# 仅在用户已听音明确确认等级时传；不要由模型自行填入
+cyeam asr review --reference passage.txt --transcript transcript.txt --confirmed-grade 中 \
+  --feedback-out feedback.txt > reading-report.json
+```
+
+规范化、对齐、功能词过滤、替换频次、40%～60%为中的分级、重点词链接及反馈模板由 `internal/reading` 决定，不再由模型重算、筛词或改写文案。默认评级为暂评，不自动给100；用户明确听音确认后才传 `--confirmed-grade`。同方向替换≥2次的原文词进入练习链接，按频次及原文首次出现顺序排列；词形保留、同词去重。少于3个可比较词（短文按实际词数）或可比较量不足原文有效词的四分之一时不自动评级，避免极少量转写获得高分。
+
+`--pretty` 只展示固定反馈，`--feedback-out` 可同时保存文本；默认 JSON 含原始文本、SHA-256、规范化记录、匹配/替换统计、完整差异及固定反馈。无撇号 `its` 与 `it is`、`meet/meat` 等受支持的口语等价形式由代码对齐；未覆盖或歧义形式保留原始材料供核听，不能临时添加特例去提高等级。
+
+用户要求回写时，直接执行 `cyeam trello card review <card-id> --reading-report reading-report.json`，不要再由模型拼接 `--text`、`--grade` 或 `--provisional`。回写端根据保存的原文和转写重新计算，忽略中间文件里被改写的反馈、得分和等级；重试仍使用同一 `--review-id`。
+
 ## 约束
 
 - 支持常见音频格式：m4a、mp3、wav、webm、ogg、aac、flac、amr、3gp、opus，按扩展名设置上传 Content-Type。
@@ -40,7 +60,7 @@ cyeam --pretty asr <audio-file>
 - 按句段检查对齐，避免机械逐词匹配把一次漏识别扩散成后面一串“错词”。先报告被排除的等价差异，再列剩余待核对片段；若给统计，写明规范化规则、比较单位和分母，并区分原始文本差异、规范化后的差异与已听音确认的朗读错误。不能把 `1-WER` 称为孩子准确率。内容已经确定漏读、错读前，应核听对应录音；仅有 ASR 证据时标为待核对。
 
 - 高频差异反馈默认只统计替换，按“原文词 → ASR 词”分组计数，优先展示同方向重复 ≥2 次的项；缺失和多出不进入重点词榜或替换评分。保留原始差异以便核听，不能断言缺失就是没读或替换一定读错。
-- 默认从替换榜及阅读参考分中排除低信息功能词，例如 `is`、`to` 等 be 动词、冠词、常用介词和连词；常用默认列表为 `am/is/are/was/were/be/been/being/a/an/the/to/of/in/on/at/for/from/with/by/and/or/but`。正文中的主语、人称、否定等实质意义变化仍保留在核听材料中，不因过滤而声称语法正确。优先反馈实词及词尾，例如 `robotics → robot`、`robots → robot`；计次数同时展示目标词和原句，不能只给总差异率。
+- 默认从替换榜及阅读参考分中排除低信息功能词，例如 `is`、`to` 等 be 动词、冠词、常用介词和连词；常用默认列表为 `am/is/are/was/were/be/been/being/a/an/the/to/of/in/on/at/for/from/with/by/and/or/but`。正文中的主语、人称、否定等实质意义变化仍保留在核听材料中，不因过滤而声称语法正确。优先反馈实词及词尾，例如 `robotics → robot`、`robots → robot`；内部保留替换方向与次数；面向孩子的阅读反馈按 homework skill 生成含原文重点词的背单词模式练习链接，逐词听音跟读后再读原句，不只给总差异率或差异表。
 
 ## 作业场景
 
