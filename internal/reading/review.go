@@ -192,3 +192,15 @@ func Feedback(r Report) string {
 	text.WriteString("\n转写差异仅供复读参考，不直接认定为朗读错误。\n")
 	return text.String()
 }
+
+// ValidateReference rejects unusable passages before an audio upload starts.
+func ValidateReference(reference string) error {
+	words, _, _ := normalize(reference, "reference", nil)
+	if len(words) == 0 {
+		return fmt.Errorf("reference must contain English words")
+	}
+	if len(words) > maxWords {
+		return fmt.Errorf("reading comparison supports at most %d normalized words per input", maxWords)
+	}
+	return nil
+}

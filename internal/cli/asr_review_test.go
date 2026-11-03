@@ -149,10 +149,7 @@ func TestReadingReportPublishesFixedFeedbackAndGrade(t *testing.T) {
 		case req.Method == "GET" && req.URL.Path == "/1/cards/card":
 			recorder.WriteString(`{"desc":"Original assignment"}`)
 		case req.Method == "PUT" && req.URL.Path == "/1/cards/card":
-			if err := req.ParseForm(); err != nil {
-				t.Error(err)
-			}
-			updatedDescription = req.Form.Get("desc")
+			updatedDescription = req.URL.Query().Get("desc")
 			recorder.WriteString(`{"id":"card"}`)
 		default:
 			t.Errorf("unexpected request: %s %s", req.Method, req.URL.Path)

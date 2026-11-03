@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
@@ -47,8 +46,8 @@ Use trello card review --reading-report <report.json> to publish the generated r
 			if err != nil {
 				return err
 			}
-			if strings.TrimSpace(string(ref)) == "" {
-				return fmt.Errorf("reference must not be empty")
+			if err := reading.ValidateReference(string(ref)); err != nil {
+				return err
 			}
 			var transcript string
 			if transcriptFile != "" {
