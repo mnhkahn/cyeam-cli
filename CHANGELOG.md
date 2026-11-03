@@ -1,11 +1,25 @@
 
+<a name="v1.1.14"></a>
+## [v1.1.14](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.13...v1.1.14) (2026-11-03)
+
+### Documentation
+
+
+- 补充英语阅读评分与 ASR 朗读对齐文档
+
+
 <a name="v1.1.13"></a>
-## [v1.1.13](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.12...v1.1.13) (2026-11-03)
+## [v1.1.13](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.12...v1.1.13) (2026-11-02)
 
 ### Features
 
 
 - **CLI arithmetic check:** 添加 Vision OCR 支持并实现检查合并功能
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.12"></a>
