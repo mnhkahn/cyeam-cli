@@ -1,4 +1,15 @@
 
+<a name="v1.1.15"></a>
+## [v1.1.15](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.14...v1.1.15) (2026-11-04)
+
+### Features
+
+
+- **asr:** 新增 ASR 阅读评审功能
+
+- **reading:** 新增朗读参考验证
+
+
 <a name="v1.1.14"></a>
 ## [v1.1.14](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.13...v1.1.14) (2026-11-03)
 
@@ -6,6 +17,11 @@
 
 
 - 补充英语阅读评分与 ASR 朗读对齐文档
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.13"></a>
