@@ -60,6 +60,8 @@ cyeam trello webhook delete <webhook-id>
 
 用户给出需要平板高亮并朗读的作业要求时，使用 `--requirements "写清题号，做完检查一遍。"`。CLI 在卡片描述中写入独立的「作业要求：…」字段，适用于所有作业类型。
 
+阅读英语可以同时传课文链接和跟读词表，例如 `--type english_reading --task "<原始课文链接>" --word "robotics" --word "build our own"`。CLI 会按原顺序写入「读单词：…」字段。
+
 普通作业支持 `--type normal --task "完成第一课练习" --link "https://实际的作业网址"`（类型也接受 `普通作业`）。`--task` 为作业内容，`--link` 为用户提供的原始目标网址；若输入为 Markdown 链接，提取括号中的网址，不传整段 Markdown。通用说明放在 `--desc`。CLI 保留说明并追加：
 
 ```text

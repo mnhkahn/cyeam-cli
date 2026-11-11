@@ -212,6 +212,13 @@ func TestHomeworkCardDescription(t *testing.T) {
 			want:     "作业类型：阅读英语\n阅读英语链接：/ai/translate?textbook=0&article=4",
 		},
 		{
+			name:     "english reading preserves the article link and ordered read-aloud phrases",
+			taskType: "english_reading",
+			task:     "/ai/translate?textbook=0&article=4",
+			words:    []string{"robotics", " build our own "},
+			want:     "作业类型：阅读英语\n阅读英语链接：/ai/translate?textbook=0&article=4\n读单词：robotics, build our own",
+		},
+		{
 			name:     "typed task appends existing description",
 			taskType: "背单词",
 			task:     "bedroom",

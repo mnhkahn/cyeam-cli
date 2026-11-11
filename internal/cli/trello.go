@@ -850,7 +850,7 @@ func newTrelloCreateCardCommand() *cobra.Command {
 	cmd.Flags().StringVar(&labels, "labels", "", "comma-separated label IDs")
 	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, english_reading, arithmetic, or preview")
 	cmd.Flags().StringVar(&task, "task", "", "type-specific content, such as words, an English-reading link, arithmetic questions, or optional preview requirements")
-	cmd.Flags().StringArrayVar(&words, "word", nil, "one word or phrase for --type word_memorization; repeat in study order instead of using --task")
+	cmd.Flags().StringArrayVar(&words, "word", nil, "one word or phrase; repeat for word memorization or before an English reading assignment")
 	cmd.Flags().StringVar(&link, "link", "", "optional homework link for --type normal (requires --task)")
 	return cmd
 }
@@ -871,8 +871,22 @@ func homeworkCardDescription(taskType, task, desc, link, requirements string, or
 
 	taskType = strings.ToLower(strings.TrimSpace(taskType))
 	isWordTask := taskType == "word_memorization" || taskType == "word-memorization" || taskType == "背单词"
-	if len(orderedWords) > 0 && (!isWordTask || strings.TrimSpace(task) != "") {
-		return "", fmt.Errorf("--word is only supported for word memorization and cannot be combined with --task")
+	isReadingTask := taskType == "english_reading" || taskType == "english-reading" || taskType == "阅读英语"
+	if len(orderedWords) > 0 {
+		if !isWordTask && !isReadingTask {
+			return "", fmt.Errorf("--word is only supported for word memorization or English reading")
+		}
+		if isWordTask && strings.TrimSpace(task) != "" {
+			return "", fmt.Errorf("--word cannot be combined with --task for word memorization")
+		}
+		orderedWords = append([]string(nil), orderedWords...)
+		for i, entry := range orderedWords {
+			word := strings.TrimSpace(entry)
+			if word == "" || strings.ContainsAny(word, ",，\r\n") {
+				return "", fmt.Errorf("each --word must contain exactly one word or phrase")
+			}
+			orderedWords[i] = word
+		}
 	}
 	link = strings.TrimSpace(link)
 	if link != "" {
@@ -898,16 +912,9 @@ func homeworkCardDescription(taskType, task, desc, link, requirements string, or
 		}
 		return appendHomeworkDescription(desc, generated), nil
 	case "word_memorization", "word-memorization", "背单词":
-		words := normalizeHomeworkWords(task)
-		if len(orderedWords) > 0 {
-			words = make([]string, 0, len(orderedWords))
-			for _, entry := range orderedWords {
-				word := strings.TrimSpace(entry)
-				if word == "" || strings.ContainsAny(word, ",，\r\n") {
-					return "", fmt.Errorf("each --word must contain exactly one word or phrase")
-				}
-				words = append(words, word)
-			}
+		words := orderedWords
+		if len(words) == 0 {
+			words = normalizeHomeworkWords(task)
 		}
 		if len(words) == 0 {
 			return "", fmt.Errorf("--task must contain at least one word when --type is word_memorization")
@@ -931,7 +938,11 @@ func homeworkCardDescription(taskType, task, desc, link, requirements string, or
 		if link == "" {
 			return "", fmt.Errorf("--task must contain the reading link when --type is english_reading")
 		}
-		return appendHomeworkDescription(desc, "作业类型：阅读英语\n阅读英语链接："+link), nil
+		generated := "作业类型：阅读英语\n阅读英语链接：" + link
+		if len(orderedWords) > 0 {
+			generated += "\n读单词：" + strings.Join(orderedWords, ", ")
+		}
+		return appendHomeworkDescription(desc, generated), nil
 	default:
 		return "", fmt.Errorf("unsupported homework type %q; use normal, word_memorization, english_reading, arithmetic, or preview", taskType)
 	}
