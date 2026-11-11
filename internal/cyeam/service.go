@@ -6,9 +6,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/mnhkahn/cyeam-cli/internal/arithmetic"
 	"github.com/mnhkahn/cyeam-cli/internal/client"
 	"github.com/mnhkahn/cyeam-cli/internal/mcp"
 	"github.com/mnhkahn/cyeam-cli/internal/news"
@@ -72,6 +74,45 @@ func (s *Service) RoadbookGet(ctx context.Context, id string) ([]byte, error) {
 	return s.client.GetJSON(ctx, "/api/roadbook/get", map[string]string{"id": id})
 }
 
+func (s *Service) ArithmeticTypes(ctx context.Context, grade int) ([]arithmetic.Type, error) {
+	params := map[string]string{}
+	if grade != 0 {
+		params["grade"] = strconv.Itoa(grade)
+	}
+	body, err := s.client.GetJSON(ctx, "/api/arithmetic/types", params)
+	if err != nil {
+		return nil, err
+	}
+	var result []arithmetic.Type
+	if err := json.Unmarshal(body, &result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (s *Service) ArithmeticGenerate(ctx context.Context, opts arithmetic.Options) (arithmetic.Exercise, error) {
+	params := map[string]string{
+		"count":   strconv.Itoa(opts.Count),
+		"answers": strconv.FormatBool(opts.Answers),
+		"seed":    strconv.FormatInt(opts.Seed, 10),
+	}
+	if opts.Grade != 0 {
+		params["grade"] = strconv.Itoa(opts.Grade)
+	}
+	if len(opts.Types) != 0 {
+		params["type"] = strings.Join(opts.Types, ",")
+	}
+	body, err := s.client.GetJSON(ctx, "/api/arithmetic/generate", params)
+	if err != nil {
+		return arithmetic.Exercise{}, err
+	}
+	var result arithmetic.Exercise
+	if err := json.Unmarshal(body, &result); err != nil {
+		return arithmetic.Exercise{}, err
+	}
+	return result, nil
+}
+
 func (s *Service) MoGuwen(ctx context.Context, text string, aiCompose bool, font string) ([]byte, error) {
 	if font == "" {
 		font = "行书"
@@ -120,15 +161,14 @@ func (s *Service) MoOCR(ctx context.Context, filename string, body []byte) ([]by
 	return s.client.UploadFile(ctx, "/mo/api/ocr", "image", filename, body)
 }
 
-
 type NewsResponse struct {
-	Date    string     `json:"date"`
-	News    *NewsData  `json:"news,omitempty"`
-	AINews  *NewsData  `json:"ai_news,omitempty"`
+	Date   string    `json:"date"`
+	News   *NewsData `json:"news,omitempty"`
+	AINews *NewsData `json:"ai_news,omitempty"`
 }
 
 type NewsData struct {
-	CreateTime int64           `json:"create_time"`
+	CreateTime int64          `json:"create_time"`
 	News       []mcp.NewsItem `json:"news"`
 }
 

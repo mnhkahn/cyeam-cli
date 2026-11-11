@@ -103,7 +103,7 @@ export CYEAM_CLI_NO_UPDATE_NOTIFIER=1
 
 ### 口算出题
 
-`cyeam arithmetic` 在本地生成口算题，无需 AI 接口或登录，支持一年级、二年级及 2026 新版四年级上册。
+`cyeam arithmetic` 通过 cyeam.com 服务端接口生成口算题，无需 AI 接口或登录。题型由服务端统一下发，可通过 `arithmetic types` 查询最新范围。
 
 ```bash
 cyeam arithmetic types --grade 2

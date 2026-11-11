@@ -35,8 +35,9 @@ cyeam trello homework --board <board-id>
 
 cyeam trello card create --list <list-id> --name <title>
     [--desc <text>] [--due <RFC3339>] [--labels <label-id,...>]
-    [--type normal|word_memorization|english_reading|arithmetic] [--task <text>]
-    [--link <url>]
+    [--requirements <text>]
+    [--type normal|word_memorization|english_reading|arithmetic|preview] [--task <text>]
+    [--link <url>] [--word <word-or-phrase> ...]
 cyeam trello card update <card-id>
     [--name <title>] [--desc <text>] [--due <RFC3339>] [--complete=true|false]
 cyeam trello card move <card-id> --list <target-list-id>
@@ -53,7 +54,11 @@ cyeam trello webhook delete <webhook-id>
 
 `card update --due ""` 清除截止时间；未传 `--complete` 时不改变任务完成标记。默认输出是 JSON 信封，`--pretty` 输出响应 JSON。
 
-创建家庭作业卡片时，`--type` 默认 `normal`，与原先直接传 `--desc` 的行为一致。`--type word_memorization --task "bedroom, armchair"` 会将单词和自动生成的翻译链接写入描述；`--type english_reading --task "/ai/translate?textbook=0&article=4"` 会将用户提供的链接原样写入描述。每个任务只创建一张卡片。
+创建家庭作业卡片时，`--type` 默认 `normal`，与原先直接传 `--desc` 的行为一致。`--type word_memorization --task "bedroom, armchair"` 只将作业类型和词表写入描述；`--type english_reading --task "/ai/translate?textbook=0&article=4"` 会将用户提供的链接原样写入描述。每个任务只创建一张卡片。
+
+给背单词作业传入已排好的词序时，每项重复一个 `--word`，例如 `--type word_memorization --word "bus stop" --word "train station" --word "airport"`。词表保留这个顺序，每个词组作为一项。`--word` 与 `--task` 二选一。由 homework 流程在创建作业前按词义、主题和拼写整理词表。
+
+用户给出需要平板高亮并朗读的作业要求时，使用 `--requirements "写清题号，做完检查一遍。"`。CLI 在卡片描述中写入独立的「作业要求：…」字段，适用于所有作业类型。
 
 普通作业支持 `--type normal --task "完成第一课练习" --link "https://实际的作业网址"`（类型也接受 `普通作业`）。`--task` 为作业内容，`--link` 为用户提供的原始目标网址；若输入为 Markdown 链接，提取括号中的网址，不传整段 Markdown。通用说明放在 `--desc`。CLI 保留说明并追加：
 
@@ -74,6 +79,8 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 ```
 
 更新已有口算卡片时，`card update` 仍使用 `--desc` 提交完整描述（包括类型、预计用时、`作业内容：` 和全部题目）；该命令没有 `--type` 或 `--task` 参数。通用说明写在 `作业内容：` 之前，后面只放题目。
+
+预习使用 `--type preview`，也接受 `--type 预习`。CLI 在通用描述末尾追加 `作业类型：预习` 和 `预习要求：`。创建卡片时可省略 `--task`，也可用 `--task <要求>` 预填多行要求。家长可在平板的「家长设置 → 预习要求」保存要求，平板提交预习成果时会把已保存的要求写入该字段。
 
 获取图片时先用 `card attachments <card-id>` 找到 `attachment-id`、文件名和 MIME 类型，再调用 `card attachment get`。需要在飞书展示时优先传 `--out <local-path>`：CLI 会使用已保存的 Trello 凭据下载受保护附件，并把图片字节直接写入文件，返回 `saved_to`、`name`、`mime_type` 和 `size_bytes`；Agent 随后上传该本地文件。默认下载原图，图太大时加 `--max-width <px>` 下载服务端预览图（WebP，体积小得多，内容为 WebP 时 `mime_type` 为 `image/webp`）。不要自行解析 JSON、解码 Base64，也不要把受保护 URL 直接发给飞书。仅在调用方明确需要内联数据时省略 `--out`，此时响应才包含 `base64`。附件默认上限为 25 MiB。
 

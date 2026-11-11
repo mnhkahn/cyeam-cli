@@ -135,18 +135,42 @@ func TestFormatTrelloAttachmentDefaultsToBase64(t *testing.T) {
 
 func TestHomeworkCardDescription(t *testing.T) {
 	tests := []struct {
-		name     string
-		taskType string
-		task     string
-		desc     string
-		link     string
-		want     string
+		name         string
+		taskType     string
+		task         string
+		desc         string
+		link         string
+		words        []string
+		requirements string
+		want         string
 	}{
 		{
 			name:     "normal preserves description",
 			taskType: "normal",
 			desc:     "口算 100 题",
 			want:     "口算 100 题",
+		},
+		{
+			name:         "ordinary homework instructions use their own field",
+			taskType:     "normal",
+			desc:         "预计用时：10",
+			task:         "完成第12页",
+			requirements: " 写清题号。 ",
+			want:         "预计用时：10\n\n作业要求：写清题号。\n\n类型: 普通作业\n作业内容: 完成第12页",
+		},
+		{
+			name:         "arithmetic instructions remain outside the questions",
+			taskType:     "arithmetic",
+			task:         "1 + 2 =\n3 + 4 =",
+			requirements: "写清题号。\r\n  \r\n做完自己检查。",
+			want:         "作业要求：写清题号。\n做完自己检查。\n\n作业类型：口算\n作业内容：\n1 + 2 =\n3 + 4 =",
+		},
+		{
+			name:         "preview notes and spoken instructions are separate",
+			taskType:     "preview",
+			task:         "读课文两遍。",
+			requirements: "拍照时拍全。",
+			want:         "作业要求：拍照时拍全。\n\n作业类型：预习\n预习要求：\n读课文两遍。",
 		},
 		{
 			name:     "normal homework with supplied link",
@@ -170,11 +194,16 @@ func TestHomeworkCardDescription(t *testing.T) {
 			want:     "预计 15 分钟；当日第 2 项\n\n类型: 普通作业\n作业内容: 完成第一课练习\n作业链接: [https://example.com/homework?lesson=1&student=2#exercise](https://example.com/homework?lesson=1&student=2#exercise)",
 		},
 		{
-			name:     "word memorization normalizes separators and creates link",
+			name:     "word memorization writes only the normalized word list",
 			taskType: "word_memorization",
 			task:     "bedroom， armchair cushions",
-			want: "作业类型：背单词\n背单词：bedroom, armchair, cushions\n" +
-				"翻译链接：https://www.cyeam.com/ai/translate?words=bedroom,armchair,cushions",
+			want:     "作业类型：背单词\n背单词：bedroom, armchair, cushions",
+		},
+		{
+			name:     "word memorization preserves grouped words and phrases",
+			taskType: "word_memorization",
+			words:    []string{"class", "classmate", "classroom", "bus stop", "train station", "airport"},
+			want:     "作业类型：背单词\n背单词：class, classmate, classroom, bus stop, train station, airport",
 		},
 		{
 			name:     "english reading preserves supplied link",
@@ -187,13 +216,24 @@ func TestHomeworkCardDescription(t *testing.T) {
 			taskType: "背单词",
 			task:     "bedroom",
 			desc:     "周五前完成",
-			want: "周五前完成\n\n作业类型：背单词\n背单词：bedroom\n" +
-				"翻译链接：https://www.cyeam.com/ai/translate?words=bedroom",
+			want:     "周五前完成\n\n作业类型：背单词\n背单词：bedroom",
+		},
+		{
+			name:     "preview leaves the requirements field for tablet entry",
+			taskType: "preview",
+			desc:     "预计用时：10",
+			want:     "预计用时：10\n\n作业类型：预习\n预习要求：",
+		},
+		{
+			name:     "preview Chinese alias accepts multiline requirements",
+			taskType: "预习",
+			task:     " 读第 3 页。\n\n写下两个问题。\n",
+			want:     "作业类型：预习\n预习要求：\n读第 3 页。\n\n写下两个问题。",
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := homeworkCardDescription(tt.taskType, tt.task, tt.desc, tt.link)
+			got, err := homeworkCardDescription(tt.taskType, tt.task, tt.desc, tt.link, tt.requirements, tt.words)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -215,7 +255,7 @@ func TestHomeworkCardDescriptionRejectsInvalidTypedTasks(t *testing.T) {
 		{taskType: "口算", task: " \n\t "},
 		{taskType: "unknown", task: "anything"},
 	} {
-		if _, err := homeworkCardDescription(tt.taskType, tt.task, "", ""); err == nil {
+		if _, err := homeworkCardDescription(tt.taskType, tt.task, "", "", "", nil); err == nil {
 			t.Errorf("homeworkCardDescription(%q, %q) succeeded", tt.taskType, tt.task)
 		}
 	}
@@ -233,9 +273,24 @@ func TestHomeworkCardDescriptionRejectsInvalidLinks(t *testing.T) {
 		{taskType: "english_reading", task: "/reading", link: "https://example.com"},
 		{taskType: "word_memorization", task: "bedroom", link: "https://example.com"},
 		{taskType: "arithmetic", task: "1+1=", link: "https://example.com"},
+		{taskType: "preview", link: "https://example.com"},
 	} {
-		if _, err := homeworkCardDescription(tt.taskType, tt.task, "", tt.link); err == nil {
+		if _, err := homeworkCardDescription(tt.taskType, tt.task, "", tt.link, "", nil); err == nil {
 			t.Errorf("homeworkCardDescription(%q, %q, empty desc, %q) succeeded", tt.taskType, tt.task, tt.link)
+		}
+	}
+}
+
+func TestHomeworkCardDescriptionRejectsInvalidWordEntries(t *testing.T) {
+	for _, tt := range []struct{ taskType, task, word string }{
+		{taskType: "normal", word: "class"},
+		{taskType: "word_memorization", task: "class", word: "classroom"},
+		{taskType: "word_memorization", word: " "},
+		{taskType: "word_memorization", word: "class,classroom"},
+		{taskType: "word_memorization", word: "class\nclassroom"},
+	} {
+		if _, err := homeworkCardDescription(tt.taskType, tt.task, "", "", "", []string{tt.word}); err == nil {
+			t.Errorf("accepted --type %q --task %q --word %q", tt.taskType, tt.task, tt.word)
 		}
 	}
 }
@@ -246,7 +301,7 @@ func TestArithmeticCardDescriptionPreservesMultilineQuestions(t *testing.T) {
 			questions := []string{"26 + 17 = ___", "54 − 28 = ___", "25÷8＝（ ）……（ ）", "1.5 + 2 = ___"}
 			task := "  " + strings.Join(questions, "\r\n") + "\r\n"
 			desc := "预计用时: 5\n当日第 2 项"
-			got, err := homeworkCardDescription(taskType, task, desc, "")
+			got, err := homeworkCardDescription(taskType, task, desc, "", "", nil)
 			if err != nil {
 				t.Fatal(err)
 			}

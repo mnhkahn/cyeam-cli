@@ -20,7 +20,6 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
 	"github.com/mnhkahn/cyeam-cli/internal/trello"
-	"github.com/mnhkahn/cyeam-cli/internal/wordstudy"
 	"github.com/spf13/cobra"
 	"golang.org/x/term"
 )
@@ -813,12 +812,13 @@ func newTrelloDeleteCardCommand() *cobra.Command {
 }
 
 func newTrelloCreateCardCommand() *cobra.Command {
-	var listID, name, desc, due, labels, taskType, task, link string
+	var listID, name, desc, due, labels, taskType, task, link, requirements string
+	var words []string
 	cmd := &cobra.Command{Use: "create", Short: "Create a task card", RunE: func(cmd *cobra.Command, _ []string) error {
 		if listID == "" || name == "" {
 			return fmt.Errorf("--list and --name are required")
 		}
-		cardDesc, err := homeworkCardDescription(taskType, task, desc, link)
+		cardDesc, err := homeworkCardDescription(taskType, task, desc, link, requirements, words)
 		if err != nil {
 			return err
 		}
@@ -845,19 +845,35 @@ func newTrelloCreateCardCommand() *cobra.Command {
 	cmd.Flags().StringVar(&listID, "list", "", "target list ID")
 	cmd.Flags().StringVar(&name, "name", "", "card title")
 	cmd.Flags().StringVar(&desc, "desc", "", "card description")
+	cmd.Flags().StringVar(&requirements, "requirements", "", "homework instructions shown and read aloud by the tablet")
 	cmd.Flags().StringVar(&due, "due", "", "RFC3339 deadline")
 	cmd.Flags().StringVar(&labels, "labels", "", "comma-separated label IDs")
-	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, english_reading, or arithmetic")
-	cmd.Flags().StringVar(&task, "task", "", "type-specific task: normal homework content, words, an English-reading link, or multiline arithmetic questions")
+	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, english_reading, arithmetic, or preview")
+	cmd.Flags().StringVar(&task, "task", "", "type-specific content, such as words, an English-reading link, arithmetic questions, or optional preview requirements")
+	cmd.Flags().StringArrayVar(&words, "word", nil, "one word or phrase for --type word_memorization; repeat in study order instead of using --task")
 	cmd.Flags().StringVar(&link, "link", "", "optional homework link for --type normal (requires --task)")
 	return cmd
 }
 
 // homeworkCardDescription translates structured homework types into
-// plain Trello card text. Normal cards without --task or --link preserve the
+// plain Trello card text. Normal cards without structured fields preserve the
 // historical --desc behavior unchanged.
-func homeworkCardDescription(taskType, task, desc, link string) (string, error) {
+func homeworkCardDescription(taskType, task, desc, link, requirements string, orderedWords []string) (string, error) {
+	var instructions []string
+	for _, line := range strings.FieldsFunc(requirements, func(r rune) bool { return r == '\r' || r == '\n' }) {
+		if line = strings.TrimSpace(line); line != "" {
+			instructions = append(instructions, line)
+		}
+	}
+	if len(instructions) > 0 {
+		desc = appendHomeworkDescription(desc, "作业要求："+strings.Join(instructions, "\n"))
+	}
+
 	taskType = strings.ToLower(strings.TrimSpace(taskType))
+	isWordTask := taskType == "word_memorization" || taskType == "word-memorization" || taskType == "背单词"
+	if len(orderedWords) > 0 && (!isWordTask || strings.TrimSpace(task) != "") {
+		return "", fmt.Errorf("--word is only supported for word memorization and cannot be combined with --task")
+	}
 	link = strings.TrimSpace(link)
 	if link != "" {
 		if taskType != "" && taskType != "normal" && taskType != "普通作业" {
@@ -883,10 +899,20 @@ func homeworkCardDescription(taskType, task, desc, link string) (string, error) 
 		return appendHomeworkDescription(desc, generated), nil
 	case "word_memorization", "word-memorization", "背单词":
 		words := normalizeHomeworkWords(task)
-		if words == "" {
+		if len(orderedWords) > 0 {
+			words = make([]string, 0, len(orderedWords))
+			for _, entry := range orderedWords {
+				word := strings.TrimSpace(entry)
+				if word == "" || strings.ContainsAny(word, ",，\r\n") {
+					return "", fmt.Errorf("each --word must contain exactly one word or phrase")
+				}
+				words = append(words, word)
+			}
+		}
+		if len(words) == 0 {
 			return "", fmt.Errorf("--task must contain at least one word when --type is word_memorization")
 		}
-		generated := fmt.Sprintf("作业类型：背单词\n背单词：%s\n翻译链接：%s", strings.ReplaceAll(words, ",", ", "), wordstudy.PracticeURL(strings.Split(words, ",")))
+		generated := "作业类型：背单词\n背单词：" + strings.Join(words, ", ")
 		return appendHomeworkDescription(desc, generated), nil
 	case "arithmetic", "口算":
 		questions := strings.TrimSpace(strings.ReplaceAll(strings.ReplaceAll(task, "\r\n", "\n"), "\r", "\n"))
@@ -894,6 +920,12 @@ func homeworkCardDescription(taskType, task, desc, link string) (string, error) 
 			return "", fmt.Errorf("--task must contain arithmetic questions, one per line, when --type is arithmetic")
 		}
 		return appendHomeworkDescription(desc, "作业类型：口算\n作业内容：\n"+questions), nil
+	case "preview", "预习":
+		generated := "作业类型：预习\n预习要求："
+		if requirements := strings.TrimSpace(task); requirements != "" {
+			generated += "\n" + requirements
+		}
+		return appendHomeworkDescription(desc, generated), nil
 	case "english_reading", "english-reading", "阅读英语":
 		link := strings.TrimSpace(task)
 		if link == "" {
@@ -901,15 +933,14 @@ func homeworkCardDescription(taskType, task, desc, link string) (string, error) 
 		}
 		return appendHomeworkDescription(desc, "作业类型：阅读英语\n阅读英语链接："+link), nil
 	default:
-		return "", fmt.Errorf("unsupported homework type %q; use normal, word_memorization, english_reading, or arithmetic", taskType)
+		return "", fmt.Errorf("unsupported homework type %q; use normal, word_memorization, english_reading, arithmetic, or preview", taskType)
 	}
 }
 
-func normalizeHomeworkWords(task string) string {
-	words := strings.FieldsFunc(strings.TrimSpace(task), func(r rune) bool {
+func normalizeHomeworkWords(task string) []string {
+	return strings.FieldsFunc(strings.TrimSpace(task), func(r rune) bool {
 		return r == ',' || r == '，' || unicode.IsSpace(r)
 	})
-	return strings.Join(words, ",")
 }
 
 func appendHomeworkDescription(desc, generated string) string {

@@ -11,14 +11,14 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func newArithmeticCommand() *cobra.Command {
+func newArithmeticCommand(deps Dependencies) *cobra.Command {
 	var opts arithmetic.Options
 	var format string
 	cmd := &cobra.Command{
 		Use: "arithmetic", Short: "Generate and check oral arithmetic exercises",
-		Long: `Generate unique oral arithmetic questions for grades 1, 2, and 4 (2026 first semester).
+		Long: `Generate unique oral arithmetic questions using the cyeam.com service.
 Default: 20 questions, balanced across the selected grade's types, without answers.
-Use 'arithmetic types' to list type IDs and Chinese names.
+Use 'arithmetic types' to list the latest type IDs and Chinese names from the service.
 Use 'arithmetic check <image>' to check photographed work with PaddleOCR.
 Text format contains one question per line, suitable for PDF input or tablet tasks.
 Use --pretty --format text for raw text without the global JSON envelope.`,
@@ -31,15 +31,27 @@ Use --pretty --format text for raw text without the global JSON envelope.`,
 			if format != "json" && format != "text" && format != "worksheet" {
 				return fmt.Errorf("format must be json, text, or worksheet")
 			}
-			if opts.Count < 1 {
+			if opts.Count < 1 || opts.Count > 1000 {
 				return fmt.Errorf("--count must be between 1 and 1000")
+			}
+			if opts.Grade < 0 {
+				return fmt.Errorf("grade must be non-negative")
+			}
+			if deps.Service == nil {
+				return fmt.Errorf("arithmetic service is not configured")
 			}
 			if !cmd.Flags().Changed("seed") {
 				opts.Seed = time.Now().UnixNano()
 			}
-			exercise, err := arithmetic.Generate(opts)
+			exercise, err := deps.Service.ArithmeticGenerate(cmd.Context(), opts)
 			if err != nil {
 				return err
+			}
+			if format == "worksheet" {
+				exercise.Types, err = deps.Service.ArithmeticTypes(cmd.Context(), exercise.Grade)
+				if err != nil {
+					return err
+				}
 			}
 			if format == "json" {
 				return json.NewEncoder(cmd.OutOrStdout()).Encode(exercise)
@@ -47,7 +59,7 @@ Use --pretty --format text for raw text without the global JSON envelope.`,
 			return writeArithmetic(cmd.OutOrStdout(), exercise, format)
 		},
 	}
-	cmd.Flags().IntVar(&opts.Grade, "grade", 0, "grade: 1, 2, or 4; inferred for a specific type")
+	cmd.Flags().IntVar(&opts.Grade, "grade", 0, "grade; inferred for a specific type")
 	cmd.Flags().StringSliceVar(&opts.Types, "type", nil, "type IDs or Chinese names, comma-separated; default: balanced mix")
 	cmd.Flags().IntVar(&opts.Count, "count", 20, "number of unique questions (1–1000)")
 	cmd.Flags().BoolVar(&opts.Answers, "answers", false, "include answers separately from questions")
@@ -56,10 +68,17 @@ Use --pretty --format text for raw text without the global JSON envelope.`,
 	var grade int
 	typesCmd := &cobra.Command{Use: "types", Short: "List supported arithmetic types", Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if grade != 0 && grade != 1 && grade != 2 && grade != 4 {
-				return fmt.Errorf("supported grades: 1, 2, 4")
+			if grade < 0 {
+				return fmt.Errorf("grade must be non-negative")
 			}
-			return json.NewEncoder(cmd.OutOrStdout()).Encode(arithmetic.Types(grade))
+			if deps.Service == nil {
+				return fmt.Errorf("arithmetic service is not configured")
+			}
+			types, err := deps.Service.ArithmeticTypes(cmd.Context(), grade)
+			if err != nil {
+				return err
+			}
+			return json.NewEncoder(cmd.OutOrStdout()).Encode(types)
 		}}
 	typesCmd.Flags().IntVar(&grade, "grade", 0, "filter by grade")
 	cmd.AddCommand(typesCmd, newArithmeticCheckCommand())
@@ -75,7 +94,7 @@ func writeArithmetic(out io.Writer, e arithmetic.Exercise, format string) error 
 	} else {
 		names, seen := []string{}, map[string]bool{}
 		for _, q := range e.Questions {
-			for _, typ := range arithmetic.Types(e.Grade) {
+			for _, typ := range e.Types {
 				if typ.ID == q.Type && !seen[q.Type] {
 					names = append(names, typ.Name)
 					seen[q.Type] = true

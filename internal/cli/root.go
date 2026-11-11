@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/mnhkahn/cyeam-cli/internal/arithmetic"
 	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
@@ -30,6 +31,8 @@ type Service interface {
 	DateHoliday(ctx context.Context, date string) ([]byte, error)
 	RoadbookShare(ctx context.Context, body []byte) ([]byte, error)
 	RoadbookGet(ctx context.Context, id string) ([]byte, error)
+	ArithmeticTypes(ctx context.Context, grade int) ([]arithmetic.Type, error)
+	ArithmeticGenerate(ctx context.Context, opts arithmetic.Options) (arithmetic.Exercise, error)
 	MoGuwen(ctx context.Context, text string, aiCompose bool, font string) ([]byte, error)
 	MoCharDetail(ctx context.Context, char string, font string) ([]byte, error)
 	MoCharComposition(ctx context.Context, char string, font string) ([]byte, error)
@@ -283,7 +286,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newNewsCommand(deps))
 	root.AddCommand(newSkillsCommand(deps))
 	root.AddCommand(newPinyinCommand())
-	root.AddCommand(newArithmeticCommand())
+	root.AddCommand(newArithmeticCommand(deps))
 	root.AddCommand(newOCRCommand())
 	root.AddCommand(newPhoneticCommand(deps.Phonetic))
 	root.AddCommand(newASRCommand(deps.ASR))

@@ -1,11 +1,11 @@
 ---
 name: arithmetic
-description: 北师大版小学数学口算题生成。通过 cyeam arithmetic 本地出题，支持一年级、二年级及 2026 新版四年级上册、答案、练习单和逐行平板作业；也支持 Vision 与 PaddleOCR 并发图片检查。
+description: 北师大版小学数学口算题生成。通过 cyeam arithmetic 调用服务端接口出题，题型以服务端实时返回为准，支持答案、练习单和逐行平板作业；也支持 Vision 与 PaddleOCR 并发图片检查。
 ---
 
 # 北师大版小学口算
 
-出题逻辑已实现于 CLI 的 `internal/arithmetic`。必须调用 `cyeam arithmetic` 生成题目，不再由模型随机编题或计算答案。无需 Microsoft 登录或 AI 接口。
+出题逻辑统一位于 cyeam.com 服务端。必须调用 `cyeam arithmetic` 生成题目，不再由模型随机编题或计算答案。无需 Microsoft 登录或 AI 接口，但需要能够访问 cyeam.com。
 
 ## 批改时的答案展示
 
@@ -42,7 +42,7 @@ cyeam arithmetic --grade 2 --format text --pretty
 cyeam arithmetic --type multiply-laws --format text --pretty | cyeam pdf --mode arithmetic --layout grade4 -o practice.pdf
 ```
 
-- `--grade` 支持 `1`、`2`、`4`，四年级仅对应 2026 新版上册。用户未指定年级时，可根据明确题型选择 `--type`，CLI 自动推断年级；无法确定时询问用户，不能自行使用其它年级。
+- `--grade` 的可用范围以 `cyeam arithmetic types` 实时返回为准。用户未指定年级时，可根据明确题型选择 `--type`，CLI 由服务端自动推断年级；无法确定时询问用户，不能自行使用其它年级。
 - `--type` 接受英文 ID 或完整中文名，多个题型用逗号分隔，也可重复传参；不能跨年级混合。不指定时混合该年级所有题型。先用 `types` 确认 ID，不猜参数。
 - `--count` 默认 20，范围 1–1000；一批题目不重复，混合题型数量差不超过 1。有限题型（如表内乘法只有 81 个有序算式）可能达不到请求题量，CLI 会报错；应减少题量或增加题型，不重复填充。
 - `--seed` 可选。省略时自动生成种子，JSON 中返回实际种子供复现。

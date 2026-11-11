@@ -87,7 +87,7 @@ cyeam trello card review <card-id> --reading-report reading-report.json
 打开链接，逐词听发音并跟读3遍，注意单词读完整、读清词尾。再回到原文，把含这些词的句子完整读一遍，最后重录相关段落。
 ```
 
-发布为 Markdown 时可写 `[重点词重读](https://www.cyeam.com/ai/translate?words=robotics,robots)`；纯文本保留完整 URL。这与背单词任务使用同一入口和参数，不生成另一个不明来源的练习站点或虚构链接。
+发布为 Markdown 时可写 `[重点词重读](https://www.cyeam.com/ai/translate?words=robotics,robots)`；纯文本保留完整 URL。这个网页链接用于阅读批改反馈。平板的原生背单词作业直接读取卡片中的词表。
 
 ## 易错题型与持久记录
 

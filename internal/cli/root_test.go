@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mnhkahn/cyeam-cli/internal/arithmetic"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
 	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
@@ -98,6 +99,14 @@ func (f *fakeService) RoadbookShare(ctx context.Context, body []byte) ([]byte, e
 func (f *fakeService) RoadbookGet(ctx context.Context, id string) ([]byte, error) {
 	f.roadbookGetID = id
 	return []byte(`{"data":"[]"}`), nil
+}
+
+func (f *fakeService) ArithmeticTypes(ctx context.Context, grade int) ([]arithmetic.Type, error) {
+	return nil, nil
+}
+
+func (f *fakeService) ArithmeticGenerate(ctx context.Context, opts arithmetic.Options) (arithmetic.Exercise, error) {
+	return arithmetic.Exercise{}, nil
 }
 
 func (f *fakeService) MoGuwen(ctx context.Context, text string, aiCompose bool, font string) ([]byte, error) {
