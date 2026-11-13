@@ -246,12 +246,15 @@ cyeam ask search "微服务"
 ### 日期查询
 
 ```bash
-# 获取今日节日
+# 获取今日日历（农历、节气、节日、休息/补班）
 cyeam date holiday
 
-# 获取指定日期节日
+# 获取指定日期日历
 cyeam date holiday 2024-01-01
 ```
+
+日历查询与 [万年历页面](https://www.cyeam.com/calendar) 共用 `/api/calendar/dates?year=YYYY`，
+服务端统一计算日历数据。接口未部署或数据不可用时返回错误。
 
 ### 路书分享
 

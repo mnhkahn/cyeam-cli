@@ -1,18 +1,31 @@
 ---
 name: holiday
-version: 0.1.16
-description: 假期查询——查某一天是上班还是放假、调休安排、节假日名称。想知道是不是工作日、什么时候放假补班的时候用。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
+version: 0.1.17
+description: 日历查询——查询某日的农历、节气、节日、干支年、数九及放假补班，与 cyeam.com/calendar 共用服务端数据。【重要】必须先读 skill 原文获取正确命令格式，禁止瞎猜。
 ---
 
-# 假期查询
+# 日历与假期查询
 
 ## 概述
 
-查任意日期的节假日信息：是否放假、节日名称、调休补班、薪资倍数等。数据来自 timor.tech 公共 API。
+查询日期的完整日历信息，数据与 [万年历页面](https://www.cyeam.com/calendar) 共用 `https://www.cyeam.com/api/calendar/dates?year=<年份>`。页面和 CLI 都使用服务端返回的农历、节气、节日、干支年、数九以及休息/补班状态，不在 Skill 中维护节日表或计算规则。
+
+优先直接请求上述页面接口，按完整日期键取当天记录并展示。这样无需安装或更新 CLI，网页服务端的数据升级后，Skill 下次请求即会获取新版结果。示例：
+
+```bash
+curl --fail --silent --show-error 'https://www.cyeam.com/api/calendar/dates?year=2027'
+```
+
+响应是以 `YYYY-MM-DD` 为键的全年对象。当天记录含 `date`、`week`（周一为 1）、`type`、`name`、`is_holiday`、`is_adjusted_workday`、`lunar`、`lunar_day`、`term`、`festivals`、`gan_zhi_year`、`shu_jiu`。展示农历、节气（含南北方小年标签）、节日、休息/补班状态，按需补充干支年和数九；空值不展示。仅凭节日名称不能推断放假，须使用返回的状态字段。未来新增字段可直接按其含义展示。
+
+接口报错、404 或缺少目标日期时说明数据不可用，不切回 timor.tech 或自行猜测放假安排。404 通常表示网页新版接口尚未部署。
+
+也可使用已迁移的本地 CLI（旧版 CLI 仍直连 timor.tech，不能保证一致）：
 
 ```bash
 cyeam date holiday                  # 今天
 cyeam date holiday 2026-10-01       # 指定日期
+cyeam date holiday 2026-10-01 --json # 完整记录，保留未来新增字段
 cyeam date holiday next-monday       # 不支持，只接受 YYYY-MM-DD
 ```
 
@@ -81,8 +94,9 @@ export PATH="$HOME/.local/bin:$PATH"
 
 - **安装下载**：只从 GitHub 的固定 Release 下载选定归档；GitHub 可能重定向到其资产 CDN。
   下载后先验证文档中固定的 SHA-256，再解压单个 `cyeam` 文件。安装检查关闭统计与更新提示。
-- **假期查询**：向 `https://timor.tech/api/holiday/year/<年份>?type=Y&weekday=Y`
-  请求指定年份的节假日，再在本地计算目标日期的状态。不上传本地文件，不需要登录。
+- **日历查询**：向 `https://www.cyeam.com/api/calendar/dates?year=<年份>` 请求全年日历，
+  取目标日期的完整记录；与页面共用服务端规则、假期缓存和上游降级结果。不上传本地文件，不需要登录。
+  网页服务端部署后，数据与日历规则的更新会同时作用于页面和 Skill；接口字段含义或命令格式变更仍需同步客户端。
 - **使用统计**：默认向 `https://us.i.posthog.com` 发送命令名称、CLI 版本、系统信息和随机安装编号，
   服务端可根据出口 IP 解析地域；不发送命令参数、图片内容或登录凭证。
   随机编号保存在 `~/.cyeam/analytics-id`，用 `--no-analytics` 或 `CYEAM_CLI_NO_ANALYTICS=1` 关闭。
@@ -105,7 +119,9 @@ export CYEAM_CLI_NO_UPDATE_NOTIFIER=1
 星期: 周四
 状态: 休息日
 名称: 国庆节
-薪资倍数: 3
+农历: 八月廿一
+干支年: 丙午
+节日: 国庆节
 ```
 
 ## 状态说明
@@ -119,6 +135,8 @@ export CYEAM_CLI_NO_UPDATE_NOTIFIER=1
 
 ## 注意事项
 
-- 日期格式必须为 `YYYY-MM-DD`，省略参数默认为今天
+- 日期格式必须为 `YYYY-MM-DD`，支持 1900–2100 年，省略参数默认为用户所在时区的今天
 - 不需要登录
-- 数据档期：当前仅支持已公布的年度节假日安排，未公布的年份会返回空
+- 未公布年度或上游异常时，服务端可能仅返回周末规则；页面与 Skill 共用该结果，不代表该年法定安排已公布。
+- 页面手机版会缩短农历和“补班”标签；Skill 展示完整记录。
+- 上述 v1.1.4 安装示例为历史固定版本，不含本次迁移；要使用共享日历，请直接请求页面接口，或使用包含本次改动的 CLI 构建。

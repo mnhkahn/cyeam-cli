@@ -2,7 +2,6 @@ package cyeam
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -16,8 +15,8 @@ func TestServiceMapsDateAndRoadbook(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.String())
 		switch r.URL.Path {
-		case "/api/holiday/year/2026":
-			_, _ = w.Write([]byte(`{"code":0,"holiday":{},"type":{}}`))
+		case "/api/calendar/dates":
+			_, _ = w.Write([]byte(`{"2026-06-09":{"date":"2026-06-09","type":0,"is_holiday":false,"lunar":"四月廿四"}}`))
 		case "/api/roadbook/share":
 			body, _ := io.ReadAll(r.Body)
 			if string(body) != `[{"name":"A"}]` {
@@ -33,7 +32,6 @@ func TestServiceMapsDateAndRoadbook(t *testing.T) {
 	defer server.Close()
 
 	svc := NewService(client.New(server.URL, server.Client()), server.URL)
-	svc.holidayClient = client.New(server.URL, server.Client())
 
 	if _, err := svc.DateHoliday(context.Background(), "2026-06-09"); err != nil {
 		t.Fatalf("DateHoliday: %v", err)
@@ -50,7 +48,7 @@ func TestServiceMapsDateAndRoadbook(t *testing.T) {
 	}
 
 	want := []string{
-		"/api/holiday/year/2026?type=Y&weekday=Y",
+		"/api/calendar/dates?year=2026",
 		"/api/roadbook/share",
 		"/api/roadbook/get?id=abc123",
 	}
@@ -64,133 +62,56 @@ func TestServiceMapsDateAndRoadbook(t *testing.T) {
 	}
 }
 
-func TestDateHolidayUsesTimorYearEndpoint(t *testing.T) {
-	var gotPath string
-	var gotUserAgent string
+func TestDateHolidayReturnsCalendarRecordUnchanged(t *testing.T) {
+	// Include an unknown future field: the client must preserve the web record.
+	record := `{"date":"2027-01-01","type":2,"name":"元旦","week":5,"is_holiday":true,"is_adjusted_workday":false,"lunar":"冬月廿四","term":"","festivals":["元旦节"],"future_field":{"value":1}}`
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotPath = r.URL.String()
-		gotUserAgent = r.UserAgent()
-		_, _ = w.Write([]byte(`{
-			"code":0,
-			"holiday":{
-				"06-19":{"holiday":true,"name":"端午节","wage":3,"date":"2026-06-19","rest":8}
-			},
-			"type":{
-				"2026-06-19":{"type":2,"name":"端午节","week":5}
-			}
-		}`))
+		if r.URL.String() != "/api/calendar/dates?year=2027" {
+			t.Errorf("path = %s", r.URL.String())
+		}
+		_, _ = io.WriteString(w, `{"2027-01-01":`+record+`}`)
 	}))
 	defer server.Close()
-
-	svc := NewService(client.New("https://www.cyeam.com", server.Client()), "https://www.cyeam.com")
-	svc.holidayClient = client.New(server.URL, server.Client())
-	body, err := svc.DateHoliday(context.Background(), "2026-06-19")
+	svc := NewService(client.New(server.URL, server.Client()), server.URL)
+	got, err := svc.DateHoliday(context.Background(), "2027-01-01")
 	if err != nil {
-		t.Fatalf("DateHoliday: %v", err)
+		t.Fatal(err)
 	}
-
-	var got struct {
-		Date      string `json:"date"`
-		IsHoliday bool   `json:"is_holiday"`
-		Name      string `json:"name"`
-		Type      int    `json:"type"`
-		Week      int    `json:"week"`
-		Wage      int    `json:"wage"`
-	}
-	if err := json.Unmarshal(body, &got); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if gotPath != "/api/holiday/year/2026?type=Y&weekday=Y" {
-		t.Fatalf("path = %q", gotPath)
-	}
-	if gotUserAgent == "" || gotUserAgent == "Go-http-client/1.1" {
-		t.Fatalf("user agent = %q", gotUserAgent)
-	}
-	if got.Date != "2026-06-19" || !got.IsHoliday || got.Name != "端午节" || got.Type != 2 || got.Week != 5 || got.Wage != 3 {
-		t.Fatalf("holiday = %+v", got)
+	if string(got) != record {
+		t.Fatalf("record changed: %s", got)
 	}
 }
 
-func TestDateHolidayHandlesAdjustedWorkday(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{
-			"code":0,
-			"holiday":{
-				"05-09":{"holiday":false,"name":"劳动节后补班","wage":1,"after":true,"target":"劳动节","date":"2026-05-09","rest":3}
-			},
-			"type":{
-				"2026-05-09":{"type":3,"name":"劳动节后补班","week":6}
+func TestDateHolidayRejectsUnavailableCalendarData(t *testing.T) {
+	for _, body := range []string{`{}`, `null`, `<html>404</html>`, `{"error":"unavailable"}`, `{"2027-01-01":null}`, `{"2027-01-01":{"date":"2027-01-01"}}`} {
+		t.Run(body, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { _, _ = io.WriteString(w, body) }))
+			defer server.Close()
+			svc := NewService(client.New(server.URL, server.Client()), server.URL)
+			if _, err := svc.DateHoliday(context.Background(), "2027-01-01"); err == nil {
+				t.Fatal("expected error instead of a guessed workday")
 			}
-		}`))
-	}))
-	defer server.Close()
-
-	svc := NewService(client.New("https://www.cyeam.com", server.Client()), "https://www.cyeam.com")
-	svc.holidayClient = client.New(server.URL, server.Client())
-	body, err := svc.DateHoliday(context.Background(), "2026-05-09")
-	if err != nil {
-		t.Fatalf("DateHoliday: %v", err)
-	}
-
-	var got struct {
-		Date      string `json:"date"`
-		IsHoliday bool   `json:"is_holiday"`
-		Name      string `json:"name"`
-		Type      int    `json:"type"`
-		Week      int    `json:"week"`
-		After     *bool  `json:"after"`
-		Target    string `json:"target"`
-	}
-	if err := json.Unmarshal(body, &got); err != nil {
-		t.Fatalf("unmarshal: %v", err)
-	}
-	if got.Date != "2026-05-09" || got.IsHoliday || got.Name != "劳动节后补班" || got.Type != 3 || got.Week != 6 || got.After == nil || !*got.After || got.Target != "劳动节" {
-		t.Fatalf("holiday = %+v", got)
+		})
 	}
 }
 
-func TestDateHolidayHandlesRegularWeekdayAndWeekend(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(`{"code":0,"holiday":{},"type":{}}`))
-	}))
+func TestDateHolidayRejectsInvalidDateBeforeRequest(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("unexpected request") }))
 	defer server.Close()
+	svc := NewService(client.New(server.URL, server.Client()), server.URL)
+	for _, date := range []string{"bad", "2027-02-30", "1899-12-31", "2101-01-01"} {
+		if _, err := svc.DateHoliday(context.Background(), date); err == nil {
+			t.Errorf("date %s should fail", date)
+		}
+	}
+}
 
-	svc := NewService(client.New("https://www.cyeam.com", server.Client()), "https://www.cyeam.com")
-	svc.holidayClient = client.New(server.URL, server.Client())
-
-	weekdayBody, err := svc.DateHoliday(context.Background(), "2026-06-09")
-	if err != nil {
-		t.Fatalf("DateHoliday weekday: %v", err)
-	}
-	var weekday struct {
-		Date      string `json:"date"`
-		IsHoliday bool   `json:"is_holiday"`
-		Type      int    `json:"type"`
-		Week      int    `json:"week"`
-	}
-	if err := json.Unmarshal(weekdayBody, &weekday); err != nil {
-		t.Fatalf("unmarshal weekday: %v", err)
-	}
-	if weekday.Date != "2026-06-09" || weekday.IsHoliday || weekday.Type != 0 || weekday.Week != 2 {
-		t.Fatalf("weekday = %+v", weekday)
-	}
-
-	weekendBody, err := svc.DateHoliday(context.Background(), "2026-06-14")
-	if err != nil {
-		t.Fatalf("DateHoliday weekend: %v", err)
-	}
-	var weekend struct {
-		Date      string `json:"date"`
-		IsHoliday bool   `json:"is_holiday"`
-		Name      string `json:"name"`
-		Type      int    `json:"type"`
-		Week      int    `json:"week"`
-	}
-	if err := json.Unmarshal(weekendBody, &weekend); err != nil {
-		t.Fatalf("unmarshal weekend: %v", err)
-	}
-	if weekend.Date != "2026-06-14" || !weekend.IsHoliday || weekend.Name != "周日" || weekend.Type != 1 || weekend.Week != 7 {
-		t.Fatalf("weekend = %+v", weekend)
+func TestDateHolidayPropagatesHTTPError(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { http.Error(w, "not deployed", http.StatusNotFound) }))
+	defer server.Close()
+	svc := NewService(client.New(server.URL, server.Client()), server.URL)
+	if _, err := svc.DateHoliday(context.Background(), "2027-01-01"); err == nil {
+		t.Fatal("expected HTTP error")
 	}
 }
 

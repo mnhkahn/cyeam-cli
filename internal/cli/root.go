@@ -370,9 +370,10 @@ func newDateCommand(deps Dependencies) *cobra.Command {
 }
 
 func newDateHolidayCommand(deps Dependencies) *cobra.Command {
-	return &cobra.Command{
+	var rawJSON bool
+	cmd := &cobra.Command{
 		Use:   "holiday [YYYY-MM-DD]",
-		Short: "Get date holiday",
+		Short: "Get calendar details from cyeam.com/calendar",
 		Args:  cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if deps.Service == nil {
@@ -389,19 +390,30 @@ func newDateHolidayCommand(deps Dependencies) *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if rawJSON {
+				_, err := deps.Stdout.Write(body)
+				return err
+			}
 			return writeDateHoliday(deps.Stdout, body)
 		},
 	}
+	cmd.Flags().BoolVar(&rawJSON, "json", false, "Return the complete shared calendar record")
+	return cmd
 }
 
 type dateHolidayView struct {
-	Date      string `json:"date"`
-	IsHoliday bool   `json:"is_holiday"`
-	Name      string `json:"name"`
-	Type      int    `json:"type"`
-	Week      int    `json:"week"`
-	Wage      int    `json:"wage"`
-	Target    string `json:"target"`
+	Lunar      string   `json:"lunar"`
+	Term       string   `json:"term"`
+	Festivals  []string `json:"festivals"`
+	GanZhiYear string   `json:"gan_zhi_year"`
+	ShuJiu     string   `json:"shu_jiu"`
+	Date       string   `json:"date"`
+	IsHoliday  bool     `json:"is_holiday"`
+	Name       string   `json:"name"`
+	Type       int      `json:"type"`
+	Week       int      `json:"week"`
+	Wage       int      `json:"wage"`
+	Target     string   `json:"target"`
 }
 
 func writeDateHoliday(out io.Writer, body []byte) error {
@@ -416,6 +428,21 @@ func writeDateHoliday(out io.Writer, body []byte) error {
 	}
 	if h.Name != "" && h.Type != 1 {
 		lines = append(lines, "名称: "+h.Name)
+	}
+	if h.Lunar != "" {
+		lines = append(lines, "农历: "+h.Lunar)
+	}
+	if h.GanZhiYear != "" {
+		lines = append(lines, "干支年: "+h.GanZhiYear)
+	}
+	if h.Term != "" {
+		lines = append(lines, "节气: "+h.Term)
+	}
+	if len(h.Festivals) > 0 {
+		lines = append(lines, "节日: "+strings.Join(h.Festivals, " · "))
+	}
+	if h.ShuJiu != "" {
+		lines = append(lines, "数九: "+h.ShuJiu)
 	}
 	if h.Wage > 1 {
 		lines = append(lines, fmt.Sprintf("薪资倍数: %d", h.Wage))

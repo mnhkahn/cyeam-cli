@@ -857,3 +857,37 @@ func TestSkillsAddArgsInstallGlobally(t *testing.T) {
 		t.Fatalf("skills add args = %q, want %q", got, want)
 	}
 }
+
+func TestDateHolidayFormatsSharedCalendarDetails(t *testing.T) {
+	service := &fakeService{dateHolidayBody: `{"date":"2026-12-22","type":0,"week":2,"is_holiday":false,"lunar":"冬月十四","gan_zhi_year":"丙午","term":"冬至","festivals":["冬至节"],"shu_jiu":"一九第1天"}`}
+	var out bytes.Buffer
+	cmd := NewRootCommand(Dependencies{Service: service, Stdout: &out})
+	cmd.SetArgs([]string{"date", "holiday", "2026-12-22"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"农历: 冬月十四", "干支年: 丙午", "节气: 冬至", "节日: 冬至节", "数九: 一九第1天", "状态: 工作日"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing %q in %s", want, out.String())
+		}
+	}
+}
+
+func TestDateHolidayJSONPreservesNewFields(t *testing.T) {
+	service := &fakeService{dateHolidayBody: `{"date":"2026-11-14","lunar":"十月初六","future_field":"new data"}`}
+	var out bytes.Buffer
+	cmd := NewRootCommand(Dependencies{Service: service, Stdout: &out})
+	cmd.SetArgs([]string{"date", "holiday", "2026-11-14", "--json"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatal(err)
+	}
+	var env struct {
+		Data map[string]interface{} `json:"data"`
+	}
+	if err := json.Unmarshal(out.Bytes(), &env); err != nil {
+		t.Fatal(err)
+	}
+	if env.Data["future_field"] != "new data" {
+		t.Fatalf("missing future field: %s", out.String())
+	}
+}
