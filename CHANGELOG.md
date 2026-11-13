@@ -1,6 +1,20 @@
 
+<a name="v1.1.16"></a>
+## [v1.1.16](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.15...v1.1.16) (2026-11-11)
+
+### Code Refactoring
+
+
+- **arithmetic:** 重构口算功能改为服务端生成
+
+### Features
+
+
+- **trello:** 支持英语阅读作业传入跟读词表
+
+
 <a name="v1.1.15"></a>
-## [v1.1.15](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.14...v1.1.15) (2026-11-04)
+## [v1.1.15](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.14...v1.1.15) (2026-11-03)
 
 ### Features
 
@@ -8,6 +22,11 @@
 - **asr:** 新增 ASR 阅读评审功能
 
 - **reading:** 新增朗读参考验证
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.14"></a>
