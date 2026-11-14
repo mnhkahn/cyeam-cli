@@ -196,7 +196,7 @@ func TestHomeworkCardDescription(t *testing.T) {
 		{
 			name:     "word memorization writes only the normalized word list",
 			taskType: "word_memorization",
-			task:     "bedroom， armchair cushions",
+			task:     "bedroom， armchair, cushions",
 			want:     "作业类型：背单词\n背单词：bedroom, armchair, cushions",
 		},
 		{
@@ -474,5 +474,77 @@ func TestHomeworkDateRange(t *testing.T) {
 	start, end, err = homeworkDateRange("", "", "", now)
 	if err != nil || start.Day() != 7 || end.Day() != 8 {
 		t.Fatalf("default range: %v %v %v", start, end, err)
+	}
+}
+
+// Keep these cases aligned with Android HomeworkWordTaskTest.
+func TestHomeworkVocabularyContract(t *testing.T) {
+	cases := []struct{ Name, Input, Normalized string }{
+		{"lesson-nine", "e-reader, game console, GPS, headphones, laptop, smartphone, tablet, VR headset, hungry, ice cream, lemonade, menu, omelette, piece of cake, sandwich, sauce, strawberry, vegetable, waiter", "e-reader,game console,GPS,headphones,laptop,smartphone,tablet,VR headset,hungry,ice cream,lemonade,menu,omelette,piece of cake,sandwich,sauce,strawberry,vegetable,waiter"},
+		{"phrases", "post   office，train station, cell phone", "post office,train station,cell phone"},
+		{"annotations", "Post(office), CELL(phone)(手机), camera（相机）, don't, well-known, teacher’s", "Post office,CELL phone,camera,don't,well-known,teacher’s"},
+		{"full-width", "cell（phone）（手机）", "cell phone"},
+		{"space-is-phrase", "armchair cushions", "armchair cushions"},
+		{"empty-items", "bank,, ， museum,", "bank,museum"},
+		{"invalid-0", "camera(相机", ""},
+		{"invalid-1", "camera()", ""},
+		{"invalid-2", "camera(123)", ""},
+		{"invalid-3", "hello!", ""},
+		{"invalid-4", "ice cream; cake", ""},
+		{"invalid-5", "VR2", ""},
+		{"invalid-6", "123", ""},
+		{"invalid-7", "你好", ""},
+		{"invalid-8", "https://www.cyeam.com/ai/translate?words=bank", ""},
+		{"invalid-9", "good / bad", ""},
+		{"invalid-10", "-reader", ""},
+		{"invalid-11", "'hello", ""},
+		{"invalid-12", "", ""},
+	}
+	for _, tc := range cases {
+		t.Run(tc.Name, func(t *testing.T) {
+			got, err := homeworkCardDescription("word_memorization", tc.Input, "", "", "", nil)
+			if tc.Normalized == "" {
+				if err == nil {
+					t.Fatalf("accepted unsupported words: %q", tc.Input)
+				}
+				return
+			}
+			want := "作业类型：背单词\n背单词：" + strings.ReplaceAll(tc.Normalized, ",", ", ")
+			if err != nil || got != want {
+				t.Fatalf("got %q, %v; want %q", got, err, want)
+			}
+			// --word shares the same validation, including English-reading warmups.
+			for _, kind := range []string{"word_memorization", "english_reading"} {
+				content := ""
+				if kind == "english_reading" {
+					content = "/ai/translate?textbook=0&article=4"
+				}
+				entries := strings.FieldsFunc(tc.Input, func(r rune) bool { return r == ',' || r == '，' })
+				var nonempty []string
+				for _, entry := range entries {
+					if strings.TrimSpace(entry) != "" {
+						nonempty = append(nonempty, entry)
+					}
+				}
+				got, err := homeworkCardDescription(kind, content, "", "", "", nonempty)
+				if err != nil || !strings.HasSuffix(got, strings.ReplaceAll(tc.Normalized, ",", ", ")) {
+					t.Fatalf("--word got %q, %v", got, err)
+				}
+			}
+		})
+	}
+}
+
+func TestHomeworkOrderedWordsRejectUnsupportedVocabulary(t *testing.T) {
+	for _, kind := range []string{"word_memorization", "english_reading"} {
+		for _, word := range []string{"hello!", "VR2", "中文", "camera(123)", "camera(相机", "https://example.com"} {
+			content := ""
+			if kind == "english_reading" {
+				content = "/ai/translate?textbook=0&article=4"
+			}
+			if _, err := homeworkCardDescription(kind, content, "", "", "", []string{word}); err == nil {
+				t.Errorf("accepted %s word %q", kind, word)
+			}
+		}
 	}
 }

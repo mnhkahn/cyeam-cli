@@ -7,6 +7,7 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/cli"
 	"github.com/mnhkahn/cyeam-cli/internal/client"
 	"github.com/mnhkahn/cyeam-cli/internal/cyeam"
+	"github.com/mnhkahn/cyeam-cli/internal/homework"
 	"github.com/mnhkahn/cyeam-cli/internal/update"
 )
 
@@ -27,6 +28,7 @@ func run() error {
 	updater := update.NewGitHubUpdater("mnhkahn/cyeam-cli", update.ArchiveInstaller{ProgressWriter: os.Stderr})
 	cmd := cli.NewRootCommand(cli.Dependencies{
 		Service:        service,
+		Homework:       homework.NewClient(baseURL, nil),
 		Stdout:         os.Stdout,
 		Updater:        updater,
 		CommandStarted: tracker.CommandStarted,

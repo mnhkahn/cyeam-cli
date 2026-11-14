@@ -20,7 +20,7 @@ func TestTrelloReviewFlagValidation(t *testing.T) {
 		{"card-1", "--text", "hi", "--review-id", ""},
 		{"card-1", "--text", "hi", "--retry-uncertain"},
 	} {
-		cmd := newTrelloReviewCommand()
+		cmd := newTrelloReviewCommand(nil)
 		cmd.SetOut(io.Discard)
 		cmd.SetErr(io.Discard)
 		cmd.SetArgs(args)
@@ -32,7 +32,7 @@ func TestTrelloReviewFlagValidation(t *testing.T) {
 }
 
 func TestTrelloCardRegistersReview(t *testing.T) {
-	cmd, _, err := newTrelloCommand().Find([]string{"card", "review"})
+	cmd, _, err := newTrelloCommand(nil).Find([]string{"card", "review"})
 	if err != nil || cmd.Name() != "review" {
 		t.Fatal(cmd, err)
 	}
@@ -40,7 +40,7 @@ func TestTrelloCardRegistersReview(t *testing.T) {
 
 func TestReviewOutcomeFlagPreservesExplicitFalse(t *testing.T) {
 	for _, arg := range []string{"--has-errors=true", "--has-errors=false"} {
-		cmd := newTrelloReviewCommand()
+		cmd := newTrelloReviewCommand(nil)
 		if err := cmd.ParseFlags([]string{arg}); err != nil {
 			t.Fatal(err)
 		}

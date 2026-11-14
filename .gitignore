@@ -22,6 +22,8 @@ out/
 *~
 homework*
 !skills/homework/
+!internal/homework/
+!internal/cli/homework*.go
 
 # OS
 .DS_Store

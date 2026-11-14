@@ -122,7 +122,10 @@ cyeam tv ...                           # 直播 → 见 live-broadcast skill
 cyeam news ...                         # 新闻 → 见 news skill
 cyeam pinyin ...                       # 拼音 → 见 pinyin skill
 cyeam phonetic <word>                  # 英语音标 → 见 phonetic skill
+cyeam arithmetic ...                   # 口算出题、图片批改与重评 → 见 arithmetic skill
+cyeam dictation check/regrade ...      # 单词听写批改与重评 → 见 homework skill
 cyeam asr <audio-file>                 # 语音转文字 → 见 asr skill
+cyeam asr review ...                   # 英语阅读服务端批改 → 见 asr skill
 cyeam mo guwen/char ...                # 书法集字 → 见 calligraphy-composition skill
 cyeam mo ocr <image>                  # 篆字识别 → 见 seal-script-ocr skill
 cyeam roadbook ...                     # 路书 → 见 roadbook skill

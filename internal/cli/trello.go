@@ -11,10 +11,10 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
@@ -24,7 +24,7 @@ import (
 	"golang.org/x/term"
 )
 
-func newTrelloCommand() *cobra.Command {
+func newTrelloCommand(service HomeworkService) *cobra.Command {
 	cmd := &cobra.Command{Use: "trello", Short: "Manage Trello boards, lists, and task cards"}
 	cmd.AddCommand(
 		newTrelloLoginCommand(),
@@ -37,7 +37,7 @@ func newTrelloCommand() *cobra.Command {
 		newTrelloHomeworkCommand(),
 		newTrelloBoardCommand(),
 		newTrelloListCommand(),
-		newTrelloCardCommand(),
+		newTrelloCardCommand(service),
 		newTrelloWebhookCommand(),
 	)
 	return cmd
@@ -766,7 +766,7 @@ func formatTrelloHomeworkReport(report trelloHomeworkReport) string {
 	return b.String()
 }
 
-func newTrelloCardCommand() *cobra.Command {
+func newTrelloCardCommand(service HomeworkService) *cobra.Command {
 	cmd := &cobra.Command{Use: "card", Short: "Create, update, move, and inspect cards"}
 	cmd.AddCommand(
 		newTrelloGetCardCommand(),
@@ -775,7 +775,7 @@ func newTrelloCardCommand() *cobra.Command {
 		newTrelloMoveCardCommand(),
 		newTrelloDeleteCardCommand(),
 		newTrelloAttachCardCommand(),
-		newTrelloReviewCommand(),
+		newTrelloReviewCommand(service),
 		newTrelloAttachmentsCommand(),
 		newTrelloAttachmentCommand(),
 		newTrelloActionsCommand(),
@@ -885,7 +885,11 @@ func homeworkCardDescription(taskType, task, desc, link, requirements string, or
 			if word == "" || strings.ContainsAny(word, ",，\r\n") {
 				return "", fmt.Errorf("each --word must contain exactly one word or phrase")
 			}
-			orderedWords[i] = word
+			normalized, err := normalizeHomeworkWord(word)
+			if err != nil {
+				return "", fmt.Errorf("invalid --word: %w", err)
+			}
+			orderedWords[i] = normalized
 		}
 	}
 	link = strings.TrimSpace(link)
@@ -914,7 +918,11 @@ func homeworkCardDescription(taskType, task, desc, link, requirements string, or
 	case "word_memorization", "word-memorization", "背单词":
 		words := orderedWords
 		if len(words) == 0 {
-			words = normalizeHomeworkWords(task)
+			var err error
+			words, err = normalizeHomeworkWords(task)
+			if err != nil {
+				return "", fmt.Errorf("invalid --task word list: %w", err)
+			}
 		}
 		if len(words) == 0 {
 			return "", fmt.Errorf("--task must contain at least one word when --type is word_memorization")
@@ -948,10 +956,44 @@ func homeworkCardDescription(taskType, task, desc, link, requirements string, or
 	}
 }
 
-func normalizeHomeworkWords(task string) []string {
-	return strings.FieldsFunc(strings.TrimSpace(task), func(r rune) bool {
-		return r == ',' || r == '，' || unicode.IsSpace(r)
+// Keep these rules aligned with HomeworkTaskDetails.words in the Android app.
+var homeworkVocabulary = regexp.MustCompile(`^[A-Za-z]+(?:['’-][A-Za-z]+)*(?: +[A-Za-z]+(?:['’-][A-Za-z]+)*)*$`)
+var homeworkVocabularyAnnotation = regexp.MustCompile(`\(([^()]*)\)|（([^（）]*)）`)
+var homeworkChineseAnnotation = regexp.MustCompile(`^[\p{Han}\s、，。；：]+$`)
+
+func normalizeHomeworkWord(value string) (string, error) {
+	expanded := homeworkVocabularyAnnotation.ReplaceAllStringFunc(value, func(annotation string) string {
+		parts := homeworkVocabularyAnnotation.FindStringSubmatch(annotation)
+		content := strings.TrimSpace(parts[1] + parts[2])
+		switch {
+		case homeworkVocabulary.MatchString(content):
+			return " " + content + " "
+		case homeworkChineseAnnotation.MatchString(content):
+			return ""
+		default:
+			return annotation
+		}
 	})
+	word := strings.Join(strings.Fields(expanded), " ")
+	if !homeworkVocabulary.MatchString(word) {
+		return "", fmt.Errorf("%q is not a supported English word or phrase; use English letters, apostrophes, hyphens and spaces", value)
+	}
+	return word, nil
+}
+
+func normalizeHomeworkWords(task string) ([]string, error) {
+	var words []string
+	for _, entry := range strings.FieldsFunc(task, func(r rune) bool { return r == ',' || r == '，' }) {
+		if strings.TrimSpace(entry) == "" {
+			continue
+		}
+		word, err := normalizeHomeworkWord(entry)
+		if err != nil {
+			return nil, err
+		}
+		words = append(words, word)
+	}
+	return words, nil
 }
 
 func appendHomeworkDescription(desc, generated string) string {

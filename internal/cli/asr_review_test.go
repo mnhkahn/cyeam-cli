@@ -2,8 +2,8 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
-	"github.com/google/uuid"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/mnhkahn/cyeam-cli/internal/reading"
+	"github.com/google/uuid"
 )
 
 func readingFiles(t *testing.T) (string, string) {
@@ -26,56 +26,76 @@ func readingFiles(t *testing.T) (string, string) {
 	}
 	return ref, hyp
 }
-func TestASRReviewGeneratesReplayableReportOffline(t *testing.T) {
+
+func readingServerResponse(reference, transcript, feedback, grade string) json.RawMessage {
+	data, _ := json.Marshal(map[string]any{
+		"input":  map[string]any{"kind": "reading", "reference": reference, "transcript": transcript},
+		"report": map[string]any{"schema_version": 1, "reference": reference, "transcript": transcript, "feedback": feedback, "grade": grade, "provisional": false, "focus": []any{}, "future_field": "preserved"},
+	})
+	return data
+}
+
+func TestASRReviewUsesServerForTranscript(t *testing.T) {
 	t.Setenv("CYEAM_CLI_NO_UPDATE_NOTIFIER", "1")
 	ref, hyp := readingFiles(t)
 	feedback := filepath.Join(t.TempDir(), "feedback.txt")
+	service := &fakeHomeworkService{readingRegrade: func(_ context.Context, input json.RawMessage) (json.RawMessage, error) {
+		var value struct {
+			Kind       string `json:"kind"`
+			Reference  string `json:"reference"`
+			Transcript string `json:"transcript"`
+		}
+		if err := json.Unmarshal(input, &value); err != nil || value.Kind != "reading" || !strings.Contains(value.Reference, "Robotics") || !strings.Contains(value.Transcript, "Robot club") {
+			t.Fatalf("input = %s", input)
+		}
+		return readingServerResponse(value.Reference, value.Transcript, "阅读等级：优。\n服务端固定反馈\n", "优"), nil
+	}}
 	var out bytes.Buffer
-	cmd := NewRootCommand(Dependencies{Stdout: &out})
-	cmd.SetArgs([]string{"asr", "review", "--reference", ref, "--transcript", hyp, "--confirmed-grade", "中", "--feedback-out", feedback})
+	cmd := NewRootCommand(Dependencies{Stdout: &out, Homework: service})
+	cmd.SetArgs([]string{"asr", "review", "--reference", ref, "--transcript", hyp, "--feedback-out", feedback})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	r, err := reading.ParseReport(out.Bytes())
-	if err != nil {
-		t.Fatal(err, out.String())
+	if !strings.Contains(out.String(), `"future_field":"preserved"`) {
+		t.Fatal(out.String())
 	}
 	saved, err := os.ReadFile(feedback)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(saved) != r.Feedback || r.Grade != "中" || r.Provisional || len(r.FocusWords) != 2 {
-		t.Fatal(r.Feedback)
-	}
-	if strings.Contains(r.Feedback, "你读错") {
-		t.Fatal(r.Feedback)
+	if string(saved) != "阅读等级：优。\n服务端固定反馈\n" {
+		t.Fatal(string(saved))
 	}
 }
-func TestASRReviewCanTranscribeAudioAndPrintFeedback(t *testing.T) {
+
+func TestASRReviewCanTranscribeAudioAndPrintServerFeedback(t *testing.T) {
 	ref, _ := readingFiles(t)
 	audio := filepath.Join(t.TempDir(), "reading.m4a")
 	if err := os.WriteFile(audio, []byte("fake-audio"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(ref, []byte("hello world"), 0600); err != nil {
-		t.Fatal(err)
-	}
-	fake := &fakeTranscriber{}
+	service := &fakeHomeworkService{reading: func(_ context.Context, reference, filename string, data []byte) (json.RawMessage, error) {
+		if filename != audio || string(data) != "fake-audio" || !strings.Contains(reference, "Robotics") {
+			t.Fatalf("unexpected reading request")
+		}
+		return readingServerResponse(reference, "server transcript", "阅读等级：良。\n由服务端生成\n", "良"), nil
+	}}
 	var out bytes.Buffer
-	cmd := newASRReviewCommand(fake)
+	cmd := newASRReviewCommand(service)
 	cmd.Flags().Bool("pretty", true, "")
 	cmd.SetOut(&out)
 	cmd.SetArgs([]string{"--reference", ref, "--audio", audio})
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
-	if fake.filename != audio || !strings.Contains(out.String(), "暂评·优") {
+	if out.String() != "阅读等级：良。\n由服务端生成\n" {
 		t.Fatal(out.String())
 	}
 }
+
 func TestASRReviewRejectsConflictingOrDestructiveFlags(t *testing.T) {
 	ref, hyp := readingFiles(t)
-	for _, extra := range [][]string{{"--audio", "unused.m4a"}, {"--confirmed-grade", "A"}, {"--feedback-out", ref}, {"--feedback-out", hyp}} {
+	for _, extra := range [][]string{{"--audio", "unused.m4a"}, {"--confirmed-grade", "中"}, {"--feedback-out", ref}, {"--feedback-out", hyp}} {
 		cmd := newASRReviewCommand(nil)
 		cmd.SetOut(&bytes.Buffer{})
 		cmd.SetErr(&bytes.Buffer{})
@@ -91,18 +111,15 @@ func TestASRReviewRejectsConflictingOrDestructiveFlags(t *testing.T) {
 		t.Fatal("accepted no transcript or audio")
 	}
 }
+
 func TestReadingReportCannotCombineFreeformFeedbackOrGrade(t *testing.T) {
-	r, err := reading.Review("Robots help people.", "Robots help people.", reading.Options{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, _ := json.Marshal(r)
+	data := readingServerResponse("Robots help people.", "Robots help people.", "阅读等级：优。\n", "优")
 	path := filepath.Join(t.TempDir(), "report.json")
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
 	for _, extra := range [][]string{{"--text", "invented"}, {"--grade", "中"}, {"--provisional"}} {
-		cmd := newTrelloReviewCommand()
+		cmd := newTrelloReviewCommand(nil)
 		cmd.SetOut(&bytes.Buffer{})
 		cmd.SetErr(&bytes.Buffer{})
 		cmd.SetArgs(append([]string{"card", "--reading-report", path}, extra...))
@@ -113,22 +130,36 @@ func TestReadingReportCannotCombineFreeformFeedbackOrGrade(t *testing.T) {
 	}
 }
 
-func TestReadingReportPublishesFixedFeedbackAndGrade(t *testing.T) {
+func TestReadingReportRegradesOnServerAndPublishesResult(t *testing.T) {
 	t.Setenv("TRELLO_API_KEY", "test-key")
 	t.Setenv("TRELLO_TOKEN", "test-token")
-	r, err := reading.Review("Robotics club loves robots. Robotics club makes robots.", "Robot club loves robot. Robot club makes robot.", reading.Options{ConfirmedGrade: "中"})
-	if err != nil {
+	reference := "Robotics club loves robots. Robotics club makes robots."
+	transcript := "Robot club loves robot. Robot club makes robot."
+	expected := "阅读等级：优。\n服务端权威反馈\n"
+	data := readingServerResponse(reference, transcript, expected, "优")
+	var tampered map[string]any
+	if err := json.Unmarshal(data, &tampered); err != nil {
 		t.Fatal(err)
 	}
-	expected := r.Feedback
-	// Generated fields are not authoritative when replaying a saved report.
-	r.Feedback = "model-invented feedback"
-	r.Grade = "100"
-	data, _ := json.Marshal(r)
+	tampered["report"].(map[string]any)["feedback"] = "model-invented feedback"
+	tampered["report"].(map[string]any)["grade"] = "100"
+	data, _ = json.Marshal(tampered)
 	path := filepath.Join(t.TempDir(), "reading.json")
 	if err := os.WriteFile(path, data, 0600); err != nil {
 		t.Fatal(err)
 	}
+	regrades := 0
+	service := &fakeHomeworkService{readingRegrade: func(_ context.Context, input json.RawMessage) (json.RawMessage, error) {
+		regrades++
+		var value struct {
+			Reference  string `json:"reference"`
+			Transcript string `json:"transcript"`
+		}
+		if err := json.Unmarshal(input, &value); err != nil || value.Reference != reference || value.Transcript != transcript {
+			t.Fatalf("input = %s", input)
+		}
+		return readingServerResponse(reference, transcript, expected, "优"), nil
+	}}
 	oldTransport := http.DefaultTransport
 	t.Cleanup(func() { http.DefaultTransport = oldTransport })
 	var publishedText, updatedDescription string
@@ -165,7 +196,7 @@ func TestReadingReportPublishesFixedFeedbackAndGrade(t *testing.T) {
 	statePath := filepath.Join(home, ".cyeam", "trello-reviews", reviewID+".json")
 	t.Cleanup(func() { os.Remove(statePath); os.Remove(statePath + ".lock") })
 	run := func() {
-		cmd := newTrelloReviewCommand()
+		cmd := newTrelloReviewCommand(service)
 		cmd.SetOut(&bytes.Buffer{})
 		cmd.SetErr(&bytes.Buffer{})
 		cmd.SetArgs([]string{"card", "--reading-report", path, "--review-id", reviewID})
@@ -175,8 +206,8 @@ func TestReadingReportPublishesFixedFeedbackAndGrade(t *testing.T) {
 	}
 	run()
 	run()
-	if posts != 1 || updatedDescription != "打分结果：中\nOriginal assignment" {
-		t.Fatal(posts, updatedDescription)
+	if posts != 1 || regrades != 2 || updatedDescription != "打分结果：优\nOriginal assignment" {
+		t.Fatal(posts, regrades, updatedDescription)
 	}
 	var payload struct {
 		Grade       string `json:"grade"`
@@ -186,7 +217,7 @@ func TestReadingReportPublishesFixedFeedbackAndGrade(t *testing.T) {
 	if err := json.Unmarshal([]byte(strings.TrimPrefix(publishedText, "作业批改：\n")), &payload); err != nil {
 		t.Fatal(err)
 	}
-	if payload.Grade != "中" || payload.Provisional || payload.Text != expected {
+	if payload.Grade != "优" || payload.Provisional || payload.Text != expected {
 		t.Fatal(publishedText)
 	}
 }

@@ -1,266 +1,67 @@
 package cli
 
 import (
-	"bytes"
-	"context"
-	"encoding/json"
 	"fmt"
-	"image"
-	_ "image/gif"
-	_ "image/jpeg"
-	_ "image/png"
-	"io"
-	"math"
-	"os"
-	"path/filepath"
-	"strings"
-	"time"
 
-	"github.com/mnhkahn/cyeam-cli/internal/arithmetic"
-	"github.com/mnhkahn/cyeam-cli/internal/paddleocr"
-	"github.com/mnhkahn/cyeam-cli/internal/visionocr"
+	"github.com/mnhkahn/cyeam-cli/internal/homework"
 	"github.com/spf13/cobra"
-	_ "golang.org/x/image/webp"
 )
 
-func readCheckFile(path string, limit int64) ([]byte, error) {
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("read input: %w", err)
-	}
-	defer f.Close()
-	data, err := io.ReadAll(io.LimitReader(f, limit+1))
-	if err != nil {
-		return nil, fmt.Errorf("read input: %w", err)
-	}
-	if int64(len(data)) > limit {
-		return nil, fmt.Errorf("input exceeds %d MiB", limit>>20)
-	}
-	return data, nil
-}
-func newArithmeticCheckCommand() *cobra.Command {
-	return newArithmeticCheckCommandWithVision(visionocr.Available(), visionocr.RecognizeRaw)
-}
-
-func newArithmeticCheckCommandWithVision(visionAvailable bool, recognizeVision func(context.Context, []byte) ([]byte, error)) *cobra.Command {
-	var envFile, replay, save string
-	var opts arithmetic.CheckOptions
-	var timeout time.Duration
-	var rotation, retries int
-	var autoOrient, showTimings, unwarp bool
+func newArithmeticCheckCommand(service HomeworkService) *cobra.Command {
+	var expectedCount int
 	cmd := &cobra.Command{
-		Use: "check <image>", Short: "Check photographed arithmetic using Vision/PaddleOCR and local calculation",
-		Long: `On supported macOS devices, run Apple Vision locally and PaddleOCR concurrently,
-then calculate and compare
-recognized horizontal equations and their answers. Supports +, -, ×, ÷, parentheses,
-exact decimals/fractions, and quotient/remainder answers. Ignores scratch work below.
-Recognized equations are graded locally without a second AI image-reading step.
-Missing or unparseable answers remain unresolved. Missing confidence does not block grading.
-No handwriting digit substitutions or AI grading are performed.
-Run cyeam ocr config set --url <endpoint> to save your own credentials.
-Alternatively set OCR_API_URL/OCR_API_TOKEN or pass --ocr-env to a dotenv file.
-An equation passes if either engine returns a passing reading; otherwise Vision wins.
-If either engine fails or times out, use the other. Devices without Vision use PaddleOCR.
-Vision requires no credentials. PaddleOCR requires your own endpoint and token.
-Combined requests each have one --timeout deadline; --retries applies to PaddleOCR-only devices.
-Use --save-ocr to retain OCR evidence and --ocr-result to replay it without uploading.`,
-		Example: `  cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --pretty
-  cyeam arithmetic check homework.jpg --expected-count 18 --save-ocr ocr.json
-  cyeam arithmetic check homework.jpg --ocr-result ocr.json --pretty`,
+		Use:   "check <image>",
+		Short: "Check photographed arithmetic with the cyeam.com homework service",
+		Long: `Upload one JPG, PNG, or WebP image to cyeam.com. The server recognizes the
+questions, calculates the results, and returns the grade. The image must be at
+most 10 MiB and 40 megapixels. The expected question count is required and must
+be between 1 and 100.`,
+		Example: `  cyeam arithmetic check homework.jpg --expected-count 18
+  cyeam arithmetic check homework.jpg --expected-count 18 --pretty`,
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if math.IsNaN(opts.MinConfidence) || opts.MinConfidence < 0 || opts.MinConfidence > 1 {
-				return fmt.Errorf("--min-confidence must be between 0 and 1")
+			if expectedCount < 1 || expectedCount > 100 {
+				return fmt.Errorf("--expected-count must be between 1 and 100")
 			}
-			if opts.ExpectedCount < 0 || opts.ExpectedCount > 1000 || cmd.Flags().Changed("expected-count") && opts.ExpectedCount == 0 {
-				return fmt.Errorf("--expected-count must be between 1 and 1000")
+			if service == nil {
+				return fmt.Errorf("homework service is not configured")
 			}
-			if timeout <= 0 || timeout > 5*time.Minute {
-				return fmt.Errorf("--timeout must be between 0 and 5m")
-			}
-			if retries < 0 || retries > 5 {
-				return fmt.Errorf("--retries must be between 0 and 5")
-			}
-			if rotation != 0 && rotation != 90 && rotation != 180 && rotation != 270 {
-				return fmt.Errorf("--rotate must be 0, 90, 180, or 270")
-			}
-			if replay != "" && cmd.Flags().Changed("rotate") {
-				return fmt.Errorf("--rotate applies to a live OCR request, not --ocr-result replay")
-			}
-			if save != "" && replay != "" {
-				return fmt.Errorf("--save-ocr and --ocr-result cannot be combined")
-			}
-			if save != "" {
-				savePath, _ := filepath.Abs(save)
-				for _, input := range []string{args[0], envFile} {
-					if input == "" {
-						continue
-					}
-					inputPath, _ := filepath.Abs(input)
-					saveInfo, e1 := os.Stat(save)
-					inputInfo, e2 := os.Stat(input)
-					if savePath == inputPath || e1 == nil && e2 == nil && os.SameFile(saveInfo, inputInfo) {
-						return fmt.Errorf("--save-ocr must not overwrite the input image or OCR env file")
-					}
-				}
-			}
-			var data []byte
-			var input arithmeticInput
-			var sourceWarning string
-			var err error
-			if replay != "" {
-				data, err = readCheckFile(replay, 32<<20)
-				if err == nil {
-					input, sourceWarning, err = verifyArithmeticInput(data, args[0])
-				}
-			} else {
-				var src []byte
-				src, err = readCheckFile(args[0], 20<<20)
-				if err != nil {
-					return err
-				}
-				cfg, _, decodeErr := image.DecodeConfig(bytes.NewReader(src))
-				if decodeErr != nil || cfg.Width <= 0 || cfg.Height <= 0 {
-					return fmt.Errorf("input must be a readable PNG, JPEG, GIF, or WebP image")
-				}
-				client, configErr := paddleocr.Config(envFile)
-				if configErr != nil && !visionAvailable {
-					return configErr
-				}
-				if client != nil {
-					client.HTTP.Timeout = timeout
-					client.SkipOrientation = !autoOrient
-					client.Unwarp = unwarp
-				}
-				upload, rotateErr := rotateArithmeticImage(src, rotation)
-				if rotateErr != nil {
-					return rotateErr
-				}
-				if visionAvailable {
-					jobs := []arithmeticRecognizer{
-						{Engine: "vision", Run: func(ctx context.Context) ([]byte, error) { return recognizeVision(ctx, upload) }},
-						{Engine: "paddleocr", Run: func(ctx context.Context) ([]byte, error) {
-							if configErr != nil {
-								return nil, configErr
-							}
-							return recognizeArithmeticWithRetry(ctx, client, upload, timeout, 0, showTimings, cmd.ErrOrStderr())
-						}},
-					}
-					data, err = recognizeArithmeticParallel(cmd.Context(), timeout, jobs)
-				} else {
-					data, err = recognizeArithmeticWithRetry(cmd.Context(), client, upload, timeout, retries, showTimings, cmd.ErrOrStderr())
-				}
-				if err == nil {
-					data, input, err = stampArithmeticInput(data, src, upload, args[0], rotation)
-				}
-			}
+			image, err := readHomeworkImage(args[0])
 			if err != nil {
 				return err
 			}
-			if save != "" {
-				if err := os.WriteFile(save, data, 0600); err != nil {
-					return fmt.Errorf("save OCR evidence: %w", err)
-				}
-			}
-			report, err := checkArithmeticEvidence(data, opts)
+			result, err := service.Review(cmd.Context(), homework.ReviewRequest{Kind: "arithmetic", Count: expectedCount, Filename: args[0], Image: image})
 			if err != nil {
 				return err
 			}
-			if sourceWarning != "" {
-				report.Warnings = append(report.Warnings, sourceWarning)
-			}
-			pretty, _ := cmd.Flags().GetBool("pretty")
-			if pretty {
-				if input.Name != "" {
-					if _, err := fmt.Fprintf(cmd.OutOrStdout(), "输入图片：%s\n", input.Name); err != nil {
-						return err
-					}
-				}
-				if sourceWarning != "" {
-					if _, err := fmt.Fprintln(cmd.OutOrStdout(), sourceWarning); err != nil {
-						return err
-					}
-				}
-				for _, warning := range report.Warnings {
-					if strings.HasPrefix(warning, "vision:") || strings.HasPrefix(warning, "paddleocr:") {
-						fmt.Fprintln(cmd.ErrOrStderr(), warning)
-					}
-				}
-				return writeArithmeticCheck(cmd.OutOrStdout(), report)
-			}
-			return json.NewEncoder(cmd.OutOrStdout()).Encode(struct {
-				arithmetic.CheckReport
-				Input arithmeticInput `json:"input"`
-			}{report, input})
+			return writeHomeworkResult(cmd, result)
 		},
 	}
-	cmd.Flags().BoolVar(&unwarp, "unwarp", false, "enable document unwarping; compare quality before using on cropped photos")
-	cmd.Flags().BoolVar(&autoOrient, "auto-orient", true, "enable server orientation detection; disable for known-upright photos")
-	cmd.Flags().BoolVar(&showTimings, "timings", false, "print client-observed OCR timing phases to stderr")
-	cmd.Flags().IntVar(&rotation, "rotate", 0, "rotate input clockwise by 0, 90, 180, or 270 degrees before OCR")
-	cmd.Flags().StringVar(&envFile, "ocr-env", "", "dotenv file with OCR_API_URL and OCR_API_TOKEN")
-	cmd.Flags().StringVar(&replay, "ocr-result", "", "replay an existing PaddleOCR JSON result; do not upload")
-	cmd.Flags().StringVar(&save, "save-ocr", "", "save raw PaddleOCR JSON evidence to a file")
-	cmd.Flags().Float64Var(&opts.MinConfidence, "min-confidence", 0, "optional confidence threshold when OCR provides scores (default: no filtering)")
-	cmd.Flags().IntVar(&opts.ExpectedCount, "expected-count", 0, "expected number of questions, to detect omissions")
-	cmd.Flags().DurationVar(&timeout, "timeout", 10*time.Second, "timeout per OCR attempt (maximum 5m)")
-	cmd.Flags().IntVar(&retries, "retries", 2, "retries after OCR timeout (0–5; default: 2, up to 3 attempts)")
+	cmd.Flags().IntVar(&expectedCount, "expected-count", 0, "expected number of questions (1–100, required)")
 	return cmd
 }
-func writeArithmeticCheck(out io.Writer, r arithmetic.CheckReport) error {
-	var text strings.Builder
-	fmt.Fprintf(&text, "识别 %d 题：正确 %d，错误 %d，待核对 %d\n", r.Detected, r.Correct, r.Incorrect, r.NeedsReview)
-	fmt.Fprintf(&text, "按OCR识别值比较：相符 %d，不符 %d，无法比较 %d\n", r.MatchingValues, r.MismatchingValues, r.Detected-r.MatchingValues-r.MismatchingValues)
-	reasons := map[string]string{
-		"OCR did not provide equation coordinates":       "缺少题目坐标",
-		"OCR did not provide recognition confidence":     "服务未提供识别置信度",
-		"OCR confidence is below the threshold":          "识别置信度不足",
-		"multiple possible answers on this row":          "同一行有多个可能答案",
-		"answer is missing or not an unambiguous number": "答案缺失或无法明确识别",
-		"duplicate question number":                      "题号重复",
-	}
-	for i, q := range r.Questions {
-		number := q.Number
-		if number == 0 {
-			number = i + 1
-		}
-		state := "待核对"
-		if q.Status == "correct" {
-			state = "正确"
-		} else if q.Status == "incorrect" {
-			state = "错误"
-		}
-		answer := q.SubmittedAnswer
-		if answer == "" {
-			answer = "未识别"
-		}
-		fmt.Fprintf(&text, "(%d) %s = %s  %s", number, q.Expression, answer, state)
-		if q.Status == "needs_review" && q.Comparison != "" {
-			match := "相符"
-			if q.Comparison == "incorrect" {
-				match = "不符"
+
+func newHomeworkRegradeCommand(kind string, service HomeworkService) *cobra.Command {
+	return &cobra.Command{
+		Use:   "regrade <input.json>",
+		Short: "Regrade corrected recognition text with the cyeam.com homework service",
+		Long: `Read the input object from a previous check response, or a complete response
+containing input/report, and send it to the server for grading. No grade is
+calculated locally. Edit the recognized items in the JSON file before running.`,
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if service == nil {
+				return fmt.Errorf("homework service is not configured")
 			}
-			fmt.Fprintf(&text, "；识别值与计算结果%s", match)
-		}
-		if q.Reason != "" {
-			reason := reasons[q.Reason]
-			if reason == "" {
-				reason = q.Reason
+			input, err := readHomeworkInput(args[0], kind)
+			if err != nil {
+				return err
 			}
-			fmt.Fprintf(&text, "（%s）", reason)
-		}
-		text.WriteByte('\n')
+			result, err := service.Regrade(cmd.Context(), input)
+			if err != nil {
+				return err
+			}
+			return writeHomeworkResult(cmd, result)
+		},
 	}
-	if r.ExpectedCount > 0 && r.Detected != r.ExpectedCount {
-		fmt.Fprintf(&text, "预计 %d 题，实际识别 %d 题。\n", r.ExpectedCount, r.Detected)
-	}
-	if len(r.MissingNumbers) > 0 {
-		fmt.Fprintf(&text, "未识别的题号：%v\n", r.MissingNumbers)
-	}
-	if r.Detected == 0 {
-		text.WriteString("未识别到支持的算式，不能据此判断全部正确。\n")
-	}
-	text.WriteString("统计仅包含识别到的算式；手写内容可能存在漏识别或误识别。\n")
-	_, err := io.WriteString(out, text.String())
-	return err
 }

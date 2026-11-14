@@ -1,21 +1,21 @@
 ---
 name: arithmetic
-description: 北师大版小学数学口算题生成。通过 cyeam arithmetic 调用服务端接口出题，题型以服务端实时返回为准，支持答案、练习单和逐行平板作业；也支持 Vision 与 PaddleOCR 并发图片检查。
+description: 北师大版小学数学口算题生成与图片批改。通过 cyeam arithmetic 调用服务端接口出题、识别、验算和评级，支持答案、练习单、逐行平板作业及识别文字重评。
 ---
 
 # 北师大版小学口算
 
-出题逻辑统一位于 cyeam.com 服务端。必须调用 `cyeam arithmetic` 生成题目，不再由模型随机编题或计算答案。无需 Microsoft 登录或 AI 接口，但需要能够访问 cyeam.com。
+出题和批改逻辑统一位于 cyeam.com 服务端。必须调用 `cyeam arithmetic`，不再由模型随机编题、识别图片、计算答案或重新评分。无需 Microsoft 登录、AI 接口或 OCR 密钥，但需要能够访问 cyeam.com。
 
 ## 批改时的答案展示
 
-- 批改、判分、查错和订正时，默认只提供题号、对错或待核对、评分、错误类型及不泄露答案的重做提示，不直接给出正确答案、完整解法或能反推出答案的差值。例如口算提示“第7题请重新计算，检查乘法和进位”，不告诉孩子应该填几。
-- OCR 数字与计算值不符，只能说明“按识别值比较不符”；没有清晰的计算步骤证据时，不得断言孩子照抄、漏乘、丢进位或定位到某一位的具体错误。不得根据差值编造错因，也不能把不同照片或不同轮次 OCR 的差异当作孩子改过答案的证据。用户质疑识别时，应保留原始读数和输入来源，先排查识别链路，不能用标准答案改写 OCR。
-- 必须内部验算；口算图片检查由 CLI 依据 Vision/飞桨 OCR 结果完成计算和判分，直接采用 CLI 的结果，不让 AI 再读图识别或重复验算。答案缺失、无法解析或题型不支持时才标为无法判定，不猜测补齐。
+- 批改、判分、查错和订正时，默认只提供题号、对错或待核对、评分、错误类型及不泄露答案的重做提示，不直接给出正确答案、完整解法或能反推出答案的差值。
+- 识别数字与计算值不符，只能说明“按识别值比较不符”；没有清晰的计算步骤证据时，不得断言孩子照抄、漏乘、丢进位或定位到某一位的具体错误。不得根据差值编造错因，也不能把不同照片或不同轮次识别的差异当作孩子改过答案的证据。
+- 直接采用服务端的识别、验算和评级，不让 AI 再读图识别、修正识别数字或重复验算。答案缺失、无法解析或题型不支持时保留待核对，不猜测补齐。
 - 只有用户明确要求提供答案，或明确允许某些题目/场景“先参考答案”时，才在授权范围内展示答案；单纯要求检查、打分、订正或说明错因不视为允许给答案。一次例外不延伸到其它题目或以后批改。
-- 此规则适用于聊天回复、Trello 批改正文、图片/音频反馈、复习提醒及分享的报告/附件。内部工具返回的正确答案、计算过程和差值不得默认原样转发。
+- 此规则适用于聊天回复、Trello 批改正文、图片/音频反馈、复习提醒及分享的报告/附件。
 
-## 命令
+## 出题命令
 
 ```bash
 # 查询当前支持的题型 ID、中文名和年级
@@ -44,7 +44,7 @@ cyeam arithmetic --type multiply-laws --format text --pretty | cyeam pdf --mode 
 
 - `--grade` 的可用范围以 `cyeam arithmetic types` 实时返回为准。用户未指定年级时，可根据明确题型选择 `--type`，CLI 由服务端自动推断年级；无法确定时询问用户，不能自行使用其它年级。
 - `--type` 接受英文 ID 或完整中文名，多个题型用逗号分隔，也可重复传参；不能跨年级混合。不指定时混合该年级所有题型。先用 `types` 确认 ID，不猜参数。
-- `--count` 默认 20，范围 1–1000；一批题目不重复，混合题型数量差不超过 1。有限题型（如表内乘法只有 81 个有序算式）可能达不到请求题量，CLI 会报错；应减少题量或增加题型，不重复填充。
+- `--count` 默认 20，范围 1–1000；一批题目不重复，混合题型数量差不超过 1。有限题型可能达不到请求题量，CLI 会报错；应减少题量或增加题型，不重复填充。
 - `--seed` 可选。省略时自动生成种子，JSON 中返回实际种子供复现。
 - 默认 JSON 输出遵循 CLI 的 `ok/data` 信封，`data.questions` 包含 `type` 和 `text`，仅传 `--answers` 时包含 `answer`。
 - `--format text --pretty` 输出无标题、无编号、每行一道题的原始文本。`--format worksheet --pretty` 输出可读练习单；不加 `--pretty` 时，文本仍包装在 JSON 信封内。
@@ -56,11 +56,9 @@ cyeam arithmetic --type multiply-laws --format text --pretty | cyeam pdf --mode 
 - 二年级：100 以内竖式加减及连加减、表内乘法与除法、乘加乘减、表内乘除混合、有余数除法、三位数加减及连加减、米与厘米换算。
 - 四年级上册：整十整百整千乘法、积的变化规律、两位数乘法拆分、三位数乘两位数（含整十整百变形）、加法与乘法交换律结合律、乘法分配律、大数读写与填空、数量关系与相遇问题、明确近似方式的乘法估算。
 
-数字范围、中间结果、整除与余数、凑整结构、单位和估算方式由代码控制。三年级、其它学期、分数、小数及旧版四年级多位数除法不在范围内；用户提出时说明范围，等待后续扩展，不改用模型绕过限制。
+数字范围、中间结果、整除与余数、凑整结构、单位和估算方式由服务端代码控制。未列出的范围以 `types` 实时返回为准，不改用模型绕过限制。
 
 ## 平板口算作业
-
-用户要求把题目布置到 Trello 或作业平板时：
 
 1. 用 `--format text --pretty` 出题，**不传 `--answers`**。保留每行一道题、完整单位及答题空格，不加标题、姓名栏、Markdown 表格、编号或多栏排版。
 2. 交给 `homework` skill 排期，并遵循 `trello` skill 的命令格式。每天全部题目作为一张卡片，用 `cyeam trello card create --type arithmetic --task <多行题目>` 写入。
@@ -69,59 +67,29 @@ cyeam arithmetic --type multiply-laws --format text --pretty | cyeam pdf --mode 
 
 ## PDF 与打印版
 
-- 原始题目文本可直接传给 `cyeam pdf --mode arithmetic`；按 PDF skill 选择 `standard`、`grade4`、`large-number`、`quantity`、`vertical` 等布局。
-- `worksheet` 文本包含多栏及元信息，不能作为 PDF arithmetic 模式的输入；该模式只接受逐行题目。需要把标题、姓名栏、纵向算式和答案页完整保留到 PDF 时，按 PDF skill 使用自定义 Typst。
+- 原始题目文本可直接传给 `cyeam pdf --mode arithmetic`；按 PDF skill 选择合适布局。
+- `worksheet` 文本包含多栏及元信息，不能作为 PDF arithmetic 模式的输入；该模式只接受逐行题目。
 - 题目与答案分离，不把 `--answers` 的文本输出直接传给 PDF arithmetic 模式。
 - 只有实际生成文件后才说明已生成 PDF；用户要求打印时转交 print-file skill。
 
-## 图片检查
-
-Vision 首先识别整页，仅对答案格式异常的区域增加固定的拉宽/对比度和倾斜校正重识别；不按标准答案替换字符、不搜索低排名候选。按同页题号关联两路结果，无题号时才尝试唯一题干匹配；重复题干不跨题合并。合并 JSON 的 `ocr_engine` 标明最终采用来源，`ocr_readings` 保留各路候选及源行索引。`--save-ocr` 的双路证据包含原始文字、候选和失败原因；回放仍校验同一原图 SHA-256，兼容旧飞桨缓存。任一路验算通过是用户选定的合并规则，不能把算式通过率称作 OCR 准确率。
-
-CLI 在支持 Apple Vision 的 macOS 设备上并发运行本地 Vision 和已配置的百度飞桨 PaddleOCR。任一路验算成立即通过；两路都不成立时优先采用 Vision 的原始读数。任一路失败、未配置或超时，就使用另一路；两路都失败才返回不可用。不支持 Vision 的设备仅调用飞桨，必须提供自己的接口地址和密钥。Vision 通过 macOS 自带系统桥接调用，不需要 Swift、CGO、下载模型或密钥。口算出题不受 OCR 配置影响。
-
-先让使用者提供自己注册服务后的接口地址和密钥，通过下列命令保存，不能内置开发者密钥：
+## 图片检查与文字重评
 
 ```bash
-cyeam ocr config set --url "https://使用者自己的OCR服务地址"
-cyeam ocr config status
-cyeam ocr config clear
-```
-
-也可先用 `cyeam ocr config set --url "接口地址" --url-only` 单独保存地址，之后运行 `cyeam ocr config set` 隐藏输入密钥。单独保存地址不会启用 OCR，也不会修改已有的地址/密钥配对；`clear` 同时移除这个预设地址。
-
-
-`set` 隐藏输入密钥；脚本可用 `--token-stdin`。优先存系统钥匙串，不可用时存 `~/.cyeam/paddleocr.json`（0600）。状态和成功输出不含密钥；保存不验证服务，也不上传图片。之后图片检查自动使用已保存配置；环境变量优先，默认必须同时提供 URL/token，不能把已保存 token 配到其它地址。显式 `--ocr-env` 仍可用于临时配置。
-
-
-用户提交口算照片要求检查时，调用 `cyeam arithmetic check <image>`。检查不受出题年级限制，目前支持横式四则运算、括号、精确小数/分数及商余数答案；单位换算、文字应用题、估算等不能自动判定的内容仍需人工核对。
-
-```bash
-# 使用进程环境中的 OCR_API_URL / OCR_API_TOKEN
+# 题数必填，范围 1–100
 cyeam arithmetic check homework.jpg --expected-count 18
+cyeam arithmetic check homework.jpg --expected-count 18 --pretty > arithmetic-review.txt
 
-# 显式读取已有的 PaddleOCR 接入配置（环境变量优先）
-cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --expected-count 18 --timeout 10s --retries 2
-
-# 保存 OCR 原始结果，供不重复上传的离线回放
-cyeam arithmetic check homework.jpg --save-ocr ocr.json
-cyeam arithmetic check homework.jpg --ocr-result ocr.json
+# 保存完整 JSON，人工核对并修改 data.input.items 后由服务端重新评分
+cyeam arithmetic check homework.jpg --expected-count 18 > arithmetic-report.json
+cyeam arithmetic regrade arithmetic-report.json > arithmetic-regraded.json
 ```
 
-- 默认启用飞桨完整文档解析流程：方向检测、版面分析（`useLayoutDetection: true`）和图片块 OCR（`useOcrForImageBlock: true`）。图像矫正遵循服务默认关闭，可显式传 `--unwarp` 开启；这是识别质量对照选项，不是提速开关，贴边裁剪照片必须检查有无丢失边缘题干。由服务按区域选择识别任务，不强制整页 `ocr` 或 `spotting`。保留上传原图分辨率，不为提速缩图，不覆盖 `maxPixels`、`maxNewTokens` 的服务默认值。原图文件不改动；不请求可视化图片。文本块按行解析，数字外层的 LaTeX 下划线、文本等格式仅做去包装处理，不猜测或修改数字。空文字响应直接报识别失败，不能当作“识别到 0 题”的正常结果。
-- 图像会发送到配置的 PaddleOCR HTTP 服务，上传方式与 wangxizhi 的客户端相同（Base64、`fileType: 1`、`Authorization: token ...`）。CLI 直接调用，不依赖 wangxizhi 的 Python 环境；不把凭证写进代码或输出。
-- 接受 PNG、JPEG、GIF、WebP，最大 20 MiB；当前按单张静态图检查。`--ocr-env` 只读指定文件的 `OCR_API_URL` 和 `OCR_API_TOKEN`，不执行文件内容；省略时优先使用完整进程环境配置，否则读取本机已保存配置，不自动寻找其它仓库的配置。
-- 默认返回 JSON 信封，`data.questions` 列出题号、表达式、识别答案、计算结果、差值（计算结果减识别答案）、比较结果、状态、原因及 OCR 证据索引。商余数答案分别核对商和余数，不提供数值差值。这些是内部验算数据；默认向用户反馈时省略 `expected_answer`、`difference` 和完整解法，不分享带答案的原始报告。批改优先读取 JSON 后整理不含答案的反馈；`--pretty` 仅展示识别答案与判定，不展示标准答案；JSON 中的计算结果和差值只供内部核对，不直接转发。
-- `status` 为 CLI 的判分结果：`correct` / `incorrect` 直接作为对错反馈，`needs_review` 表示答案缺失、无法解析、多个候选答案、题号重复或题型不支持等无法判定的情况。直接采用 CLI 合并后的识别内容及本地验算，不让 AI 再次识别原图、修正 OCR 数字或重复计算。
-- 默认不按置信度拦截判分；飞桨没有返回置信度时，仍直接验算和判对错。仅用户明确要求时传 `--min-confidence`（0–1），只过滤服务实际返回且低于阈值的分数；缺失分数不阻断判分。
-- 通过坐标关联横式题干与同一行右侧答案，**不会把下方竖式草稿当作最终答案**，也不会凭计算结果猜测或修正 OCR 数字。支持 PaddleOCR 的普通文本及常见 LaTeX 算式格式。
-- `--expected-count` 用于检查题数是否一致；编号题单还会报告识别到的编号范围内的缺号。总数一致不能证明 OCR 没有漏题或误识别；零题结果不能视为全部正确。
-- 双路模式每一路各自受 `--timeout` 约束，默认 10s，最大 5m；并发启动，任一路失败或超时采用另一路，两路都失败才报错。双路模式不重试，不拖延可用结果；`--retries` 只对不支持 Vision 的飞桨单路模式生效，默认 2（最多 3 次请求），范围 0–5，只有超时重试。用户取消立即停止两路；客户端取消不能保证远端停止推理。`--save-ocr` 在双路模式保存两路原始响应和失败原因，单路模式保存飞桨原始响应（可能含图片链接），文件应留在本地；测试夹具只能保留去除凭证、接口地址和图片链接后的文字/坐标，不能把原图当作识别正确的证据。`--ocr-result` 回放不上传图片，图片参数用于核对缓存的输入指纹；没有指纹的旧缓存会提示来源无法核验。
-- `--pretty` 输出中文判分清单。面向用户按 `correct`、`incorrect`、`needs_review` 汇报对/错/无法判定，不因为服务未返回置信度而再次要求 AI 看图复核。默认不展示标准答案和差值。
-
-### 图片方向、原图与缓存来源
-
-- OCR 请求默认开启飞桨文档方向矫正。横转照片可显式传 `--rotate 90|180|270`（顺时针），仅在内存中旋转，不改动附件或原文件；该参数不用于 OCR 缓存回放。
-- Trello 口算照片送识别前优先通过 `card attachment get ... --max-width 0` 下载同一附件原图；不要把 1200px 缩略预览当成原图。此要求仅针对 OCR 输入，附件的现有展示方式保持不变。
-- 每份识别结果的 `input` 记录原图名、原图及实际上传数据的 SHA-256、上传尺寸、识别模式、手动旋转角度及来源是否已核验。`--save-ocr` 同时在原始响应的 `_cyeam_input` 保存输入指纹。必须确认当前文件与本次提交对应，不把旧照片、旧提交的结果用于订正照片。
-- `--ocr-result` 会核对当前图片与缓存的 SHA-256，不一致时报错。老缓存没有指纹，或原图文件不在本机时，只能作为未核验来源的回放，不能宣称是当前照片的新识别结果；不要因方便而替换为另一个样例缓存。
+- 图片上传至 `POST /api/homework/review`，重评调用 `POST /api/homework/regrade`。识别、验算、等级和提示全部来自服务端，CLI 不在本地计算。
+- 接受 JPG、PNG、WebP，单张最大 10 MiB、4000 万像素。当前按一张静态图检查，不支持 GIF。
+- 服务端支持横式四则运算、括号、精确小数和分数；单位换算、余数、估算、文字应用题等不能自动判定的内容保留 `pending`。
+- 默认 JSON 的 `data.input` 是可用于重评的规范化输入，`data.report` 含 `grade`、`provisional`、`correct`、`incorrect`、`pending`、`total`、`accuracy` 和逐题 `items`。
+- 逐题 `status` 为 `correct`、`incorrect` 或 `pending`。直接采用这些状态，不改用旧版的 `needs_review`，也不要求 AI 再看原图。
+- 服务端不返回标准答案、完整解法或差值。`--pretty` 只展示成绩、识别答案、判定和服务端提示。
+- 重评接受完整 CLI 报告、完整服务端响应或单独的 `input` 对象；只发送其中的 `input`，忽略报告里可能被编辑的成绩和反馈。
+- 不再使用 `--ocr-env`、`--save-ocr`、`--ocr-result`、`--min-confidence`、`--rotate`、`--retries`，也不需要 `cyeam ocr config`。
+- Trello 图片送识别前优先通过 `card attachment get ... --max-width 0` 下载同一附件原图；不要把缩略预览当成原图。必须确认当前文件与本次提交对应，订正照片应重新调用 `check`，不能套用旧报告。

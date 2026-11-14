@@ -19,7 +19,8 @@ func newArithmeticCommand(deps Dependencies) *cobra.Command {
 		Long: `Generate unique oral arithmetic questions using the cyeam.com service.
 Default: 20 questions, balanced across the selected grade's types, without answers.
 Use 'arithmetic types' to list the latest type IDs and Chinese names from the service.
-Use 'arithmetic check <image>' to check photographed work with PaddleOCR.
+Use 'arithmetic check <image>' to check photographed work with cyeam.com.
+Use 'arithmetic regrade <input.json>' after correcting recognized text.
 Text format contains one question per line, suitable for PDF input or tablet tasks.
 Use --pretty --format text for raw text without the global JSON envelope.`,
 		Example: `  cyeam arithmetic --grade 2 --type multiply,divide --count 20
@@ -81,7 +82,7 @@ Use --pretty --format text for raw text without the global JSON envelope.`,
 			return json.NewEncoder(cmd.OutOrStdout()).Encode(types)
 		}}
 	typesCmd.Flags().IntVar(&grade, "grade", 0, "filter by grade")
-	cmd.AddCommand(typesCmd, newArithmeticCheckCommand())
+	cmd.AddCommand(typesCmd, newArithmeticCheckCommand(deps.Homework), newHomeworkRegradeCommand("arithmetic", deps.Homework))
 	return cmd
 }
 

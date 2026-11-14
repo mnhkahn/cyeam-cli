@@ -19,6 +19,7 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/arithmetic"
 	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
+	"github.com/mnhkahn/cyeam-cli/internal/homework"
 	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
 	"github.com/mnhkahn/cyeam-cli/internal/phonetic"
@@ -41,8 +42,16 @@ type Service interface {
 	NewsGet(ctx context.Context, date string) ([]byte, error)
 }
 
+type HomeworkService interface {
+	Review(ctx context.Context, input homework.ReviewRequest) (json.RawMessage, error)
+	Regrade(ctx context.Context, input json.RawMessage) (json.RawMessage, error)
+	Reading(ctx context.Context, reference, filename string, audio []byte) (json.RawMessage, error)
+	ReadingRegrade(ctx context.Context, input json.RawMessage) (json.RawMessage, error)
+}
+
 type Dependencies struct {
 	Service        Service
+	Homework       HomeworkService
 	Stdout         io.Writer
 	Now            func() time.Time
 	VersionInfo    func() version.Info
@@ -209,6 +218,9 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	if deps.ASR == nil {
 		deps.ASR = asr.NewClient()
 	}
+	if deps.Homework == nil {
+		deps.Homework = homework.NewClient("", nil)
+	}
 
 	originalStdout := deps.Stdout
 	var buf bytes.Buffer
@@ -287,14 +299,14 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newSkillsCommand(deps))
 	root.AddCommand(newPinyinCommand())
 	root.AddCommand(newArithmeticCommand(deps))
-	root.AddCommand(newOCRCommand())
+	root.AddCommand(newDictationCommand(deps.Homework))
 	root.AddCommand(newPhoneticCommand(deps.Phonetic))
-	root.AddCommand(newASRCommand(deps.ASR))
+	root.AddCommand(newASRCommand(deps.ASR, deps.Homework))
 	root.AddCommand(newAICommand())
 	root.AddCommand(newPDFCommand())
 	root.AddCommand(newImageCommand())
 	root.AddCommand(newMailCommand())
-	root.AddCommand(newTrelloCommand())
+	root.AddCommand(newTrelloCommand(deps.Homework))
 	return root
 }
 

@@ -60,6 +60,8 @@ cyeam trello webhook delete <webhook-id>
 
 用户给出需要平板高亮并朗读的作业要求时，使用 `--requirements "写清题号，做完检查一遍。"`。CLI 在卡片描述中写入独立的「作业要求：…」字段，适用于所有作业类型。
 
+背单词 `--task` 仅按英文或中文逗号分项，空格属于词组，例如 `--task "ice cream, piece of cake"` 是两项。`--word` 与 `--task` 都按 Android 原生背单词的规则校验：支持英文字母、词内撇号（`'`、`’`）、连字符 `-` 和词组空格；英文括号续词如 `post(office)` 转成 `post office`，中文括号注释如 `camera（相机）` 去掉。数字、网址、其它标点和不完整括号会在创建前报错；阅读英语的 `--word` 也执行同一校验。两端空白及词组内连续空白会规范化，词序与大小写保留。
+
 阅读英语可以同时传课文链接和跟读词表，例如 `--type english_reading --task "<原始课文链接>" --word "robotics" --word "build our own"`。CLI 会按原顺序写入「读单词：…」字段。
 
 普通作业支持 `--type normal --task "完成第一课练习" --link "https://实际的作业网址"`（类型也接受 `普通作业`）。`--task` 为作业内容，`--link` 为用户提供的原始目标网址；若输入为 Markdown 链接，提取括号中的网址，不传整段 Markdown。通用说明放在 `--desc`。CLI 保留说明并追加：
@@ -118,7 +120,7 @@ cyeam trello card review <card-id> --image <本地图片> [--review-id <UUID>]
 cyeam trello card review <card-id> --audio <本地音频> [--review-id <UUID>]
 ```
 
-这些内容参数必须且只能选一个。`--reading-report` 用于英语阅读：直接读取 `cyeam asr review` 报告，校验原始输入 SHA-256，并重新生成固定文案、等级和暂评标志；不要同时传 `--grade` 或 `--provisional`，用户确认等级应在生成报告时通过 `--confirmed-grade` 指定。忽略中间 JSON 里被改写的反馈和得分字段。不自动评分。始终写原卡片，不创建卡；有评分时仅在描述顶部写入“打分结果”，保留原题和其他说明。可选 `--has-errors=true|false` 明确发布是否有错：true 转入「待改错」并清除 dueComplete；false 批改通过，当前为「已改错」时保留该状态，否则进入「已完成」，dueComplete=true。省略时只发布批改内容，不移动列表或修改完成标记；`--grade 100` 是例外，自动按 `--has-errors=false` 处理。目标列表按卡片看板查询 ID，缺少时自动创建。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
+这些内容参数必须且只能选一个。`--reading-report` 用于英语阅读：提取 `cyeam asr review` 报告中的 `input`，调用服务端 `/api/homework/reading/regrade` 重新生成固定文案和等级；不要同时传 `--grade` 或 `--provisional`，也不再支持 `--confirmed-grade`。中间 JSON 里被改写的反馈和得分字段不会影响回写结果。始终写原卡片，不创建卡；有评分时仅在描述顶部写入“打分结果”，保留原题和其他说明。可选 `--has-errors=true|false` 明确发布是否有错：true 转入「待改错」并清除 dueComplete；false 批改通过，当前为「已改错」时保留该状态，否则进入「已完成」，dueComplete=true。省略时只发布批改内容，不移动列表或修改完成标记；`--grade 100` 是例外，自动按 `--has-errors=false` 处理。目标列表按卡片看板查询 ID，缺少时自动创建。每次发布一条以 `作业批改：` 开头的 JSON 评论；图片/音频先上传为原生文件附件，再以附件 ID 发布评论。图片扩展名支持 jpg/jpeg/png/webp/gif；音频支持 m4a/mp3/wav/aac/ogg/opus/amr/3gp。文件必须非空，最大 50 MiB；扩展名应与真实文件格式一致，音频优先 M4A/AAC 或 MP3。
 
 默认生成 UUID，执行时在 stderr 输出 `review_id` 和 `state_file`；也可首次提交就显式指定 UUID。成功响应包含 `review_id`、`card_id`、`action_id`、`state_file`，媒体还包含 `attachment_id`。状态保存在 `~/.cyeam/trello-reviews/<UUID>.json`（0600），包括正文、附件 ID、action ID，不包含 Token。不要删除仍可能重试的状态文件。
 

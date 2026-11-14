@@ -117,41 +117,27 @@ cyeam arithmetic --grade 2 --format text --pretty | cyeam pdf --mode arithmetic 
 
 `--format text --pretty` 每行一道题，可写入平板作业或传入 PDF 命令；`--format worksheet --pretty` 输出含标题、姓名栏和编号的多栏练习单文本。生成 PDF 时只传逐行题目，不混入标题或答案。
 
-### 口算图片检查
+### 口算与单词听写批改
 
-CLI 在支持 Apple Vision 的 macOS 设备上并发运行本地 Vision 和已配置的百度飞桨 PaddleOCR。任一路验算成立即通过；两路都不成立时优先采用 Vision 的原始读数。任一路失败、未配置或超时，就使用另一路；两路都失败才返回不可用。不支持 Vision 的设备仅调用飞桨，必须提供自己的接口地址和密钥。Vision 通过 macOS 自带系统桥接调用，不需要 Swift、CGO、下载模型或密钥。口算出题不受 OCR 配置影响。
-
-先保存自己的 PaddleOCR 接口地址与密钥；执行后会提示隐藏输入密钥：
+口算和单词听写都通过 cyeam.com 作业服务完成识别、验算或对齐、评级及反馈。CLI 不再运行本地 Vision/PaddleOCR，也不需要 OCR 地址或密钥。
 
 ```bash
-cyeam ocr config set --url "https://你的PaddleOCR服务地址"
-cyeam ocr config status
+# 口算：题数必填，范围 1–100
 cyeam arithmetic check homework.jpg --expected-count 18
-cyeam ocr config clear
+cyeam arithmetic check homework.jpg --expected-count 18 --pretty
+
+# 单词听写：词表按听写顺序排列，每行一个单词或词组
+cyeam dictation check dictation.jpg --words words.txt
+cyeam dictation check dictation.jpg --words words.txt --pretty
+
+# 人工核对并修改报告中的 data.input.items 后，由服务端重新评分
+cyeam arithmetic regrade arithmetic-report.json
+cyeam dictation regrade dictation-report.json
 ```
 
-也可先用 `cyeam ocr config set --url "接口地址" --url-only` 单独保存地址，之后运行 `cyeam ocr config set` 隐藏输入密钥。单独保存地址不会启用 OCR，也不会修改已有的地址/密钥配对；`clear` 同时移除这个预设地址。
+图片支持 JPG、PNG、WebP，单张最大 10 MiB、4000 万像素。默认 JSON 保留服务端完整 `input/report`：口算含逐题算式、识别答案和判定；听写含词表对齐、拼写判定和评级。`status` 为 `correct`、`incorrect` 或 `pending`，直接采用服务端结果，不让 AI 再读图或复算。
 
-
-优先保存在系统钥匙串，不可用时保存到 `~/.cyeam/paddleocr.json`（权限 0600）。状态命令不显示密钥，保存配置不上传图片或验证服务。脚本可使用 `--token-stdin` 从标准输入读取密钥。普通检查自动读取已保存配置；临时环境变量必须同时提供 `OCR_API_URL` 和 `OCR_API_TOKEN`，不会把已保存密钥搭配其它地址。指定 `--ocr-env` 时继续支持显式配置文件。
-
-
-```bash
-cyeam arithmetic check homework.jpg --ocr-env ~/code/wangxizhi/.env --expected-count 18 --timeout 10s --retries 2 --pretty
-```
-
-复用 wangxizhi 的 PaddleOCR HTTP 协议，读取 `OCR_API_URL` / `OCR_API_TOKEN`（进程环境优先，也可指定 `--ocr-env`）。图片上传到配置的 OCR 服务后，CLI 在本地重新计算四则算式，输出识别答案、计算结果、差值与判断；只关联横式右侧的答案，下方竖式草稿不作为最终答案。支持 PNG/JPEG/GIF/WebP（20 MiB 内）。
-
-默认根据可用 OCR 识别值进行本地验算和合并判定，无需 AI 再识别原图或重复计算。服务未提供置信度不阻断判分；答案缺失、无法解析等无法比较的内容仍标为“待核对”。可选 `--min-confidence` 仅过滤实际返回且低于阈值的置信度。`--expected-count` 检查漏题；`--save-ocr ocr.json` 保存识别证据，之后通过 `--ocr-result ocr.json` 离线回放。
-
-双路检查各自受 `--timeout` 限制，默认同时开始、各最多等待 10 秒；两路均结束或到达期限后合并，不为失败的一路继续重试而拖延另一路结果。用户取消会停止两路。`--retries` 仅用于不支持 Vision 的飞桨单路模式，默认超时重试 2 次（最多 3 次请求），传 0 禁用；仅超时重试。
-
-图片检查启用飞桨完整文档解析流程，包括方向检测、版面分析和图片块 OCR；弯曲页面可传 `--unwarp` 对比图像矫正效果，贴边裁剪照片应核对是否丢失边缘内容；原图分辨率上传，不在客户端缩图，不覆盖服务端像素和输出长度默认值。原图文件不修改。服务返回空文字时直接报识别失败，文本块按行解析；数字外层的 LaTeX 下划线、文本等格式会移除，不猜测或修改数字。
-
-图片检查默认开启飞桨方向矫正；已确认正向的照片可用 `--auto-orient=false` 跳过该步骤，也可用 `--rotate 90` 在上传前顺时针旋转（不修改原文件）。`--timings` 在 stderr 输出准备/连接、上传、等待响应、下载及总耗时；等待响应包含网络往返与服务端处理，不能区分排队和推理。OCR 缓存保存输入图片的 SHA-256，回放时拒绝套用到其它图片；旧缓存无指纹时会明确提示来源无法核验。结果中的 `input` 可用于确认实际检查的照片，订正照片应重新识别。
-
-
-Vision 首先识别整页，仅对答案格式异常的区域增加固定的拉宽/对比度和倾斜校正重识别；不按标准答案替换字符、不搜索低排名候选。按同页题号关联两路结果，无题号时才尝试唯一题干匹配；重复题干不跨题合并。合并 JSON 的 `ocr_engine` 标明最终采用来源，`ocr_readings` 保留各路候选及源行索引。`--save-ocr` 的双路证据包含原始文字、候选和失败原因；回放仍校验同一原图 SHA-256，兼容旧飞桨缓存。任一路验算通过是用户选定的合并规则，不能把算式通过率称作 OCR 准确率。
+`regrade` 接受完整 CLI 报告、完整服务端响应或单独的 `input` 对象，只发送 `input`，忽略报告中可能被编辑的成绩。服务端不返回口算标准答案、完整解法或差值；`--pretty` 只输出识别内容、判定、成绩和服务端提示。
 
 ### 使用统计
 
@@ -315,24 +301,23 @@ cyeam cnote append "日记" < more.html
 cyeam mail mark-all-read <account>
 ```
 
-### 固定生成英语阅读批改
+### 英语阅读批改
 
 ```bash
-# 原文与已有转写均为UTF-8文件：不重复调用ASR，默认生成暂评
+# 原文与已有转写均为 UTF-8 文件：调用服务端重新对齐和评分
 cyeam asr review --reference passage.txt --transcript transcript.txt > reading-report.json
 
-# 也可直接传录音：由cyeam web转写后固定评分
+# 也可直接传录音：由服务端转写、评分并输出固定反馈
 cyeam asr review --reference passage.txt --audio reading.m4a --pretty
 
-# 用户听音确认后可覆盖等级，同时保存固定反馈
-cyeam asr review --reference passage.txt --transcript transcript.txt \
-  --confirmed-grade 中 --feedback-out feedback.txt > reading-report.json
+# 保存服务端固定反馈
+cyeam asr review --reference passage.txt --transcript transcript.txt   --feedback-out feedback.txt > reading-report.json
 
-# 明确执行才回写：自动带上报告中的等级和暂评标志，无需模型组织文案
+# 明确执行才回写：重新请求服务端重评，忽略被编辑的报告字段
 cyeam trello card review <card-id> --reading-report reading-report.json
 ```
 
-代码统一执行缩写/同音等价处理、功能词过滤、仅匹配/替换的参考评分、重复实词练习链接和固定复读模板。阅读分档为：优≥80%、良>60%且<80%、中40%～60%（含两端）、差<40%。缺失与多出保留为证据，不扣参考分；材料过少不自动评级。它是ASR参考分，不是已确认的发音正确率。保存的报告含原文和转写及指纹，回写时重新生成结果，不能靠改写报告的文案/等级字段影响最终输出。
+识别、缩写/同音等价处理、功能词过滤、参考评分、重点词链接和复读模板全部由 cyeam.com 服务端执行。阅读分档为：优≥80%、良>60%且<80%、中40%～60%（含两端）、差<40%。缺失与多出保留为证据，不扣参考分；材料过少不自动评级。它是 ASR 文本参考分，不是已确认的发音正确率。报告保留完整 `input/report`，回写时提取 `input` 再调服务端重评，不能靠改写报告的文案或等级字段影响最终输出。
 
 ### 作业录音提取
 

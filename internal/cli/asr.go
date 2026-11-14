@@ -13,7 +13,7 @@ import (
 
 const maxASRAudioBytes = 15 << 20
 
-func newASRCommand(transcriber asr.Transcriber) *cobra.Command {
+func newASRCommand(transcriber asr.Transcriber, service HomeworkService) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "asr <audio-file>",
 		Short: "Transcribe an audio recording to text via cyeam.com",
@@ -54,6 +54,6 @@ func newASRCommand(transcriber asr.Transcriber) *cobra.Command {
 			return output.WriteJSON(cmd.OutOrStdout(), body)
 		},
 	}
-	cmd.AddCommand(newASRReviewCommand(transcriber))
+	cmd.AddCommand(newASRReviewCommand(service))
 	return cmd
 }
