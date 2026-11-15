@@ -1,4 +1,23 @@
 
+<a name="v1.1.17"></a>
+## [v1.1.17](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.16...v1.1.17) (2026-11-14)
+
+### Features
+
+
+- 迁移口算、听写、阅读批改至云端服务并新增作业管理
+
+- **calendar:** 切换至共享日历API 并新增详细 calendar 信息展示
+
+
+### BREAKING CHANGE
+
+
+移除 ocr config 等本地 OCR 配置命令，原有双路识别、缓存回放、离线验算等功能不再可用；检查流程需联网调用服务端，图片限制为 10 MiB/4000 万像素。
+
+移除 timorHolidayBaseURL 常旧的 holidayClient 与 dateHolidayFromTimor 函数，内部接口发生变动，使用者需更新对 Service 结构的依赖
+
+
 <a name="v1.1.16"></a>
 ## [v1.1.16](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.15...v1.1.16) (2026-11-11)
 
@@ -11,6 +30,11 @@
 
 
 - **trello:** 支持英语阅读作业传入跟读词表
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.15"></a>
