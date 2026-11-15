@@ -548,3 +548,20 @@ func TestHomeworkOrderedWordsRejectUnsupportedVocabulary(t *testing.T) {
 		}
 	}
 }
+
+func TestEnglishReadingOriginalText(t *testing.T) {
+	got, err := homeworkCardDescription("english_reading", "", "预计用时：10", "", "", []string{"tablet"}, "Do you need a break?\na never\nb sometimes")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := "预计用时：10\n\n作业类型：阅读英语\n读单词：tablet\n\n英语原文：\nDo you need a break?\na never\nb sometimes"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	if _, err := homeworkCardDescription("normal", "", "", "", "", nil, "Hello"); err == nil {
+		t.Fatal("expected wrong-type error")
+	}
+	if _, err := homeworkCardDescription("english_reading", "", "", "", "", nil, strings.Repeat("a", 16384)); err == nil {
+		t.Fatal("expected size error")
+	}
+}

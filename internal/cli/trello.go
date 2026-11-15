@@ -15,6 +15,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf16"
 
 	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
@@ -812,13 +813,26 @@ func newTrelloDeleteCardCommand() *cobra.Command {
 }
 
 func newTrelloCreateCardCommand() *cobra.Command {
-	var listID, name, desc, due, labels, taskType, task, link, requirements string
+	var listID, name, desc, due, labels, taskType, task, link, requirements, readingText, readingFile string
 	var words []string
 	cmd := &cobra.Command{Use: "create", Short: "Create a task card", RunE: func(cmd *cobra.Command, _ []string) error {
 		if listID == "" || name == "" {
 			return fmt.Errorf("--list and --name are required")
 		}
-		cardDesc, err := homeworkCardDescription(taskType, task, desc, link, requirements, words)
+		if readingFile != "" {
+			if readingText != "" {
+				return fmt.Errorf("--reading-text and --reading-file are mutually exclusive")
+			}
+			body, err := os.ReadFile(readingFile)
+			if err != nil {
+				return err
+			}
+			readingText = string(body)
+			if strings.TrimSpace(readingText) == "" {
+				return fmt.Errorf("reading file is empty")
+			}
+		}
+		cardDesc, err := homeworkCardDescription(taskType, task, desc, link, requirements, words, readingText)
 		if err != nil {
 			return err
 		}
@@ -849,6 +863,8 @@ func newTrelloCreateCardCommand() *cobra.Command {
 	cmd.Flags().StringVar(&due, "due", "", "RFC3339 deadline")
 	cmd.Flags().StringVar(&labels, "labels", "", "comma-separated label IDs")
 	cmd.Flags().StringVar(&taskType, "type", "normal", "homework type: normal, word_memorization, english_reading, arithmetic, or preview")
+	cmd.Flags().StringVar(&readingText, "reading-text", "", "English original text for local sentence reading")
+	cmd.Flags().StringVar(&readingFile, "reading-file", "", "UTF-8 file containing the English original text")
 	cmd.Flags().StringVar(&task, "task", "", "type-specific content, such as words, an English-reading link, arithmetic questions, or optional preview requirements")
 	cmd.Flags().StringArrayVar(&words, "word", nil, "one word or phrase; repeat for word memorization or before an English reading assignment")
 	cmd.Flags().StringVar(&link, "link", "", "optional homework link for --type normal (requires --task)")
@@ -858,7 +874,14 @@ func newTrelloCreateCardCommand() *cobra.Command {
 // homeworkCardDescription translates structured homework types into
 // plain Trello card text. Normal cards without structured fields preserve the
 // historical --desc behavior unchanged.
-func homeworkCardDescription(taskType, task, desc, link, requirements string, orderedWords []string) (string, error) {
+func homeworkCardDescription(taskType, task, desc, link, requirements string, orderedWords []string, readingTexts ...string) (string, error) {
+	readingText := ""
+	if len(readingTexts) > 0 {
+		readingText = strings.TrimSpace(strings.ReplaceAll(readingTexts[0], "\r\n", "\n"))
+	}
+	if readingText != "" && taskType != "english_reading" && taskType != "english-reading" && taskType != "阅读英语" {
+		return "", fmt.Errorf("reading text is only supported for English reading")
+	}
 	var instructions []string
 	for _, line := range strings.FieldsFunc(requirements, func(r rune) bool { return r == '\r' || r == '\n' }) {
 		if line = strings.TrimSpace(line); line != "" {
@@ -943,14 +966,24 @@ func homeworkCardDescription(taskType, task, desc, link, requirements string, or
 		return appendHomeworkDescription(desc, generated), nil
 	case "english_reading", "english-reading", "阅读英语":
 		link := strings.TrimSpace(task)
-		if link == "" {
-			return "", fmt.Errorf("--task must contain the reading link when --type is english_reading")
+		if link == "" && readingText == "" {
+			return "", fmt.Errorf("provide --reading-text, --reading-file, or a reading link in --task")
 		}
-		generated := "作业类型：阅读英语\n阅读英语链接：" + link
+		generated := "作业类型：阅读英语"
+		if link != "" {
+			generated += "\n阅读英语链接：" + link
+		}
 		if len(orderedWords) > 0 {
 			generated += "\n读单词：" + strings.Join(orderedWords, ", ")
 		}
-		return appendHomeworkDescription(desc, generated), nil
+		if readingText != "" {
+			generated += "\n\n英语原文：\n" + readingText
+		}
+		result := appendHomeworkDescription(desc, generated)
+		if len(utf16.Encode([]rune(result))) > 16384 {
+			return "", fmt.Errorf("card description exceeds Trello's 16384-character limit")
+		}
+		return result, nil
 	default:
 		return "", fmt.Errorf("unsupported homework type %q; use normal, word_memorization, english_reading, arithmetic, or preview", taskType)
 	}
@@ -1004,12 +1037,25 @@ func appendHomeworkDescription(desc, generated string) string {
 }
 
 func newTrelloUpdateCardCommand() *cobra.Command {
-	var name, desc, due string
+	var name, desc, due, descFile string
 	var complete bool
 	cmd := &cobra.Command{Use: "update <card-id>", Short: "Update a card", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		if cmd.Flags().Changed("desc-file") {
+			if cmd.Flags().Changed("desc") {
+				return fmt.Errorf("--desc and --desc-file are mutually exclusive")
+			}
+			body, err := os.ReadFile(descFile)
+			if err != nil {
+				return err
+			}
+			desc = string(body)
+		}
+		if len(utf16.Encode([]rune(desc))) > 16384 {
+			return fmt.Errorf("card description exceeds Trello's 16384-character limit")
+		}
 		fields := url.Values{}
 		for _, field := range []struct{ name, value string }{{"name", name}, {"desc", desc}, {"due", due}} {
-			if cmd.Flags().Changed(field.name) {
+			if cmd.Flags().Changed(field.name) || field.name == "desc" && cmd.Flags().Changed("desc-file") {
 				fields.Set(field.name, field.value)
 			}
 		}
@@ -1029,6 +1075,7 @@ func newTrelloUpdateCardCommand() *cobra.Command {
 		}
 		return writeTrelloJSON(cmd, data)
 	}}
+	cmd.Flags().StringVar(&descFile, "desc-file", "", "UTF-8 file containing the complete replacement description")
 	cmd.Flags().StringVar(&name, "name", "", "new title")
 	cmd.Flags().StringVar(&desc, "desc", "", "new description")
 	cmd.Flags().StringVar(&due, "due", "", "RFC3339 deadline; empty clears it")
