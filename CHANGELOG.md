@@ -1,4 +1,13 @@
 
+<a name="v1.2.1"></a>
+## [v1.2.1](https://github.com/mnhkahn/cyeam-cli/compare/v1.2.0...v1.2.1) (2026-11-20)
+
+### Bug Fixes
+
+
+- **gateway:** 默认连接作业专用域名
+
+
 <a name="v1.2.0"></a>
 ## [v1.2.0](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.19...v1.2.0) (2026-11-20)
 
@@ -8,6 +17,11 @@
 - **device:** 增加显式解绑与操作恢复入口
 
 - **device:** 支持独立网关登录和远程截图播报
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.19"></a>
