@@ -1,4 +1,13 @@
 
+<a name="v1.1.18"></a>
+## [v1.1.18](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.17...v1.1.18) (2026-11-15)
+
+### Features
+
+
+- **trello:** 支持英语阅读原文卡片创建与描述文件更新
+
+
 <a name="v1.1.17"></a>
 ## [v1.1.17](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.16...v1.1.17) (2026-11-14)
 
@@ -8,6 +17,11 @@
 - 迁移口算、听写、阅读批改至云端服务并新增作业管理
 
 - **calendar:** 切换至共享日历API 并新增详细 calendar 信息展示
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 ### BREAKING CHANGE
