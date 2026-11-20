@@ -2,6 +2,7 @@ package auth
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 )
 
 const keychainService = "cyeam-cli"
+
+var ErrNotLoggedIn = errors.New("no token found, run `cyeam login` first")
 
 type TokenSet struct {
 	AccessToken  string `json:"access_token"`
@@ -63,11 +66,11 @@ func LoadToken() (TokenSet, error) {
 	}
 	path, ferr := tokenFilePath()
 	if ferr != nil {
-		return TokenSet{}, fmt.Errorf("no token found, run `cyeam login` first")
+		return TokenSet{}, ErrNotLoggedIn
 	}
 	b, ferr := os.ReadFile(path)
 	if ferr != nil {
-		return TokenSet{}, fmt.Errorf("no token found, run `cyeam login` first")
+		return TokenSet{}, ErrNotLoggedIn
 	}
 	var t TokenSet
 	if err := json.Unmarshal(b, &t); err != nil {

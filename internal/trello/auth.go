@@ -1,6 +1,7 @@
 package trello
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
@@ -21,19 +22,34 @@ type Credentials struct {
 	Token  string `json:"token"`
 }
 
-func ResolveCredentials() (Credentials, string, error) {
+type Session struct {
+	Credentials
+	Source    string
+	BoardID   string
+	BoardName string
+}
+
+func ResolveSession(ctx context.Context) (Session, error) {
+	return resolveSession(ctx, loadCNoteConnection, LoadCredentials)
+}
+
+func resolveSession(ctx context.Context, cloud func(context.Context) (Session, error), local func() (Credentials, error)) (Session, error) {
 	key, token := strings.TrimSpace(os.Getenv("TRELLO_API_KEY")), strings.TrimSpace(os.Getenv("TRELLO_TOKEN"))
 	if key != "" || token != "" {
 		if key == "" || token == "" {
-			return Credentials{}, "", fmt.Errorf("set both TRELLO_API_KEY and TRELLO_TOKEN, or unset both to use stored credentials")
+			return Session{}, fmt.Errorf("set both TRELLO_API_KEY and TRELLO_TOKEN, or unset both to use saved credentials")
 		}
-		return Credentials{APIKey: key, Token: token}, "environment", nil
+		return Session{Credentials: Credentials{APIKey: key, Token: token}, Source: "environment"}, nil
 	}
-	credentials, err := LoadCredentials()
+	session, err := cloud(ctx)
+	if err != nil || session.Source != "" {
+		return session, err
+	}
+	credentials, err := local()
 	if err != nil {
-		return Credentials{}, "", err
+		return Session{}, err
 	}
-	return credentials, "stored", nil
+	return Session{Credentials: credentials, Source: "stored"}, nil
 }
 
 func StoreCredentials(credentials Credentials) error {
@@ -67,7 +83,7 @@ func LoadCredentials() (Credentials, error) {
 	}
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Credentials{}, fmt.Errorf("not logged in to Trello; run `cyeam trello login --key <api-key>`")
+		return Credentials{}, fmt.Errorf("not logged in to Trello; use `cyeam login` with a saved CNote connection or run `cyeam trello login --key <api-key>`")
 	}
 	return decodeCredentials(data)
 }

@@ -20,10 +20,12 @@ import (
 const defaultBaseURL = "https://api.trello.com/1"
 
 type Client struct {
-	BaseURL    string
-	HTTPClient *http.Client
-	APIKey     string
-	Token      string
+	BaseURL         string
+	HTTPClient      *http.Client
+	APIKey          string
+	Token           string
+	BoardID         string
+	cloudConnection bool
 }
 
 // AttachmentDownload contains a card attachment and the metadata needed to
@@ -54,12 +56,19 @@ type attachmentPreview struct {
 	Bytes  int    `json:"bytes"`
 }
 
-func NewDefault() (*Client, error) {
-	credentials, _, err := ResolveCredentials()
+func NewDefault(ctx context.Context) (*Client, error) {
+	session, err := ResolveSession(ctx)
 	if err != nil {
 		return nil, err
 	}
-	return New(credentials), nil
+	return session.Client(), nil
+}
+
+func (s Session) Client() *Client {
+	client := New(s.Credentials)
+	client.BoardID = s.BoardID
+	client.cloudConnection = s.Source == "cnote"
+	return client
 }
 
 func New(credentials Credentials) *Client {
@@ -82,8 +91,10 @@ func (c *Client) request(ctx context.Context, method, endpoint string, form url.
 			q.Add(key, value)
 		}
 	}
-	q.Set("key", c.APIKey)
-	q.Set("token", c.Token)
+	if !c.cloudConnection {
+		q.Set("key", c.APIKey)
+		q.Set("token", c.Token)
+	}
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(ctx, method, u.String(), body)
@@ -91,12 +102,20 @@ func (c *Client) request(ctx context.Context, method, endpoint string, form url.
 		return nil, err
 	}
 	req.Header.Set("Accept", "application/json")
+	if c.cloudConnection {
+		req.Header.Set("Authorization", c.authorizationHeader())
+	}
 	if contentType != "" {
 		req.Header.Set("Content-Type", contentType)
 	}
 	client := c.HTTPClient
 	if client == nil {
 		client = http.DefaultClient
+	}
+	if c.cloudConnection {
+		direct := *client
+		direct.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+		client = &direct
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -108,9 +127,17 @@ func (c *Client) request(ctx context.Context, method, endpoint string, form url.
 		return nil, err
 	}
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if c.cloudConnection {
+			return nil, fmt.Errorf("Trello API request failed (HTTP %d)", resp.StatusCode)
+		}
 		return nil, fmt.Errorf("Trello API %s: %s", resp.Status, strings.TrimSpace(string(response)))
 	}
 	return response, nil
+}
+
+func (c *Client) authorizationHeader() string {
+	return fmt.Sprintf(`OAuth oauth_consumer_key="%s", oauth_token="%s"`,
+		escapeOAuthHeaderValue(c.APIKey), escapeOAuthHeaderValue(c.Token))
 }
 
 func (c *Client) get(ctx context.Context, endpoint string, query url.Values) ([]byte, error) {
@@ -130,11 +157,7 @@ func (c *Client) download(ctx context.Context, endpoint string, maxBytes int64) 
 	if err != nil {
 		return nil, "", err
 	}
-	req.Header.Set("Authorization", fmt.Sprintf(
-		`OAuth oauth_consumer_key="%s", oauth_token="%s"`,
-		escapeOAuthHeaderValue(c.APIKey),
-		escapeOAuthHeaderValue(c.Token),
-	))
+	req.Header.Set("Authorization", c.authorizationHeader())
 	client := c.HTTPClient
 	if client == nil {
 		client = http.DefaultClient
@@ -145,6 +168,9 @@ func (c *Client) download(ctx context.Context, endpoint string, maxBytes int64) 
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode < http.StatusOK || resp.StatusCode >= http.StatusMultipleChoices {
+		if c.cloudConnection {
+			return nil, "", fmt.Errorf("Trello attachment download failed (HTTP %d)", resp.StatusCode)
+		}
 		message, _ := io.ReadAll(io.LimitReader(resp.Body, 64<<10))
 		return nil, "", fmt.Errorf("Trello attachment download %s: %s", resp.Status, strings.TrimSpace(string(message)))
 	}

@@ -319,6 +319,12 @@ cyeam trello card review <card-id> --reading-report reading-report.json
 
 识别、缩写/同音等价处理、功能词过滤、参考评分、重点词链接和复读模板全部由 cyeam.com 服务端执行。阅读分档为：优≥80%、良>60%且<80%、中40%～60%（含两端）、差<40%。缺失与多出保留为证据，不扣参考分；材料过少不自动评级。它是 ASR 文本参考分，不是已确认的发音正确率。报告保留完整 `input/report`，回写时提取 `input` 再调服务端重评，不能靠改写报告的文案或等级字段影响最终输出。
 
+### 从 CNote 恢复 Trello 作业连接
+
+如果同一个微软账号已在 CNote 保存过作业连接，运行 `cyeam login` 后，Trello 命令会自动读取该连接。`cyeam trello status` 会显示授权来源和保存的看板，`cyeam trello homework` 默认使用该看板。可用 `--board` 指定其他看板。
+
+显式设置的 `TRELLO_API_KEY` 和 `TRELLO_TOKEN` 优先。微软账号没有云端关联时，仍可使用 `cyeam trello login --key <api-key>` 保存的本机授权，并在查询作业时指定 `--board`。云端关联只在当前命令内存中使用，`cyeam logout` 后停止恢复。`cyeam trello logout` 清除手动保存的本机授权。云端服务出错时会提示重试，避免把请求静默交给别的本机 Trello 账号。
+
 ### 作业录音提取
 
 ```bash

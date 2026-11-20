@@ -108,7 +108,7 @@ func newTrelloReviewCommand(service HomeworkService) *cobra.Command {
 			}
 			statePath := filepath.Join(home, ".cyeam", "trello-reviews", reviewID+".json")
 			fmt.Fprintf(cmd.ErrOrStderr(), "review_id: %s\nstate_file: %s\n", reviewID, statePath)
-			client, err := getTrelloClient()
+			client, err := getTrelloClient(cmd.Context())
 			if err != nil {
 				return err
 			}

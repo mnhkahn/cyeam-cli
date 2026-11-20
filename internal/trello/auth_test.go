@@ -1,6 +1,7 @@
 package trello
 
 import (
+	"context"
 	"net/url"
 	"testing"
 )
@@ -26,19 +27,19 @@ func TestAuthorizationURLRequestsNonExpiringReadWriteToken(t *testing.T) {
 func TestResolveCredentialsPrefersCompleteEnvironment(t *testing.T) {
 	t.Setenv("TRELLO_API_KEY", " key ")
 	t.Setenv("TRELLO_TOKEN", " token ")
-	credentials, source, err := ResolveCredentials()
+	session, err := ResolveSession(context.Background())
 	if err != nil {
 		t.Fatal(err)
 	}
-	if credentials.APIKey != "key" || credentials.Token != "token" || source != "environment" {
-		t.Fatalf("credentials = %#v, source = %q", credentials, source)
+	if session.APIKey != "key" || session.Token != "token" || session.Source != "environment" {
+		t.Fatalf("unexpected credentials or source %q", session.Source)
 	}
 }
 
 func TestResolveCredentialsRejectsPartialEnvironment(t *testing.T) {
 	t.Setenv("TRELLO_API_KEY", "key")
 	t.Setenv("TRELLO_TOKEN", "")
-	if _, _, err := ResolveCredentials(); err == nil {
+	if _, err := ResolveSession(context.Background()); err == nil {
 		t.Fatal("expected partial environment to fail")
 	}
 }

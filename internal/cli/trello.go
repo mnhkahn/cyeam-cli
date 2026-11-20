@@ -44,7 +44,7 @@ func newTrelloCommand(service HomeworkService) *cobra.Command {
 	return cmd
 }
 
-func getTrelloClient() (*trello.Client, error) { return trello.NewDefault() }
+func getTrelloClient(ctx context.Context) (*trello.Client, error) { return trello.NewDefault(ctx) }
 func writeTrelloJSON(cmd *cobra.Command, data []byte) error {
 	return output.WriteJSON(cmd.OutOrStdout(), data)
 }
@@ -107,12 +107,12 @@ func newTrelloLoginCommand() *cobra.Command {
 
 func newTrelloStatusCommand() *cobra.Command {
 	return &cobra.Command{Use: "status", Short: "Show Trello login status", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
-		credentials, source, err := trello.ResolveCredentials()
+		session, err := trello.ResolveSession(cmd.Context())
 		if err != nil {
 			data, _ := json.Marshal(map[string]any{"logged_in": false, "message": err.Error()})
 			return writeTrelloJSON(cmd, data)
 		}
-		member, err := trello.New(credentials).Member(cmd.Context())
+		member, err := session.Client().Member(cmd.Context())
 		if err != nil {
 			return fmt.Errorf("validate stored Trello credentials: %w", err)
 		}
@@ -120,7 +120,12 @@ func newTrelloStatusCommand() *cobra.Command {
 		if err := json.Unmarshal(member, &identity); err != nil {
 			return err
 		}
-		data, _ := json.Marshal(map[string]any{"logged_in": true, "source": source, "member": identity})
+		result := map[string]any{"logged_in": true, "source": session.Source, "member": identity}
+		if session.BoardID != "" {
+			result["board_id"] = session.BoardID
+			result["board_name"] = session.BoardName
+		}
+		data, _ := json.Marshal(result)
 		return writeTrelloJSON(cmd, data)
 	}}
 }
@@ -130,7 +135,7 @@ func newTrelloLogoutCommand() *cobra.Command {
 		if err := trello.DeleteCredentials(); err != nil {
 			return err
 		}
-		message := "Stored Trello credentials deleted."
+		message := "Manually stored Trello credentials deleted. Run `cyeam logout` to stop restoring the CNote connection with Microsoft."
 		if os.Getenv("TRELLO_API_KEY") != "" || os.Getenv("TRELLO_TOKEN") != "" {
 			message += " Environment variables are still set and continue to override stored credentials."
 		}
@@ -157,7 +162,7 @@ func readSecretLine(in *os.File, out io.Writer, prompt string) (string, error) {
 
 func newTrelloBoardsCommand() *cobra.Command {
 	return &cobra.Command{Use: "boards", Short: "List accessible boards", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -171,7 +176,7 @@ func newTrelloBoardsCommand() *cobra.Command {
 
 func newTrelloListsCommand() *cobra.Command {
 	return &cobra.Command{Use: "lists <board-id>", Short: "List a board's status lists", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -190,7 +195,7 @@ func newTrelloCardsCommand() *cobra.Command {
 		if (listID == "") == (boardID == "") {
 			return fmt.Errorf("set exactly one of --list or --board")
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -354,7 +359,7 @@ func newTrelloStatusChangesCommand() *cobra.Command {
 		if err != nil {
 			return err
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -515,9 +520,6 @@ func newTrelloHomeworkCommand() *cobra.Command {
 	var maxBytes int64
 	var maxWidth int
 	cmd := &cobra.Command{Use: "homework", Short: "Batch homework report by due date with attachments downloaded", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
-		if boardID == "" {
-			return fmt.Errorf("--board is required")
-		}
 		start, end, err := homeworkDateRange(day, from, to, time.Now())
 		if err != nil {
 			return err
@@ -530,16 +532,23 @@ func newTrelloHomeworkCommand() *cobra.Command {
 		if dir == "" {
 			dir = "homework-" + date
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
+		}
+		selectedBoardID := boardID
+		if selectedBoardID == "" {
+			selectedBoardID = client.BoardID
+		}
+		if selectedBoardID == "" {
+			return fmt.Errorf("--board is required unless your Microsoft account has a saved CNote homework board")
 		}
 		// 单个请求设超时，避免不稳定链路把整个命令挂死；失败由 trelloWithRetry 重试。
 		client.HTTPClient = &http.Client{Timeout: 60 * time.Second}
 		ctx := cmd.Context()
 
 		listsData, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
-			return client.Lists(ctx, boardID)
+			return client.Lists(ctx, selectedBoardID)
 		})
 		if err != nil {
 			return err
@@ -557,7 +566,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 		}
 
 		cardsData, err := trelloWithRetry(ctx, func(ctx context.Context) ([]byte, error) {
-			return client.BoardCards(ctx, boardID)
+			return client.BoardCards(ctx, selectedBoardID)
 		})
 		if err != nil {
 			return err
@@ -579,7 +588,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 			return err
 		}
 
-		report := trelloHomeworkReport{From: start.Format(time.DateOnly), To: lastDate, Date: date, BoardID: boardID, Dir: dir, Cards: make([]trelloHomeworkCard, 0, len(cards))}
+		report := trelloHomeworkReport{From: start.Format(time.DateOnly), To: lastDate, Date: date, BoardID: selectedBoardID, Dir: dir, Cards: make([]trelloHomeworkCard, 0, len(cards))}
 		for _, card := range cards {
 			transcribe := transcript && isEnglishHomeworkCard(card.Name, card.Description)
 			// An explicit --asr overrides the legacy English-only default,
@@ -683,7 +692,7 @@ func newTrelloHomeworkCommand() *cobra.Command {
 		}
 		return writeTrelloJSON(cmd, body)
 	}}
-	cmd.Flags().StringVar(&boardID, "board", "", "board ID")
+	cmd.Flags().StringVar(&boardID, "board", "", "board ID (defaults to the board saved in CNote)")
 	cmd.Flags().StringVar(&day, "date", "", "local date in YYYY-MM-DD; defaults to today")
 	cmd.Flags().StringVar(&from, "from", "", "first local due date, YYYY-MM-DD (requires --to)")
 	cmd.Flags().StringVar(&to, "to", "", "last local due date, inclusive (requires --from)")
@@ -786,7 +795,7 @@ func newTrelloCardCommand(service HomeworkService) *cobra.Command {
 
 func newTrelloGetCardCommand() *cobra.Command {
 	return &cobra.Command{Use: "get <card-id>", Short: "Get a card's detail", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -800,7 +809,7 @@ func newTrelloGetCardCommand() *cobra.Command {
 
 func newTrelloDeleteCardCommand() *cobra.Command {
 	return &cobra.Command{Use: "delete <card-id>", Short: "Permanently delete a card", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -846,7 +855,7 @@ func newTrelloCreateCardCommand() *cobra.Command {
 		if labels != "" {
 			fields.Set("idLabels", labels)
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1065,7 +1074,7 @@ func newTrelloUpdateCardCommand() *cobra.Command {
 		if len(fields) == 0 {
 			return fmt.Errorf("provide at least one field to update")
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1089,7 +1098,7 @@ func newTrelloMoveCardCommand() *cobra.Command {
 		if listID == "" {
 			return fmt.Errorf("--list is required")
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1109,7 +1118,7 @@ func newTrelloAttachCardCommand() *cobra.Command {
 		if file == "" {
 			return fmt.Errorf("--file is required")
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1126,7 +1135,7 @@ func newTrelloAttachCardCommand() *cobra.Command {
 
 func newTrelloAttachmentsCommand() *cobra.Command {
 	return &cobra.Command{Use: "attachments <card-id>", Short: "List a card's attachments", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1149,7 +1158,7 @@ func newTrelloGetAttachmentContentCommand() *cobra.Command {
 	var maxWidth int
 	var outFile string
 	cmd := &cobra.Command{Use: "get <card-id> <attachment-id>", Short: "Download an attachment", Args: cobra.ExactArgs(2), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1191,7 +1200,7 @@ func formatTrelloAttachment(item trello.AttachmentDownload, outFile string) ([]b
 func newTrelloActionsCommand() *cobra.Command {
 	var limit int
 	cmd := &cobra.Command{Use: "actions <card-id>", Short: "List card history", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1216,7 +1225,7 @@ func newTrelloWebhookCommand() *cobra.Command {
 		if description != "" {
 			fields.Set("description", description)
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1230,7 +1239,7 @@ func newTrelloWebhookCommand() *cobra.Command {
 	create.Flags().StringVar(&modelID, "model-id", "", "board, list, card, or member ID to watch")
 	create.Flags().StringVar(&description, "description", "", "webhook description")
 	deleteCmd := &cobra.Command{Use: "delete <webhook-id>", Short: "Delete a webhook", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1254,7 +1263,7 @@ func newTrelloBoardCommand() *cobra.Command {
 
 func newTrelloGetBoardCommand() *cobra.Command {
 	return &cobra.Command{Use: "get <board-id>", Short: "Get a board's detail", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1284,7 +1293,7 @@ func newTrelloCreateBoardCommand() *cobra.Command {
 		if cmd.Flags().Changed("default-lists") {
 			fields.Set("defaultLists", strconv.FormatBool(defaultLists))
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1318,7 +1327,7 @@ func newTrelloUpdateBoardCommand() *cobra.Command {
 		if len(fields) == 0 {
 			return fmt.Errorf("provide at least one field to update")
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1336,7 +1345,7 @@ func newTrelloUpdateBoardCommand() *cobra.Command {
 
 func newTrelloDeleteBoardCommand() *cobra.Command {
 	return &cobra.Command{Use: "delete <board-id>", Short: "Permanently delete a board", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1358,7 +1367,7 @@ func newTrelloListCommand() *cobra.Command {
 
 func newTrelloGetListCommand() *cobra.Command {
 	return &cobra.Command{Use: "get <list-id>", Short: "Get a list's detail", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1380,7 +1389,7 @@ func newTrelloCreateListCommand() *cobra.Command {
 		if pos != "" {
 			fields.Set("pos", pos)
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1416,7 +1425,7 @@ func newTrelloUpdateListCommand() *cobra.Command {
 		if len(fields) == 0 {
 			return fmt.Errorf("provide at least one field to update")
 		}
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}
@@ -1436,7 +1445,7 @@ func newTrelloUpdateListCommand() *cobra.Command {
 func newTrelloArchiveListCommand() *cobra.Command {
 	// Trello REST 不提供 List 的真删除，这里以归档代替；如需恢复，用 `list update --closed=false`。
 	return &cobra.Command{Use: "archive <list-id>", Short: "Archive a list (Trello has no hard delete for lists)", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
-		client, err := getTrelloClient()
+		client, err := getTrelloClient(cmd.Context())
 		if err != nil {
 			return err
 		}

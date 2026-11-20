@@ -5,7 +5,7 @@ description: Trello 学习任务看板——通过 cyeam CLI 查询看板、状�
 
 # Trello 任务看板
 
-使用 `cyeam trello`，不要自行拼装 Trello HTTP 请求。首次使用先运行 `cyeam trello login --key <api-key>`，在浏览器授权后把页面显示的 Token 粘贴回 CLI；CLI 验证并存入系统钥匙串，钥匙串不可用时回退到权限为 `0600` 的 `~/.cyeam/trello.json`。绝不输出凭据。
+使用 `cyeam trello`，不要自行拼装 Trello HTTP 请求。已在 CNote 保存作业连接时，使用 `cyeam login` 登录同一微软账号即可自动恢复 Trello 授权和看板。没有云端关联时，仍可运行 `cyeam trello login --key <api-key>` 手动授权；手动凭据优先存入系统钥匙串，钥匙串不可用时回退到权限为 `0600` 的 `~/.cyeam/trello.json`。绝不输出凭据。
 
 ## 规则
 
@@ -28,7 +28,7 @@ cyeam trello cards --list <list-id> [--today]
 cyeam trello cards --board <board-id> [--today]
 cyeam trello status-changes --board <board-id>
     [--date <YYYY-MM-DD>] [--to-list <list-id>] [--limit 1000]
-cyeam trello homework --board <board-id>
+cyeam trello homework [--board <board-id>]
     [--date <YYYY-MM-DD> | --from <YYYY-MM-DD> --to <YYYY-MM-DD>]
     [--include-actions] [--audio-only] [--asr] [--dir <目录>]
     [--max-width 1200] [--max-bytes <bytes>]
@@ -90,7 +90,7 @@ cyeam trello card create --list <list-id> --name "口算20题（第N天）" --du
 
 `status-changes` 按本机时区查询某一天的卡片列表流转记录，默认查询今天，返回卡片、流转前后列表、操作者和 `changed_at`。整理每日完成任务时，必须先用 `lists <board-id>` 找到完成列表 ID，再传 `--to-list <list-id>`；不要按列表名称猜测。
 
-查某一天的作业进度和提交附件，使用完整命令 `cyeam trello homework --board <board-id>`：筛出 due 当天的卡片，返回每张卡片所在列表并下载全部附件到本地目录（默认 `homework-<date>/`）。这是**只读报告命令**，不创建或追加作业；不要写成不存在的 `cyeam homework`，新增作业请使用 `cyeam trello card create`。默认下载不超过 `--max-width`（1200）宽的最大图片预览；传 `--max-width 0` 下载原始文件。JSON 报告里每个附件带 `saved_to` 路径和 `homework_photo_url` 链接（形如 `https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>`，浏览器登录 Trello 后可直接打开）；加 `--pretty` 输出人可读的文本报告。内置超时重试，单卡片失败不中断。
+查某一天的作业进度和提交附件，运行 `cyeam trello homework`，默认使用微软账号在 CNote 保存的看板；也可用 `--board <board-id>` 指定看板。命令会筛出 due 当天的卡片，返回每张卡片所在列表并下载全部附件到本地目录（默认 `homework-<date>/`）。这是**只读报告命令**，不创建或追加作业；不要写成不存在的 `cyeam homework`，新增作业请使用 `cyeam trello card create`。默认下载不超过 `--max-width`（1200）宽的最大图片预览；传 `--max-width 0` 下载原始文件。JSON 报告里每个附件带 `saved_to` 路径和 `homework_photo_url` 链接（形如 `https://trello.com/1/cards/<card-id>/attachments/<attachment-id>/download/<filename>`，浏览器登录 Trello 后可直接打开）；加 `--pretty` 输出人可读的文本报告。内置超时重试，单卡片失败不中断。
 
 录音附件使用文件名前缀 `homework-audio-` 标记，命名格式为 `homework-audio-{提交ID}-{序号}.{扩展名}`。`trello homework` 会像其他附件一样列出并下载录音；只提取录音时加 `--audio-only`，例如 `cyeam trello homework --board <board-id> --from <YYYY-MM-DD> --to <YYYY-MM-DD> --audio-only`。录音保存在报告目录下对应卡片的子目录，路径见附件的 `saved_to` 字段；下载需要有效的 Trello CLI 授权。提取时加 `--asr` 可将所有作业类型的音频附件经 ASR 转写，直接在每个附件的 `transcript` 字段返回文字，`--pretty` 同时展示“识别文本”；失败写入 `transcript_error`，保留本地音频且不中断其它附件。音频按录音前缀、MIME 或扩展名识别。`--asr=false` 关闭全部转写。未显式传 `--asr` 时，保留英语卡片（标题含「英语」或类型为阅读英语/背单词）自动转写的旧行为，可用 `--transcript=false` 关闭；显式 `--asr` 优先于旧参数。报告里没有 `transcript` 的旧录音或例外情况，可用 asr skill 的 `cyeam asr <saved_to 路径>` 手动转写，不要自行拼装识别请求。
 
