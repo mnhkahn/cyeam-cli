@@ -26,7 +26,7 @@ type Error struct {
 func (e *Error) Error() string     { return e.Code + ": " + e.Message }
 func (e *Error) ErrorCode() string { return e.Code }
 
-const DefaultURL = "https://mr-li-tablet-relay.vercel.app"
+const DefaultURL = "https://homework.cyeam.com"
 
 type Config struct {
 	ClientID string `json:"client_id"`

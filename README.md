@@ -401,7 +401,7 @@ cyeam device screenshot --device <id> --out screen.jpg
 cyeam device speak --device <id> --text "休息五分钟" --language zh-CN
 ```
 
-网关默认地址为 `https://mr-li-tablet-relay.vercel.app`，可用 `CYEAM_GATEWAY_URL` 指向已信任的 HTTPS 网关。本地开发仅允许 loopback HTTP。
+网关默认地址为 `https://homework.cyeam.com`，可用 `CYEAM_GATEWAY_URL` 指向已信任的 HTTPS 网关。本地开发仅允许 loopback HTTP。
 
 登录命令保留微软 OneDrive 登录，并在网关完成微软 API 配置后继续授权网关；首次使用会有网关专用权限确认。CLI 不需要管理员密钥，不向网关传微软 refresh token；资源 token 独立存储，退出会清理，切换账号后不复用上一个账号的凭证。`cyeam login` 新增 ID token 签名与账号验证，授权网关时要求同一微软账号。
 
