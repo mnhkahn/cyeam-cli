@@ -1,4 +1,15 @@
 
+<a name="v1.2.0"></a>
+## [v1.2.0](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.19...v1.2.0) (2026-11-20)
+
+### Features
+
+
+- **device:** 增加显式解绑与操作恢复入口
+
+- **device:** 支持独立网关登录和远程截图播报
+
+
 <a name="v1.1.19"></a>
 ## [v1.1.19](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.18...v1.1.19) (2026-11-20)
 
@@ -6,6 +17,11 @@
 
 
 - **trello:** 支持从 CNote 恢复作业连接
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.18"></a>
