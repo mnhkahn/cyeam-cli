@@ -410,3 +410,5 @@ CLI 只用 HTTPS 管理接口，App 保持 WSS。设备唯一在线时可省略 
 当前网关微软应用注册未配置时返回 `LOGIN_NOT_CONFIGURED`；离线返回 `DEVICE_OFFLINE`，权限和工具失败保留结构化错误码。截图需要已授权的 App 无障碍截图服务和点亮屏幕；语音需要安装对应系统 TTS 语言。
 
 使用 `cyeam device operation <operation_id>` 查询已提交操作，不会重新执行指令；使用 `cyeam device unpair --device <id>` 撤销自己的设备绑定。解绑必须显式指定设备。
+
+远程拍照：`cyeam device photo --out photo.jpg`，可加 `--resolution qqvga|qvga|vga|svga`（默认 vga）。复用平板现有相机拍照工具和提示音，不额外截图、不进行 AI 分析。与截图一样支持 `--device`、`--force` 和 `--idempotency-key`；现有文件默认拒绝覆盖，不确定是否执行时使用同一个幂等键查询或重试。

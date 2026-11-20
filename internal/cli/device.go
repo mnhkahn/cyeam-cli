@@ -102,56 +102,73 @@ func newDeviceCommand(deps Dependencies) *cobra.Command {
 		_, e = fmt.Fprintln(cmd.OutOrStdout(), string(raw))
 		return e
 	}})
-	var out string
-	var force bool
-	var screenshotKey string
-	shot := &cobra.Command{Use: "screenshot", Short: "Capture the current display and download its JPEG", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
-		c, e := gatewayClient(deps)
-		if e != nil {
-			return e
+	for _, capture := range []struct{ name, tool, output, description string }{
+		{"screenshot", "self.screen.screenshot", "screenshot.jpg", "Capture the current display and download its JPEG"},
+		{"photo", "self.camera.snapshot", "photo.jpg", "Take a tablet camera photo and download its JPEG"},
+	} {
+		var out, resolution string
+		var force bool
+		var screenshotKey string
+		shot := &cobra.Command{Use: capture.name, Short: capture.description, Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+			arguments := map[string]any{}
+			if capture.name == "photo" {
+				switch resolution {
+				case "qqvga", "qvga", "vga", "svga":
+					arguments["resolution"] = resolution
+				default:
+					return fmt.Errorf("--resolution must be qqvga, qvga, vga or svga")
+				}
+			}
+			c, e := gatewayClient(deps)
+			if e != nil {
+				return e
+			}
+			id, e := c.Device(cmd.Context(), selected)
+			if e != nil {
+				return e
+			}
+			// Validate the output before dispatching a capture to the tablet.
+			if info, e := os.Lstat(out); e == nil && (info.Mode()&os.ModeSymlink != 0 || info.IsDir() || !force) {
+				return fmt.Errorf("output already exists or is unsafe; choose another --out, or --force for a regular file")
+			} else if e != nil && !os.IsNotExist(e) {
+				return e
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), 60*time.Second)
+			defer cancel()
+			raw, e := c.Call(ctx, id, capture.tool, arguments, screenshotKey)
+			if e != nil {
+				return e
+			}
+			var result struct {
+				Preview string `json:"preview_url"`
+			}
+			if e = json.Unmarshal(raw, &result); e != nil {
+				return e
+			}
+			if !regexp.MustCompile(`^/tablet/v1/media/[a-f0-9-]{36}\.jpg$`).MatchString(result.Preview) {
+				return fmt.Errorf("device returned an invalid image reference")
+			}
+			image, e := c.Do(ctx, "GET", "/v1/devices/"+id+"/media/"+filepath.Base(result.Preview), nil, "")
+			if e != nil {
+				return e
+			}
+			if len(image) < 3 || image[0] != 255 || image[1] != 216 || image[2] != 255 {
+				return fmt.Errorf("gateway did not return a JPEG")
+			}
+			if e = saveScreenshot(out, image, force); e != nil {
+				return e
+			}
+			absolute, _ := filepath.Abs(out)
+			return json.NewEncoder(cmd.OutOrStdout()).Encode(map[string]any{"device_id": id, "path": absolute, "bytes": len(image)})
+		}}
+		shot.Flags().StringVar(&out, "out", capture.output, "output JPEG path")
+		shot.Flags().BoolVar(&force, "force", false, "replace an existing regular output file")
+		shot.Flags().StringVar(&screenshotKey, "idempotency-key", "", "reuse this key when retrying an uncertain operation")
+		if capture.name == "photo" {
+			shot.Flags().StringVar(&resolution, "resolution", "vga", "qqvga, qvga, vga or svga")
 		}
-		id, e := c.Device(cmd.Context(), selected)
-		if e != nil {
-			return e
-		}
-		// Check the output before dispatching a screenshot, not after it has been taken.
-		if info, e := os.Lstat(out); e == nil && (info.Mode()&os.ModeSymlink != 0 || info.IsDir() || !force) {
-			return fmt.Errorf("output already exists or is unsafe; choose another --out, or --force for a regular file")
-		} else if e != nil && !os.IsNotExist(e) {
-			return e
-		}
-		ctx, cancel := context.WithTimeout(cmd.Context(), 60*time.Second)
-		defer cancel()
-		raw, e := c.Call(ctx, id, "self.screen.screenshot", map[string]any{}, screenshotKey)
-		if e != nil {
-			return e
-		}
-		var result struct {
-			Preview string `json:"preview_url"`
-		}
-		if e = json.Unmarshal(raw, &result); e != nil {
-			return e
-		}
-		if !regexp.MustCompile(`^/tablet/v1/media/[a-f0-9-]{36}\.jpg$`).MatchString(result.Preview) {
-			return fmt.Errorf("device returned an invalid screenshot reference")
-		}
-		image, e := c.Do(ctx, "GET", "/v1/devices/"+id+"/media/"+filepath.Base(result.Preview), nil, "")
-		if e != nil {
-			return e
-		}
-		if len(image) < 3 || image[0] != 255 || image[1] != 216 || image[2] != 255 {
-			return fmt.Errorf("gateway did not return a JPEG")
-		}
-		if e = saveScreenshot(out, image, force); e != nil {
-			return e
-		}
-		absolute, _ := filepath.Abs(out)
-		return json.NewEncoder(cmd.OutOrStdout()).Encode(map[string]any{"device_id": id, "path": absolute, "bytes": len(image)})
-	}}
-	shot.Flags().StringVar(&out, "out", "screenshot.jpg", "output JPEG path")
-	shot.Flags().BoolVar(&force, "force", false, "replace an existing regular output file")
-	shot.Flags().StringVar(&screenshotKey, "idempotency-key", "", "reuse this key when retrying an uncertain operation")
-	root.AddCommand(shot)
+		root.AddCommand(shot)
+	}
 	var text, language, idem string
 	var rate float64
 	speech := &cobra.Command{Use: "speak", Short: "Speak text on the device and wait for playback completion", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {

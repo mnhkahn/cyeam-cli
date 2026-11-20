@@ -38,15 +38,19 @@ func TestDeviceCommandsUseOwnedGatewayAPI(t *testing.T) {
 				t.Error("missing idempotency key")
 			}
 			var v struct {
-				Name string `json:"name"`
+				Name      string         `json:"name"`
+				Arguments map[string]any `json:"arguments"`
 			}
 			json.NewDecoder(r.Body).Decode(&v)
+			if v.Name == "self.camera.snapshot" && v.Arguments["resolution"] != "svga" {
+				t.Errorf("wrong photo arguments: %#v", v.Arguments)
+			}
 			tool = v.Name
 			calls++
 			w.WriteHeader(202)
 			w.Write([]byte(`{"operation_id":"` + strings.Repeat("a", 64) + `"}`))
 		case strings.HasPrefix(r.URL.Path, "/v1/operations/"):
-			if tool == "self.screen.screenshot" {
+			if tool == "self.screen.screenshot" || tool == "self.camera.snapshot" {
 				w.Write([]byte(`{"status":"succeeded","result":{"preview_url":"/tablet/v1/media/11111111-1111-1111-1111-111111111111.jpg"}}`))
 			} else {
 				w.Write([]byte(`{"status":"succeeded","result":{"content":[{"type":"text","text":"{\"completed\":true}"}]}}`))
@@ -86,11 +90,28 @@ func TestDeviceCommandsUseOwnedGatewayAPI(t *testing.T) {
 	if e != nil || len(image) != 4 {
 		t.Fatalf("download failed: %v", e)
 	}
+	photo := filepath.Join(t.TempDir(), "photo.jpg")
+	run("photo", "--resolution", "svga", "--out", photo)
+	image, e = os.ReadFile(photo)
+	if e != nil || !bytes.Equal(image, []byte{255, 216, 255, 0}) {
+		t.Fatalf("photo download failed: %v", e)
+	}
+	before := calls
+	for _, args := range [][]string{{"photo", "--resolution", "invalid"}, {"photo", "--out", photo}} {
+		root := NewRootCommand(deps)
+		root.SetArgs(append([]string{"--no-analytics", "device"}, args...))
+		if e := root.Execute(); e == nil {
+			t.Fatal("accepted invalid capture request")
+		}
+	}
+	if calls != before {
+		t.Fatal("dispatched camera for rejected request")
+	}
 	run("speak", "--text", "休息一下")
 	if !strings.Contains(run("unpair", "--device", "tablet"), `"revoked":true`) {
 		t.Fatal("device revocation failed")
 	}
-	if tool != "self.audio.speak" || calls != 2 {
+	if tool != "self.audio.speak" || calls != 3 {
 		t.Fatalf("wrong tools/calls: %s %d", tool, calls)
 	}
 }
