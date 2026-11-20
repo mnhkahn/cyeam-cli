@@ -29,6 +29,8 @@ func TestDeviceCommandsUseOwnedGatewayAPI(t *testing.T) {
 			return
 		}
 		switch {
+		case r.URL.Path == "/v1/devices/tablet" && r.Method == "DELETE":
+			w.Write([]byte(`{"revoked":true}`))
 		case r.URL.Path == "/v1/devices":
 			w.Write([]byte(`{"devices":[{"id":"tablet","online":true}]}`))
 		case r.URL.Path == "/v1/devices/tablet/call":
@@ -85,6 +87,9 @@ func TestDeviceCommandsUseOwnedGatewayAPI(t *testing.T) {
 		t.Fatalf("download failed: %v", e)
 	}
 	run("speak", "--text", "休息一下")
+	if !strings.Contains(run("unpair", "--device", "tablet"), `"revoked":true`) {
+		t.Fatal("device revocation failed")
+	}
 	if tool != "self.audio.speak" || calls != 2 {
 		t.Fatalf("wrong tools/calls: %s %d", tool, calls)
 	}

@@ -408,3 +408,5 @@ cyeam device speak --device <id> --text "休息五分钟" --language zh-CN
 CLI 只用 HTTPS 管理接口，App 保持 WSS。设备唯一在线时可省略 `--device`，多个设备时必须指定。截图写入本地文件，stdout 仍为 JSON 信封；已有文件只有显式 `--force` 才会覆盖，不跟随符号链接。截图和播报都等执行结果，播报以系统 TTS 完成回调为成功。超时不会自动重播；对不确定的操作，使用同一个 `--idempotency-key` 重试。
 
 当前网关微软应用注册未配置时返回 `LOGIN_NOT_CONFIGURED`；离线返回 `DEVICE_OFFLINE`，权限和工具失败保留结构化错误码。截图需要已授权的 App 无障碍截图服务和点亮屏幕；语音需要安装对应系统 TTS 语言。
+
+使用 `cyeam device operation <operation_id>` 查询已提交操作，不会重新执行指令；使用 `cyeam device unpair --device <id>` 撤销自己的设备绑定。解绑必须显式指定设备。

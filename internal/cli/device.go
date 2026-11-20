@@ -83,6 +83,25 @@ func newDeviceCommand(deps Dependencies) *cobra.Command {
 		_, e = fmt.Fprintln(cmd.OutOrStdout(), string(raw))
 		return e
 	}})
+	root.AddCommand(&cobra.Command{Use: "unpair", Short: "Revoke an explicitly selected device binding", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, _ []string) error {
+		if selected == "" {
+			return fmt.Errorf("--device is required when revoking a device")
+		}
+		c, e := gatewayClient(deps)
+		if e != nil {
+			return e
+		}
+		id, e := c.Device(cmd.Context(), selected)
+		if e != nil {
+			return e
+		}
+		raw, e := c.Do(cmd.Context(), "DELETE", "/v1/devices/"+id, nil, "")
+		if e != nil {
+			return e
+		}
+		_, e = fmt.Fprintln(cmd.OutOrStdout(), string(raw))
+		return e
+	}})
 	var out string
 	var force bool
 	var screenshotKey string
