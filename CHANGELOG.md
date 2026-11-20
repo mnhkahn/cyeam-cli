@@ -1,4 +1,13 @@
 
+<a name="v1.1.19"></a>
+## [v1.1.19](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.18...v1.1.19) (2026-11-20)
+
+### Features
+
+
+- **trello:** 支持从 CNote 恢复作业连接
+
+
 <a name="v1.1.18"></a>
 ## [v1.1.18](https://github.com/mnhkahn/cyeam-cli/compare/v1.1.17...v1.1.18) (2026-11-15)
 
@@ -6,6 +15,11 @@
 
 
 - **trello:** 支持英语阅读原文卡片创建与描述文件更新
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.1.17"></a>
