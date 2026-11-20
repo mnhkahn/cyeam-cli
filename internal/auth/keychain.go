@@ -15,6 +15,8 @@ const keychainService = "cyeam-cli"
 var ErrNotLoggedIn = errors.New("no token found, run `cyeam login` first")
 
 type TokenSet struct {
+	AccountID    string `json:"account_id,omitempty"`
+	SessionID    string `json:"session_id,omitempty"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token,omitempty"`
 	Expiry       int64  `json:"expiry"`
@@ -25,7 +27,10 @@ func tokenFilePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(home, ".cyeam")
+	dir := os.Getenv("CYEAM_AUTH_DIR")
+	if dir == "" {
+		dir = filepath.Join(home, ".cyeam")
+	}
 	if err := os.MkdirAll(dir, 0700); err != nil {
 		return "", err
 	}

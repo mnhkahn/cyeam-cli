@@ -7,6 +7,7 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -19,6 +20,7 @@ import (
 	"github.com/mnhkahn/cyeam-cli/internal/arithmetic"
 	"github.com/mnhkahn/cyeam-cli/internal/asr"
 	"github.com/mnhkahn/cyeam-cli/internal/auth"
+	"github.com/mnhkahn/cyeam-cli/internal/gateway"
 	"github.com/mnhkahn/cyeam-cli/internal/homework"
 	"github.com/mnhkahn/cyeam-cli/internal/onedrive"
 	"github.com/mnhkahn/cyeam-cli/internal/output"
@@ -50,6 +52,7 @@ type HomeworkService interface {
 }
 
 type Dependencies struct {
+	Gateway        func() (*gateway.Client, error)
 	Service        Service
 	Homework       HomeworkService
 	Stdout         io.Writer
@@ -194,12 +197,12 @@ func newSkillsCommand(deps Dependencies) *cobra.Command {
 }
 
 func WriteError(out io.Writer, err error) {
-	enc := json.NewEncoder(out)
-	_ = enc.Encode(output.ErrorEnvelope{
-		OK:     false,
-		Error:  output.ErrorInfo{Type: "error", Message: err.Error()},
-		Notice: consumeNotice(),
-	})
+	info := output.ErrorInfo{Type: "error", Message: err.Error()}
+	var coded interface{ ErrorCode() string }
+	if errors.As(err, &coded) {
+		info.Code = coded.ErrorCode()
+	}
+	_ = json.NewEncoder(out).Encode(output.ErrorEnvelope{OK: false, Error: info, Notice: consumeNotice()})
 }
 
 func NewRootCommand(deps Dependencies) *cobra.Command {
@@ -291,6 +294,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newMoCommand(deps))
 	root.AddCommand(newRoadbookCommand(deps))
 	root.AddCommand(newLoginCommand(deps))
+	root.AddCommand(newDeviceCommand(deps))
 	root.AddCommand(newLogoutCommand(deps))
 	root.AddCommand(newWhoamiCommand(deps))
 	root.AddCommand(newCnoteCommand(deps))
@@ -908,7 +912,21 @@ func newLoginCommand(deps Dependencies) *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Write the link/code straight to the real stdout (not the envelope
 			// buffer) so a streaming caller sees them while polling continues.
-			return auth.Login(cmd.Context(), os.Stdout, os.Stderr)
+			if err := auth.Login(cmd.Context(), os.Stdout, os.Stderr); err != nil {
+				return err
+			}
+			c, err := gatewayClient(deps)
+			if err != nil {
+				return err
+			}
+			ctx, cancel := context.WithTimeout(cmd.Context(), 5*time.Second)
+			_, err = c.Config(ctx)
+			cancel()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Microsoft login succeeded; gateway login is unavailable: %v\n", err)
+				return nil
+			}
+			return c.Login(cmd.Context(), os.Stdout, os.Stderr)
 		},
 	}
 }

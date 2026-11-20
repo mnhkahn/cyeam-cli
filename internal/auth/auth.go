@@ -16,7 +16,7 @@ import (
 const (
 	clientID  = "e1f582c1-1568-4347-8c5b-1906164e637f"
 	authority = "https://login.microsoftonline.com/consumers"
-	scopes    = "Files.ReadWrite User.Read offline_access"
+	scopes    = "Files.ReadWrite User.Read offline_access openid profile"
 )
 
 // OpenBrowser opens a URL using the platform's default browser.
@@ -66,8 +66,17 @@ func Login(ctx context.Context, stdout, stderr io.Writer) error {
 	}
 	fmt.Fprintf(stderr, "[5] token received\n")
 
+	account, err := accountIdentity(ctx, token.IDToken)
+	if err != nil {
+		return err
+	}
 	expiry := time.Now().Add(time.Duration(token.ExpiresIn) * time.Second).Unix()
+	if err := DeleteResourceTokens(); err != nil {
+		return err
+	}
 	if err := StoreToken(TokenSet{
+		SessionID:    sessionID(),
+		AccountID:    account,
 		AccessToken:  token.AccessToken,
 		RefreshToken: token.RefreshToken,
 		Expiry:       expiry,
@@ -80,6 +89,9 @@ func Login(ctx context.Context, stdout, stderr io.Writer) error {
 }
 
 func Logout() error {
+	if err := DeleteResourceTokens(); err != nil {
+		return err
+	}
 	return DeleteToken()
 }
 
@@ -108,6 +120,8 @@ func mergeRefreshedToken(current TokenSet, refreshed tokenResponse, now time.Tim
 		refreshToken = current.RefreshToken
 	}
 	return TokenSet{
+		SessionID:    current.SessionID,
+		AccountID:    current.AccountID,
 		AccessToken:  refreshed.AccessToken,
 		RefreshToken: refreshToken,
 		Expiry:       now.Add(time.Duration(refreshed.ExpiresIn) * time.Second).Unix(),
@@ -123,15 +137,19 @@ type deviceCodeResponse struct {
 }
 
 type tokenResponse struct {
+	IDToken      string `json:"id_token"`
 	AccessToken  string `json:"access_token"`
 	RefreshToken string `json:"refresh_token"`
 	ExpiresIn    int    `json:"expires_in"`
 }
 
 func requestDeviceCode(ctx context.Context) (deviceCodeResponse, error) {
+	return requestDeviceCodeWithScope(ctx, scopes)
+}
+func requestDeviceCodeWithScope(ctx context.Context, requestedScope string) (deviceCodeResponse, error) {
 	data := url.Values{}
 	data.Set("client_id", clientID)
-	data.Set("scope", scopes)
+	data.Set("scope", requestedScope)
 	data.Set("client_type", "public")
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		authority+"/oauth2/v2.0/devicecode",
@@ -207,11 +225,14 @@ func pollForToken(ctx context.Context, deviceCode string, interval int) (tokenRe
 }
 
 func refreshToken(ctx context.Context, refreshToken string) (tokenResponse, error) {
+	return refreshTokenWithScope(ctx, refreshToken, scopes)
+}
+func refreshTokenWithScope(ctx context.Context, refreshToken, requestedScope string) (tokenResponse, error) {
 	data := url.Values{}
 	data.Set("grant_type", "refresh_token")
 	data.Set("client_id", clientID)
 	data.Set("refresh_token", refreshToken)
-	data.Set("scope", scopes)
+	data.Set("scope", requestedScope)
 	data.Set("client_type", "public")
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost,
 		authority+"/oauth2/v2.0/token",

@@ -16,6 +16,8 @@ func TestMergeRefreshedTokenKeepsExistingRefreshTokenWhenOmitted(t *testing.T) {
 	now := time.Unix(1000, 0)
 	current := TokenSet{
 		AccessToken:  "old-access",
+		AccountID:    "verified-account",
+		SessionID:    "verified-session",
 		RefreshToken: "old-refresh",
 		Expiry:       1000,
 	}
@@ -26,6 +28,9 @@ func TestMergeRefreshedTokenKeepsExistingRefreshTokenWhenOmitted(t *testing.T) {
 
 	got := mergeRefreshedToken(current, refreshed, now)
 
+	if got.AccountID != "verified-account" || got.SessionID != "verified-session" {
+		t.Fatal("refresh changed login identity")
+	}
 	if got.AccessToken != "new-access" {
 		t.Fatalf("access token = %q", got.AccessToken)
 	}
@@ -41,6 +46,8 @@ func TestMergeRefreshedTokenUsesRotatedRefreshToken(t *testing.T) {
 	now := time.Unix(1000, 0)
 	current := TokenSet{
 		AccessToken:  "old-access",
+		AccountID:    "verified-account",
+		SessionID:    "verified-session",
 		RefreshToken: "old-refresh",
 		Expiry:       1000,
 	}

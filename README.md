@@ -388,3 +388,23 @@ cyeam trello card review <原卡片ID> --audio correction.m4a
 支持文字、图片、音频三选一，按协议 v1 在原卡片发布批改评论并保留历史。加 `--has-errors=true` 转入「待改错」，`--has-errors=false` 批改通过并保留「已改错」；省略则只发布内容。作业状态统一为待完成、已完成、待改错、已改错。
 失败后使用输出的 `review_id`，携带相同内容和 `--review-id <UUID>` 重试。
 完整说明见 [作业批改命令](docs/trello-review.md)。
+
+### Homework 独立网关
+
+```bash
+cyeam login
+cyeam device login                       # 仅补充网关授权，需要先有微软登录
+cyeam device pair                        # 输出五分钟一次性配对 JSON，供平板扫码/粘贴
+cyeam device list
+cyeam device tools --device <id>
+cyeam device screenshot --device <id> --out screen.jpg
+cyeam device speak --device <id> --text "休息五分钟" --language zh-CN
+```
+
+网关默认地址为 `https://mr-li-tablet-relay.vercel.app`，可用 `CYEAM_GATEWAY_URL` 指向已信任的 HTTPS 网关。本地开发仅允许 loopback HTTP。
+
+登录命令保留微软 OneDrive 登录，并在网关完成微软 API 配置后继续授权网关；首次使用会有网关专用权限确认。CLI 不需要管理员密钥，不向网关传微软 refresh token；资源 token 独立存储，退出会清理，切换账号后不复用上一个账号的凭证。`cyeam login` 新增 ID token 签名与账号验证，授权网关时要求同一微软账号。
+
+CLI 只用 HTTPS 管理接口，App 保持 WSS。设备唯一在线时可省略 `--device`，多个设备时必须指定。截图写入本地文件，stdout 仍为 JSON 信封；已有文件只有显式 `--force` 才会覆盖，不跟随符号链接。截图和播报都等执行结果，播报以系统 TTS 完成回调为成功。超时不会自动重播；对不确定的操作，使用同一个 `--idempotency-key` 重试。
+
+当前网关微软应用注册未配置时返回 `LOGIN_NOT_CONFIGURED`；离线返回 `DEVICE_OFFLINE`，权限和工具失败保留结构化错误码。截图需要已授权的 App 无障碍截图服务和点亮屏幕；语音需要安装对应系统 TTS 语言。

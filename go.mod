@@ -5,6 +5,7 @@ go 1.25.5
 require (
 	github.com/HugoSmits86/nativewebp v1.3.0
 	github.com/PuerkitoBio/goquery v1.12.0
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/emersion/go-imap/v2 v2.0.0-beta.8
 	github.com/emersion/go-message v0.18.2
 	github.com/flopp/go-findfont v0.1.0
@@ -24,9 +25,11 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.1.1 // indirect
+	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/goccy/go-json v0.10.6 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
+	golang.org/x/oauth2 v0.36.0 // indirect
 )
 
 require (

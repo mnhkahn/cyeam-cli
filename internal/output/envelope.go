@@ -15,6 +15,7 @@ type ErrorEnvelope struct {
 }
 
 type ErrorInfo struct {
+	Code    string `json:"code,omitempty"`
 	Type    string `json:"type"`
 	Message string `json:"message"`
 	Hint    string `json:"hint,omitempty"`
