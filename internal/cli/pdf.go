@@ -33,7 +33,7 @@ Reads from a file or stdin. Format is auto-detected:
 - Everything else is treated as Markdown
 
 Use --mode arithmetic for plain text with one question per nonempty line.
-Select --layout standard, grade4, large-number, negative, quantity, or vertical.
+Select --layout from: ` + pdf.ArithmeticLayoutNames + `.
 Arithmetic mode renders a native A4 worksheet without Typst.
 Use --mode pinyin for Chinese text, with pinyin hints, blank character grids,
 and a correction area. Spaces or newlines separate words; long input spans pages.`,
@@ -98,7 +98,7 @@ and a correction area. Spaces or newlines separate words; long input spans pages
 		},
 	}
 	cmd.Flags().StringVar(&mode, "mode", "auto", "PDF mode: auto, arithmetic, or pinyin")
-	cmd.Flags().StringVar(&layout, "layout", "standard", "arithmetic layout: standard, grade4, large-number, negative, quantity, vertical")
+	cmd.Flags().StringVar(&layout, "layout", "standard", "arithmetic layout: "+pdf.ArithmeticLayoutNames)
 	cmd.Flags().StringVar(&title, "title", "", "arithmetic worksheet title (default 宝宝口算)")
 	cmd.Flags().StringVarP(&outFile, "out", "o", "", "save PDF to file")
 	return cmd

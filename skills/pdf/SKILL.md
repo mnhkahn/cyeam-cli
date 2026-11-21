@@ -94,10 +94,12 @@ CLI 原生支持 `--mode arithmetic`，无需 Typst。输入为 UTF-8 纯文本�
 ```bash
 cyeam pdf questions.txt --mode arithmetic -o practice.pdf
 cyeam pdf questions.txt --mode arithmetic --layout grade4 --title "四年级口算" -o practice.pdf
+cyeam pdf questions.txt --mode arithmetic --layout 3-work -o practice.pdf
+cyeam pdf questions.txt --mode arithmetic --layout 4-work -o practice.pdf
 cyeam pdf questions.txt --mode arithmetic --layout vertical -o practice.pdf
 ```
 
-`--layout` 可选 `standard`（默认）、`grade4`、`large-number`、`negative`、`quantity`、`vertical`，对应下表；`--title` 默认“宝宝口算”。这两个参数仅用于 arithmetic 模式。默认 `--mode auto` 保留 Markdown/HTML/Typst 自动检测；arithmetic 模式优先于扩展名，始终按逐行题目解析，支持文件或 stdin 输入及原有 base64 JSON 输出。
+`--layout` 可选 `standard`（默认）、`grade4`、`large-number`、`negative`、`quantity`、`3-work`、`4-work`、`vertical`，对应下表；`--title` 默认“宝宝口算”。这两个参数仅用于 arithmetic 模式。默认 `--mode auto` 保留 Markdown/HTML/Typst 自动检测；arithmetic 模式优先于扩展名，始终按逐行题目解析，支持文件或 stdin 输入及原有 base64 JSON 输出。
 
 用户要求“口算 PDF”“口算练习单”或“按宝宝口算格式排版”时使用。参考 `cyeam_web/controllers/baobao_controller.go` 的 `ArithmeticExec()`，以 PDF 后端布局为准，不采用前端 HTML 打印逻辑写死的 100 题。
 
@@ -111,6 +113,8 @@ cyeam pdf questions.txt --mode arithmetic --layout vertical -o practice.pdf
 | 四年级一般题型 | 25 × 4 | 100 题 | 10 mm | 47.5 mm | 9 pt |
 | 四年级大数 `g4-large-number`、负数 `g4-negative` | 25 × 3 | 75 题 | 10 mm | 190/3 mm | 10 pt |
 | 四年级数量关系 `g4-quantity` | 25 × 2 | 50 题 | 10 mm | 95 mm | 10 pt |
+| 三列带竖式空间 `3-work` | 10 × 3 | 30 题 | 25.4 mm | 190/3 mm | 11.5 pt |
+| 四列带竖式空间 `4-work` | 10 × 4 | 40 题 | 25.4 mm | 47.5 mm | 11.5 pt |
 | 非四年级竖式（网站题型标识以 `-2` 结尾） | 5 × 5 | 25 题 | 48 mm | 38 mm | 11.5 pt |
 
 - 按从左到右、从上到下的顺序填充网格。横式左对齐、垂直居中；竖式题干置于格子顶部，下面保留演算空间。字体参考黑体，实际使用可用且覆盖中文与运算符的字体。

@@ -15,24 +15,32 @@ type ArithmeticOptions struct {
 type arithmeticLayout struct {
 	rows, cols   int
 	height, size float64
+	workingSpace float64
 }
 
 func arithmeticLayoutFor(name string) (arithmeticLayout, error) {
 	switch name {
 	case "", "standard":
-		return arithmeticLayout{20, 5, 12, 11.5}, nil
+		return arithmeticLayout{rows: 20, cols: 5, height: 12, size: 11.5}, nil
 	case "grade4":
-		return arithmeticLayout{25, 4, 10, 9}, nil
+		return arithmeticLayout{rows: 25, cols: 4, height: 10, size: 9}, nil
 	case "large-number", "negative":
-		return arithmeticLayout{25, 3, 10, 10}, nil
+		return arithmeticLayout{rows: 25, cols: 3, height: 10, size: 10}, nil
 	case "quantity":
-		return arithmeticLayout{25, 2, 10, 10}, nil
+		return arithmeticLayout{rows: 25, cols: 2, height: 10, size: 10}, nil
+	case "3-work":
+		return arithmeticLayout{rows: 10, cols: 3, height: 25.4, size: 11.5, workingSpace: 12}, nil
+	case "4-work":
+		return arithmeticLayout{rows: 10, cols: 4, height: 25.4, size: 11.5, workingSpace: 12}, nil
 	case "vertical":
-		return arithmeticLayout{5, 5, 48, 11.5}, nil
+		return arithmeticLayout{rows: 5, cols: 5, height: 48, size: 11.5, workingSpace: 36}, nil
 	default:
-		return arithmeticLayout{}, fmt.Errorf("unknown arithmetic layout %q (use standard, grade4, large-number, negative, quantity, vertical)", name)
+		return arithmeticLayout{}, fmt.Errorf("unknown arithmetic layout %q (use %s)", name, ArithmeticLayoutNames)
 	}
 }
+
+// ArithmeticLayoutNames lists the layout values accepted by the PDF command.
+const ArithmeticLayoutNames = "standard, grade4, large-number, negative, quantity, 3-work, 4-work, vertical"
 
 // RenderArithmetic renders one nonempty input line per question in row-major order.
 // It preserves supplied text and never generates questions or answers.
@@ -65,7 +73,7 @@ func RenderArithmetic(src []byte, opts ArithmeticOptions) ([]byte, error) {
 	p.SetCellMargin(0)
 	width := 190.0 / float64(layout.cols)
 	titleSize := 20.0
-	if opts.Layout != "" && opts.Layout != "standard" && opts.Layout != "vertical" {
+	if opts.Layout != "" && opts.Layout != "standard" && layout.workingSpace == 0 {
 		titleSize = 13
 	}
 	r.setFont(titleSize)
@@ -84,9 +92,9 @@ func RenderArithmetic(src []byte, opts ArithmeticOptions) ([]byte, error) {
 		}
 		wrapped[i] = p.SplitText(q, width-3)
 		maxHeight := layout.height - 2
-		if opts.Layout == "vertical" {
-			maxHeight = 12
-		} // Keep the rest for handwritten working.
+		if layout.workingSpace > 0 {
+			maxHeight = layout.height - layout.workingSpace
+		}
 		if float64(len(wrapped[i]))*lineHeight > maxHeight {
 			return nil, fmt.Errorf("question %d is too long for %s layout; shorten it or use a wider layout", i+1, opts.Layout)
 		}
@@ -107,7 +115,7 @@ func RenderArithmetic(src []byte, opts ArithmeticOptions) ([]byte, error) {
 		}
 		x := 10 + float64(pos%layout.cols)*width
 		y := 32 + float64(pos/layout.cols)*layout.height
-		if opts.Layout != "vertical" {
+		if layout.workingSpace == 0 {
 			y += (layout.height - float64(len(lines))*lineHeight) / 2
 		}
 		p.SetXY(x, y)

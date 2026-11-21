@@ -12,7 +12,8 @@ func TestArithmeticPagination(t *testing.T) {
 		name     string
 		capacity int
 	}{
-		{"standard", 100}, {"grade4", 100}, {"large-number", 75}, {"negative", 75}, {"quantity", 50}, {"vertical", 25},
+		{"standard", 100}, {"grade4", 100}, {"large-number", 75}, {"negative", 75}, {"quantity", 50},
+		{"3-work", 30}, {"4-work", 40}, {"vertical", 25},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			for _, extra := range []int{0, 1} {
