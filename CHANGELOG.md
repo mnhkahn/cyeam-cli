@@ -1,4 +1,13 @@
 
+<a name="v1.2.2"></a>
+## [v1.2.2](https://github.com/mnhkahn/cyeam-cli/compare/v1.2.1...v1.2.2) (2026-11-20)
+
+### Features
+
+
+- **device:** 添加远程拍照命令支持相机分辨率选项
+
+
 <a name="v1.2.1"></a>
 ## [v1.2.1](https://github.com/mnhkahn/cyeam-cli/compare/v1.2.0...v1.2.1) (2026-11-20)
 
@@ -6,6 +15,11 @@
 
 
 - **gateway:** 默认连接作业专用域名
+
+### Miscellaneous Tasks
+
+
+- update changelog [skip ci]
 
 
 <a name="v1.2.0"></a>
