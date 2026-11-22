@@ -52,6 +52,8 @@ func TestDeviceCommandsUseOwnedGatewayAPI(t *testing.T) {
 		case strings.HasPrefix(r.URL.Path, "/v1/operations/"):
 			if tool == "self.screen.screenshot" || tool == "self.camera.snapshot" {
 				w.Write([]byte(`{"status":"succeeded","result":{"preview_url":"/tablet/v1/media/11111111-1111-1111-1111-111111111111.jpg"}}`))
+			} else if tool == "self.homework.get_status" {
+				w.Write([]byte(`{"status":"succeeded","result":{"content":[{"type":"text","text":"{\"timer_running\":true,\"current_task_id\":\"work\",\"elapsed_seconds\":123,\"tasks\":[]}"}]}}`))
 			} else {
 				w.Write([]byte(`{"status":"succeeded","result":{"content":[{"type":"text","text":"{\"completed\":true}"}]}}`))
 			}
@@ -96,6 +98,10 @@ func TestDeviceCommandsUseOwnedGatewayAPI(t *testing.T) {
 	if e != nil || !bytes.Equal(image, []byte{255, 216, 255, 0}) {
 		t.Fatalf("photo download failed: %v", e)
 	}
+	status := run("homework-status")
+	if !strings.Contains(status, `"timer_running":true`) || !strings.Contains(status, `"elapsed_seconds":123`) || strings.Contains(status, `"tasks"`) {
+		t.Fatalf("wrong homework status: %s", status)
+	}
 	before := calls
 	for _, args := range [][]string{{"photo", "--resolution", "invalid"}, {"photo", "--out", photo}} {
 		root := NewRootCommand(deps)
@@ -111,7 +117,7 @@ func TestDeviceCommandsUseOwnedGatewayAPI(t *testing.T) {
 	if !strings.Contains(run("unpair", "--device", "tablet"), `"revoked":true`) {
 		t.Fatal("device revocation failed")
 	}
-	if tool != "self.audio.speak" || calls != 3 {
+	if tool != "self.audio.speak" || calls != 4 {
 		t.Fatalf("wrong tools/calls: %s %d", tool, calls)
 	}
 }

@@ -68,6 +68,52 @@ func newDeviceCommand(deps Dependencies) *cobra.Command {
 		_, e = fmt.Fprintln(cmd.OutOrStdout(), string(raw))
 		return e
 	}})
+	root.AddCommand(&cobra.Command{
+		Use:   "homework-status",
+		Short: "Read the current homework timer from a paired device",
+		Args:  cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx, cancel := context.WithTimeout(cmd.Context(), 15*time.Second)
+			defer cancel()
+			c, err := gatewayClient(deps)
+			if err != nil {
+				return err
+			}
+			id, err := c.Device(ctx, selected)
+			if err != nil {
+				return err
+			}
+			raw, err := c.Call(ctx, id, "self.homework.get_status", map[string]any{}, "")
+			if err != nil {
+				return err
+			}
+			var result struct {
+				IsError bool `json:"isError"`
+				Content []struct {
+					Type string `json:"type"`
+					Text string `json:"text"`
+				} `json:"content"`
+			}
+			if err := json.Unmarshal(raw, &result); err != nil {
+				return err
+			}
+			if result.IsError || len(result.Content) != 1 || result.Content[0].Type != "text" {
+				return fmt.Errorf("device returned an invalid homework status")
+			}
+			var status struct {
+				Running *bool   `json:"timer_running"`
+				TaskID  string  `json:"current_task_id"`
+				Elapsed *uint64 `json:"elapsed_seconds"`
+			}
+			if err := json.Unmarshal([]byte(result.Content[0].Text), &status); err != nil {
+				return err
+			}
+			if status.Running == nil || (*status.Running && (status.TaskID == "" || status.Elapsed == nil)) {
+				return fmt.Errorf("homework timer state is missing")
+			}
+			return json.NewEncoder(cmd.OutOrStdout()).Encode(status)
+		},
+	})
 	root.AddCommand(&cobra.Command{Use: "operation <id>", Short: "Inspect an existing operation without executing it again", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
 		if !regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(args[0]) {
 			return fmt.Errorf("invalid operation ID")
