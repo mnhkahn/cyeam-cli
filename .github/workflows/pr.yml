@@ -1,0 +1,33 @@
+name: PR checks
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GOTOOLCHAIN: local
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test -mod=readonly ./...
+
+      - name: Vet
+        run: go vet -mod=readonly ./...
+
+      - name: Build CLI
+        env:
+          CGO_ENABLED: '0'
+        run: go build -mod=readonly -o "$RUNNER_TEMP/cyeam" ./cmd/cyeam

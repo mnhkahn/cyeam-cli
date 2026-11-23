@@ -16,11 +16,19 @@ func TestReleaseWorkflowPublishesReleaseAndNotifiesFeishu(t *testing.T) {
 	assertContains(t, text, "tags:")
 	assertContains(t, text, "v*")
 	assertContains(t, text, "contents: write")
+	assertContains(t, text, "ref: ${{ github.sha }}")
+	assertContains(t, text, "Verify release tag")
+	assertContains(t, text, "GORELEASER_CURRENT_TAG: ${{ github.ref_name }}")
 	assertContains(t, text, "goreleaser/goreleaser-action")
 	assertContains(t, text, "GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}")
 	assertContains(t, text, "FEISHU_WEBHOOK_URL")
-	assertContains(t, text, "changelog")
+	assertContains(t, text, "git-chglog --template .chglog/webhook.tpl.md")
 	assertContains(t, text, "continue-on-error: true")
+	for _, command := range []string{"ref: main", "git push", "git tag -f", "gh release delete"} {
+		if strings.Contains(text, command) {
+			t.Errorf("release workflow must not contain %q", command)
+		}
+	}
 }
 
 func TestGoReleaserBuildsExpectedArchives(t *testing.T) {
@@ -39,6 +47,8 @@ func TestGoReleaserBuildsExpectedArchives(t *testing.T) {
 	assertContains(t, text, "amd64")
 	assertContains(t, text, "name_template: \"cyeam_{{ title .Os }}_{{ if eq .Arch \\\"amd64\\\" }}x86_64{{ else }}{{ .Arch }}{{ end }}\"")
 	assertContains(t, text, "name_template: checksums.txt")
+	assertContains(t, text, "changelog:")
+	assertContains(t, text, "replace_existing_artifacts: false")
 }
 
 func assertContains(t *testing.T, text string, want string) {

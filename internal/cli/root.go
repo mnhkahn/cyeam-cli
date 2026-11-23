@@ -59,6 +59,7 @@ type Dependencies struct {
 	Now            func() time.Time
 	VersionInfo    func() version.Info
 	Updater        Updater
+	SyncSkills     func(context.Context, io.Writer)
 	OneDrive       func() OneDriveClient
 	Phonetic       phonetic.Fetcher
 	ASR            asr.Transcriber
@@ -142,10 +143,10 @@ func consumeNotice() *output.Notice {
 	return &n
 }
 
-func syncSkills(ctx context.Context, out io.Writer) bool {
+func syncSkills(ctx context.Context, out io.Writer) {
 	if _, err := exec.LookPath("npx"); err != nil {
 		fmt.Fprintf(out, "skill sync skipped: npx not found (%v)\n", err)
-		return false
+		return
 	}
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
@@ -159,21 +160,13 @@ func syncSkills(ctx context.Context, out io.Writer) bool {
 			msg = err.Error()
 		}
 		fmt.Fprintf(out, "skill sync failed: %v: %s\n", err, msg)
-		return false
+		return
 	}
 	fmt.Fprintf(out, "skills synced\n")
-	return true
 }
 
 func skillsAddArgs() []string {
 	return []string{"skills", "add", "mnhkahn/cyeam-cli", "-g", "-y"}
-}
-
-func setSkillsSynced(version string) {
-	_ = update.SaveState(&update.State{
-		LatestVersion: version,
-		CheckedAt:     time.Now().Unix(),
-	})
 }
 
 func newSkillsCommand(deps Dependencies) *cobra.Command {
@@ -182,9 +175,7 @@ func newSkillsCommand(deps Dependencies) *cobra.Command {
 		Short: "Sync cyeam AI agent skills",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if syncSkills(cmd.Context(), deps.Stdout) {
-				setSkillsSynced(deps.VersionInfo().Version)
-			}
+			deps.SyncSkills(cmd.Context(), deps.Stdout)
 			return nil
 		},
 	}
@@ -214,6 +205,9 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	}
 	if deps.VersionInfo == nil {
 		deps.VersionInfo = version.Current
+	}
+	if deps.SyncSkills == nil {
+		deps.SyncSkills = syncSkills
 	}
 	if deps.Phonetic == nil {
 		deps.Phonetic = phonetic.NewClient()
@@ -352,18 +346,8 @@ func newUpdateCommand(deps Dependencies) *cobra.Command {
 				return err
 			}
 
-			if !result.Updated {
-				fmt.Fprintln(os.Stderr, "==> Syncing skills")
-				if ok := syncSkills(cmd.Context(), deps.Stdout); ok {
-					setSkillsSynced(current.Version)
-				}
-				return nil
-			}
-
 			fmt.Fprintln(os.Stderr, "==> Syncing skills")
-			if syncSkills(cmd.Context(), deps.Stdout) {
-				setSkillsSynced(result.NewVersion)
-			}
+			deps.SyncSkills(cmd.Context(), deps.Stdout)
 			return nil
 		},
 	}

@@ -2,16 +2,14 @@ version: 2
 
 project_name: cyeam
 
-before:
-  hooks:
-    - go mod tidy
-
 builds:
   - id: cyeam
     main: ./cmd/cyeam
     binary: cyeam
     env:
       - CGO_ENABLED=0
+    flags:
+      - -mod=readonly
     goos:
       - darwin
       - linux
@@ -27,7 +25,7 @@ builds:
 
 archives:
   - id: cyeam
-    builds:
+    ids:
       - cyeam
     name_template: "cyeam_{{ title .Os }}_{{ if eq .Arch \"amd64\" }}x86_64{{ else }}{{ .Arch }}{{ end }}"
     format_overrides:
@@ -49,6 +47,7 @@ changelog:
       - "^test:"
 
 release:
+  replace_existing_artifacts: false
   github:
     owner: mnhkahn
     name: cyeam-cli

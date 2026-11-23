@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -199,15 +200,20 @@ func TestVersionPrintsVersionInfo(t *testing.T) {
 }
 
 func TestUpdateDelegatesToUpdater(t *testing.T) {
+	checkUpdateCacheUnchanged(t)
 	stdout := new(bytes.Buffer)
 	updater := &fakeUpdater{result: update.Result{
 		Updated:    true,
 		OldVersion: "v1.0.0",
 		NewVersion: "v1.1.0",
 	}}
+	var syncCalls int
 	cmd := NewRootCommand(Dependencies{
 		Stdout:  stdout,
 		Updater: updater,
+		SyncSkills: func(context.Context, io.Writer) {
+			syncCalls++
+		},
 		VersionInfo: func() version.Info {
 			return version.Info{Version: "v1.0.0"}
 		},
@@ -221,10 +227,53 @@ func TestUpdateDelegatesToUpdater(t *testing.T) {
 	if updater.current.Version != "v1.0.0" {
 		t.Fatalf("current version = %q", updater.current.Version)
 	}
+	if syncCalls != 1 {
+		t.Fatalf("skill sync calls = %d, want 1", syncCalls)
+	}
 	got := stdout.String()
 	if !strings.Contains(got, "updated: v1.0.0 -> v1.1.0") {
 		t.Fatalf("stdout = %q, want update message", got)
 	}
+}
+
+func TestSkillsSyncPreservesUpdateCache(t *testing.T) {
+	checkUpdateCacheUnchanged(t)
+	var stdout bytes.Buffer
+	cmd := NewRootCommand(Dependencies{
+		Stdout: &stdout,
+		SyncSkills: func(_ context.Context, out io.Writer) {
+			_, _ = io.WriteString(out, "skills synced\n")
+		},
+	})
+	cmd.SetArgs([]string{"skills", "sync"})
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("execute skills sync: %v", err)
+	}
+	if got := envelopeData(t, &stdout); got != "skills synced\n" {
+		t.Fatalf("stdout = %q, want skill sync confirmation", got)
+	}
+}
+
+func checkUpdateCacheUnchanged(t *testing.T) {
+	t.Helper()
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home)
+	// If dependency wiring regresses, there must still be no real npx to run.
+	t.Setenv("PATH", home)
+	want := update.State{LatestVersion: "v2.0.0", CheckedAt: 123}
+	if err := update.SaveState(&want); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		got, err := update.LoadState()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if *got != want {
+			t.Errorf("update cache = %+v, want %+v", *got, want)
+		}
+	})
 }
 
 func TestLoginStatusLineMentionsAutoRefreshWhenRefreshTokenExists(t *testing.T) {
