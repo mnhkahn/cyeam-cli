@@ -15,12 +15,13 @@ import (
 func newMailCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "mail",
-		Short: "Read and send email over IMAP/SMTP",
+		Short: "Read Apple Mail or read and send email over IMAP/SMTP",
 		Long: `Read and send email for accounts configured in ~/.cyeam/mail.json.
 
 Each account's app-specific password is read from the environment variable
 named by its "password_env" field.`,
 	}
+	cmd.AddCommand(newMailLocalCommand())
 	cmd.AddCommand(newMailListCommand())
 	cmd.AddCommand(newMailReadCommand())
 	cmd.AddCommand(newMailSendCommand())
