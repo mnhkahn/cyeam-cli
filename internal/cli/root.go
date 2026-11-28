@@ -303,6 +303,7 @@ func NewRootCommand(deps Dependencies) *cobra.Command {
 	root.AddCommand(newAICommand())
 	root.AddCommand(newPDFCommand())
 	root.AddCommand(newImageCommand())
+	root.AddCommand(newWiringCommand())
 	root.AddCommand(newMailCommand())
 	root.AddCommand(newTrelloCommand(deps.Homework))
 	return root

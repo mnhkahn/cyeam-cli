@@ -132,6 +132,7 @@ cyeam roadbook ...                     # 路书 → 见 roadbook skill
 cyeam cnote ...                        # 云笔记 → 见 cnote skill
 cyeam mail ...                         # 多邮箱收发 → 见 mail skill
 cyeam image ...                        # 图片转换 → 见 image skill
+cyeam wiring render <sketch.fzz>       # 交互接线图 → 见 fritzing-render skill
 cyeam ai models [...]                  # AI免费模型 → 见 ai-models skill
 cyeam trello ...                       # Trello任务看板 → 见 trello skill
 ```

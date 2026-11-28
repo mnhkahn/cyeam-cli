@@ -19,6 +19,16 @@ docker run --rm -v "$PWD:/work" ghcr.io/leonfedotov/fritzing-render \
 
 需要原理图时用 `--view schematic`，并换一个输出文件名。仅要 SVG 时省略 `--png`。在网页的 **Sketches → Your sketch** 区域选择文件或拖进去，切换 **Breadboard** / **Schematic**，再下载 SVG 或 PNG。图面若有后来添加的标题、图例或备注，更新展示图时一起核对。
 
+## 导出可点选线路的 SVG
+
+```sh
+cyeam wiring render wiring.fzz -o wiring.interactive.svg
+```
+
+命令调用 PATH 上的 `fritzing-render` 渲染面包板视图。若已有同一份草图导出的面包板 SVG，可传 `--base-svg wiring.svg`，直接用它做底图。命令支持 `.fzz` 和 `.fz`，从草图里的连接记录判断连通关系。归档内有部件定义时显示端子名称，其余显示连接器 ID。
+
+在浏览器中单独打开输出文件。点线会高亮相连线路并标出端子，共地和供电等分支会显示同一线路的全部端点。按 Esc 或点空白可清除。README 的图片预览会按静态图显示，附上可单独打开的 SVG 文件链接可保留交互入口。
+
 ## 建立网页可编辑的 JSON 草图
 
 用 `fritzing-render search` 查元件，`fritzing-render part "<元件引用>"` 查端子名及坐标。也可在网页的 **Parts** 查看。优先按实际端子名或连接器 ID 连线。
