@@ -8,6 +8,8 @@ description: 多邮箱收发——读取 Mac 上 Apple Mail 的本地收件箱�
 
 ## 读取 Mac 上已配置的 Apple Mail
 
+**Apple Mail 本地读取需要 cyeam-cli v1.2.4 或更新版。** 安装包见 [v1.2.4 发布页](https://github.com/mnhkahn/cyeam-cli/releases/tag/v1.2.4)。
+
 用户指定 Mac、Mac mini 或 Apple Mail 时，在配置了邮箱的那台 Mac 上执行：
 
 ```bash
