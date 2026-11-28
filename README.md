@@ -353,7 +353,7 @@ cyeam --pretty phonetic hello
 cyeam wiring render wiring.fzz -o wiring.interactive.svg
 ```
 
-用浏览器单独打开 SVG，点选导线可高亮相连线路并查看端点。命令使用 `fritzing-render` 绘制底图，也可用 `--base-svg wiring.svg` 复用同一草图导出的 SVG。详见[接线图技能](skills/fritzing-render/SKILL.md)。
+用浏览器单独打开 SVG，点选导线或端子可高亮相连线路并查看端点。命令使用 `fritzing-render` 绘制底图，也可用 `--base-svg wiring.svg` 复用同一草图导出的 SVG。详见[接线图技能](skills/fritzing-render/SKILL.md)。
 
 ### Git 版本标签
 

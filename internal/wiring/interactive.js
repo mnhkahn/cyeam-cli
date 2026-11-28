@@ -22,6 +22,8 @@
   const style = svg('style', {}, `
     .cyeam-hit { cursor:pointer; pointer-events:stroke; outline:none }
     .cyeam-hit:focus-visible { stroke:#177b70; stroke-opacity:.24 }
+    .cyeam-pin { cursor:pointer; pointer-events:all; outline:none }
+    .cyeam-pin:hover,.cyeam-pin:focus-visible { fill:#e3f5f1; fill-opacity:.7; stroke:#177b70; stroke-opacity:1 }
     .cyeam-selected { fill:none; pointer-events:none }
     .cyeam-motion { stroke:#fff; fill:none; pointer-events:none; opacity:0; animation:cyeam-wire-flow .85s ease-out }
     .cyeam-ring { fill:none; pointer-events:none; opacity:0; animation:cyeam-pin-pulse .7s ease-out }
@@ -31,8 +33,9 @@
   `);
   drawing.append(style);
   const selection = svg('g', {'aria-hidden':'true', 'pointer-events':'none'});
-  const targets = svg('g', {'aria-label':'接线'});
-  wireLayer.after(selection, targets);
+  const targets = svg('g', {'aria-label':'导线'});
+  const pinTargets = svg('g', {'aria-label':'端子'});
+  wireLayer.after(selection, targets, pinTargets);
   const geometryScale = wireLayer.getCTM().a / drawing.getCTM().a;
   const unit = uiScale / geometryScale;
   const footer = svg('g', {
@@ -56,26 +59,29 @@
     return copy;
   }
 
-  function updateFooter(route, color) {
-    const descriptions = route ? route.pins.map(pinName) : [];
+  function updateFooter(route, color, selectedPin) {
+    const pins = route?.pins ?? [];
     labels.replaceChildren();
     // One row per terminal keeps the device names and pin labels readable when a net branches.
-    descriptions.forEach((name, index) => {
+    pins.forEach((pin, index) => {
+      const name = pinName(pin);
       const row = svg('text', {x:35, y:54 + index*22}, name);
+      if (pin === selectedPin) row.setAttribute('font-weight', '700');
       if (name.length > 105) {
         row.setAttribute('textLength', '830');
         row.setAttribute('lengthAdjust', 'spacingAndGlyphs');
       }
       labels.append(svg('circle', {cx:22, cy:49+index*22, r:3.5, fill:color}), row);
     });
-    message.textContent = route ? `接线端点  ·  ${descriptions.length} 个` : '点一根线查看接线端点';
-    const height = descriptions.length ? 50+descriptions.length*22 : 45;
+    const heading = selectedPin ? pinName(selectedPin) : '接线端点';
+    message.textContent = route ? `${heading}  ·  ${pins.length} 个端点` : '点导线或端子查看相连线路';
+    const height = pins.length ? 50+pins.length*22 : 45;
     panel.setAttribute('height', height);
     viewport.height = diagramHeight + height*uiScale;
     drawing.setAttribute('height', originalHeight*viewport.height/diagramHeight);
   }
 
-  function select(route, clicked) {
+  function select(route, clicked, selectedPin) {
     selection.replaceChildren();
     wireLayer.style.opacity = route ? '.28' : '';
     drawing.toggleAttribute('data-cyeam-selected', Boolean(route));
@@ -83,7 +89,7 @@
       updateFooter();
       return;
     }
-    const color = shapes[clicked].getAttribute('stroke');
+    const color = shapes[clicked ?? route.wires[0]].getAttribute('stroke');
     for (const index of route.wires) {
       const copy = wireCopy(index, 'cyeam-selected');
       copy.setAttribute('stroke-width', unit*(index === clicked ? 4.6 : 3.4));
@@ -97,15 +103,36 @@
     }
     for (const pin of route.pins) {
       const [cx, cy] = pin.at;
+      const active = pin === selectedPin;
       selection.append(
-        svg('circle', {cx,cy,r:unit*5.5,fill:'#fff',stroke:color,'stroke-width':unit*1.8}),
-        svg('circle', {cx,cy,r:unit*2.1,fill:color}),
+        svg('circle', {cx,cy,r:unit*(active ? 7.2 : 5.5),fill:'#fff',stroke:color,'stroke-width':unit*1.8}),
+        svg('circle', {cx,cy,r:unit*(active ? 3.5 : 2.1),fill:color}),
         svg('circle', {cx,cy,r:unit*8,stroke:color,'stroke-width':unit*2,class:'cyeam-ring'}),
       );
     }
-    updateFooter(route, color);
+    updateFooter(route, color, selectedPin);
   }
 
+  function activate(target, label, action, focusable) {
+    target.append(svg('title', {}, label));
+    target.addEventListener('click', event => {
+      event.stopPropagation();
+      action();
+    });
+    if (focusable) {
+      target.setAttribute('tabindex', '0');
+      target.setAttribute('role', 'button');
+      target.setAttribute('aria-label', label);
+      target.addEventListener('keydown', event => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          action();
+        }
+      });
+    }
+  }
+
+  const pins = routes.flatMap(route => route.pins);
   for (const route of routes) {
     const label = route.pins.map(pinName).join(' ↔ ') || '接线';
     for (const [order, index] of route.wires.entries()) {
@@ -113,23 +140,23 @@
       hit.setAttribute('stroke', 'transparent');
       hit.setAttribute('stroke-width', unit*11);
       hit.dataset.cyeamHit = index;
-      hit.append(svg('title', {}, label));
-      hit.addEventListener('click', event => {
-        event.stopPropagation();
-        select(route, index);
-      });
-      if (order === 0) {
-        hit.setAttribute('tabindex', '0');
-        hit.setAttribute('role', 'button');
-        hit.setAttribute('aria-label', label);
-        hit.addEventListener('keydown', event => {
-          if (event.key === 'Enter' || event.key === ' ') {
-            event.preventDefault();
-            select(route, index);
-          }
-        });
-      }
+      activate(hit, label, () => select(route, index), order === 0);
       targets.append(hit);
+    }
+    for (const pin of route.pins) {
+      const [cx, cy] = pin.at;
+      // Close pins such as adjacent power and data pads need separate click targets.
+      let radius = unit*8;
+      for (const other of pins) {
+        const distance = Math.hypot(other.at[0]-cx, other.at[1]-cy);
+        if (distance > 0) radius = Math.min(radius, distance*.48);
+      }
+      const hit = svg('circle', {
+        cx, cy, r:radius, class:'cyeam-pin', fill:'#fff', 'fill-opacity':0,
+        stroke:'#486977', 'stroke-width':unit, 'stroke-opacity':.45,
+      });
+      activate(hit, pinName(pin), () => select(route, undefined, pin), true);
+      pinTargets.append(hit);
     }
   }
   drawing.addEventListener('click', () => select());

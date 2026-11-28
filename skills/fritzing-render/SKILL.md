@@ -17,7 +17,7 @@ description: 用 fritzing-render 绘制、修改或导出硬件接线图，交�
 
 - 在 Fritzing 桌面版编辑 `.fzz`。已有 `.fzz` 可直接用 `fritzing-render` 预览和导出。网页 **Editor** 编辑 JSON 草图，**Sketches** 接收 `.fzz`、`.fz` 和 JSON 用于渲染。
 - 优先使用可用的本地 CLI。Docker 可用时使用官方容器镜像。也可把草图打开到 `fritzing-render` 网页，查看相应视图并下载。命令、格式例子和自定义元件打包说明见 [渲染与草图格式](references/fritzing.md)。
-- 需要点选导线、查看端点时，运行 `cyeam wiring render <sketch.fzz>`。用浏览器单独打开生成的 SVG。
+- 需要点选导线或端子时，运行 `cyeam wiring render <sketch.fzz>`。用浏览器单独打开生成的 SVG。
 - 交付 `.fzz` 时把自制元件打包在源文件中。网页编辑器的项目则保存 JSON，以及它依赖的自定义元件文件。要更新 README 时，在目标仓库保存源文件和 SVG，使用相对路径嵌入图及链接源文件。
 
 ## 验证交付
